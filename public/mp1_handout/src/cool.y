@@ -19,7 +19,6 @@ extern int yylex();           /* the entry point to the lexer  */
 extern int curr_lineno;
 extern char *curr_filename;
 Program ast_root;            /* the result of the parse  */
-Classes parse_results;       /* for use in semantic analysis */
 int omerrs = 0;              /* number of errors in lexing and parsing */
 
 /*
@@ -82,14 +81,14 @@ extern int VERBOSE_ERRORS;
 %token <symbol>  STR_CONST 275 INT_CONST 276 
 %token <boolean> BOOL_CONST 277
 %token <symbol>  TYPEID 278 OBJECTID 279 
-%token ASSIGN 280 NOT 281 LE 282 ERROR 283
+%token ASSIGN 280 NOT 281 LE 282 FOR 283 ERROR 284
 
 /*  DON'T CHANGE ANYTHING ABOVE THIS LINE, OR YOUR PARSER WONT WORK       */
 /**************************************************************************/
- 
-   /* Complete the nonterminal list below, giving a type for the semantic
-      value of each non terminal. (See section 3.6 in the bison 
-      documentation for details). */
+
+/* Complete the nonterminal list below, giving a type for the semantic
+  value of each non terminal. (See section 3.6 in the bison 
+  documentation for details). */
 
 /* Declare types for the grammar's non-terminals. */
 %type <program> program
@@ -133,18 +132,17 @@ dummy_feature_list:        /* empty */
 %%
 
 /* This function is called automatically when Bison detects a parse error. */
-void yyerror(const char *s)
-{
-  cerr << "\"" << curr_filename << "\", line " << curr_lineno << ": " \
-    << s << " at or near ";
+void yyerror(const char *s) {
+  std::cerr << "\"" << curr_filename << "\", line " << curr_lineno << ": " << s
+            << " at or near ";
   print_cool_token(yychar);
-  cerr << endl;
+  std::cerr << std::endl;
   omerrs++;
 
-  if(omerrs>20) {
-      if (VERBOSE_ERRORS)
-         fprintf(stderr, "More than 20 errors\n");
-      exit(1);
+  if (omerrs > 20) {
+    if (VERBOSE_ERRORS) {
+      std::cerr << "More than 20 errors\n";
+    }
+    exit(1);
   }
 }
-

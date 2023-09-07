@@ -4,7 +4,6 @@
 //
 #include "copyright.h"
 
-
 ///////////////////////////////////////////////////////////////////////////
 //
 // file: tree.cc
@@ -26,25 +25,19 @@ extern int yylineno;
 // constructor of tree node
 //
 ///////////////////////////////////////////////////////////////////////////
-tree_node::tree_node()
-{
-    line_number = yylineno;
-}
+tree_node::tree_node() { line_number = yylineno; }
 
 ///////////////////////////////////////////////////////////////////////////
 //
 // tree_node::get_line_number
 //
 ///////////////////////////////////////////////////////////////////////////
-int tree_node::get_line_number()
-{	
-	return line_number;
-}
+int tree_node::get_line_number() { return line_number; }
 
 //
 // Set up common area from existing node
 //
 tree_node *tree_node::set(tree_node *t) {
-   line_number = t->line_number;
-   return this;
+  line_number = t->line_number;
+  return this;
 }

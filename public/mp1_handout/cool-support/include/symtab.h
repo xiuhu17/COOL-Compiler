@@ -17,22 +17,20 @@
 #include "list.h"
 
 // added to prevent clash with llvm::SymbolTable
-namespace cool
-{
+namespace cool {
 
 //
 // SymtabEnty<SYM,DAT> defines the entry for a symbol table that associates
-//    symbols of type `SYM' with data of type `DAT *'.  
+//    symbols of type `SYM' with data of type `DAT *'.
 //
 
-template <class SYM, class DAT>
-class SymtabEntry {
+template <class SYM, class DAT> class SymtabEntry {
 private:
-  SYM id;        // the key field
-  DAT *info;     // associated information for the symbol
+  SYM id;    // the key field
+  DAT *info; // associated information for the symbol
 public:
-  SymtabEntry(SYM x, DAT *y) : id(x), info(y) { }
-  SYM get_id() const    { return id; }
+  SymtabEntry(SYM x, DAT *y) : id(x), info(y) {}
+  SYM get_id() const { return id; }
   DAT *get_info() const { return info; }
 };
 
@@ -41,7 +39,7 @@ public:
 //    type `SYM' to data of type `DAT *'.  It is implemented as a
 //    list of lists of `SymtabEntry<SYM,DAT> *'.  The inner list is
 //    a scope, a mapping from symbols to data, and the outer list is
-//    a list of scopes. 
+//    a list of scopes.
 //
 //    `tbl' points to the current top scope.
 //
@@ -66,7 +64,7 @@ public:
 //        the root scope is reached.  It returns the data item
 //        associated with the entry, or NULL if no such entry exists.
 //
-//    
+//
 //    `probe(s)' checks the top scope for an entry whose `get_id()'
 //        equals `s', and returns the entry's `get_info()' if
 //        found, and NULL otherwise.
@@ -74,103 +72,98 @@ public:
 //    `dump()' prints the symbols in the symbol table.
 //
 
-template <class SYM, class DAT>
-class SymbolTable
-{
-   typedef SymtabEntry<SYM,DAT> ScopeEntry;
-   typedef List<ScopeEntry> Scope;
-   typedef List<Scope> ScopeList;
+template <class SYM, class DAT> class SymbolTable {
+  typedef SymtabEntry<SYM, DAT> ScopeEntry;
+  typedef List<ScopeEntry> Scope;
+  typedef List<Scope> ScopeList;
+
 private:
-   ScopeList  *tbl;
+  ScopeList *tbl;
+
 public:
-   SymbolTable(): tbl(NULL) { }     // create a new symbol table
+  SymbolTable() : tbl(NULL) {} // create a new symbol table
 
-   // Create pointer to current symbol table.
-   SymbolTable &operator =(const SymbolTable &s) { tbl = s.tbl; return *this; }
+  // Create pointer to current symbol table.
+  SymbolTable &operator=(const SymbolTable &s) {
+    tbl = s.tbl;
+    return *this;
+  }
 
-   void fatal_error(char * msg)
-   {
-     cerr << msg << "\n";
-     exit(1);
-   } 
+  void fatal_error(char *msg) {
+    std::cerr << msg << "\n";
+    exit(1);
+  }
 
-   // Enter a new scope.  A symbol table is organized as a list of
-   // lists.  The head of the list is the innermost scope, the tail
-   // holds the outer scopes.  A scope must be entered before anything
-   // can be added to the table.
+  // Enter a new scope.  A symbol table is organized as a list of
+  // lists.  The head of the list is the innermost scope, the tail
+  // holds the outer scopes.  A scope must be entered before anything
+  // can be added to the table.
 
-   void enterscope()
-   {
-       // The cast of NULL is required for template instantiation to work
-       // correctly.
-       tbl = new ScopeList((Scope *) NULL, tbl);
-   }
+  void enterscope() {
+    // The cast of NULL is required for template instantiation to work
+    // correctly.
+    tbl = new ScopeList((Scope *)NULL, tbl);
+  }
 
-   // Pop the first scope off of the symbol table.
-   void exitscope()
-   {
-       // It is an error to exit a scope that doesn't exist.
-       if (tbl == NULL) {
-	   fatal_error("exitscope: Can't remove scope from an empty symbol table.");
-       }
-       tbl = tbl->tl();
-   }
+  // Pop the first scope off of the symbol table.
+  void exitscope() {
+    // It is an error to exit a scope that doesn't exist.
+    if (tbl == NULL) {
+      fatal_error("exitscope: Can't remove scope from an empty symbol table.");
+    }
+    tbl = tbl->tl();
+  }
 
-   // Add an item to the symbol table.
-   ScopeEntry *addid(SYM s, DAT *i)
-   {
-       // There must be at least one scope to add a symbol.
-       if (tbl == NULL) fatal_error("addid: Can't add a symbol without a scope.");
-       ScopeEntry * se = new ScopeEntry(s,i);
-       tbl = new ScopeList(new Scope(se, tbl->hd()), tbl->tl());
-       return(se);
-   }
-   
-   // Lookup an item through all scopes of the symbol table.  If found
-   // it returns the associated information field, if not it returns
-   // NULL.
+  // Add an item to the symbol table.
+  ScopeEntry *addid(SYM s, DAT *i) {
+    // There must be at least one scope to add a symbol.
+    if (tbl == NULL)
+      fatal_error("addid: Can't add a symbol without a scope.");
+    ScopeEntry *se = new ScopeEntry(s, i);
+    tbl = new ScopeList(new Scope(se, tbl->hd()), tbl->tl());
+    return (se);
+  }
 
-   DAT * lookup(SYM s)
-   {
-       for(ScopeList *i = tbl; i != NULL; i=i->tl()) {
-	   for( Scope *j = i->hd(); j != NULL; j = j->tl()) {
-	       if (s == j->hd()->get_id()) {
-		   return (j->hd()->get_info());
-	       }
-	   }
-       }
-       return NULL;
-   }
+  // Lookup an item through all scopes of the symbol table.  If found
+  // it returns the associated information field, if not it returns
+  // NULL.
 
-   // probe the symbol table.  Check the top scope (only) for the item
-   // 's'.  If found, return the information field.  If not return NULL.
-   DAT *probe(SYM s)
-   {
-       if (tbl == NULL) {
-	   fatal_error("probe: No scope in symbol table.");
-       }
-       for(Scope *i = tbl->hd(); i != NULL; i = i->tl()) {
-	   if (s == i->hd()->get_id()) {
-	       return(i->hd()->get_info());
-	   }
-       }
-       return(NULL);
-   }
-
-   // Prints out the contents of the symbol table  
-   void dump()
-   {
-      for(ScopeList *i = tbl; i != NULL; i = i->tl()) {
-         cerr << "\nScope: \n";
-         for(Scope *j = i->hd(); j != NULL; j = j->tl()) {
-            cerr << "  " << j->hd()->get_id() << endl;
-         }
+  DAT *lookup(SYM s) {
+    for (ScopeList *i = tbl; i != NULL; i = i->tl()) {
+      for (Scope *j = i->hd(); j != NULL; j = j->tl()) {
+        if (s == j->hd()->get_id()) {
+          return (j->hd()->get_info());
+        }
       }
-   }
- 
+    }
+    return NULL;
+  }
+
+  // probe the symbol table.  Check the top scope (only) for the item
+  // 's'.  If found, return the information field.  If not return NULL.
+  DAT *probe(SYM s) {
+    if (tbl == NULL) {
+      fatal_error("probe: No scope in symbol table.");
+    }
+    for (Scope *i = tbl->hd(); i != NULL; i = i->tl()) {
+      if (s == i->hd()->get_id()) {
+        return (i->hd()->get_info());
+      }
+    }
+    return (NULL);
+  }
+
+  // Prints out the contents of the symbol table
+  void dump() {
+    for (ScopeList *i = tbl; i != NULL; i = i->tl()) {
+      std::cerr << "\nScope: \n";
+      for (Scope *j = i->hd(); j != NULL; j = j->tl()) {
+        std::cerr << "  " << j->hd()->get_id() << std::endl;
+      }
+    }
+  }
 };
 
-} // end of cool namespace
+} // namespace cool
 
 #endif
-
