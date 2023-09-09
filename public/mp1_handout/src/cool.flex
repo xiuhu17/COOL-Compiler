@@ -22,20 +22,24 @@ extern FILE *fin; /* we read from this file */
   if ((result = fread((char *)buf, sizeof(char), max_size, fin)) < 0)          \
     YY_FATAL_ERROR("read() in flex scanner failed");
 
+
 extern int curr_lineno;
 /*
  *  Add Your own definitions here
  */
 
+#define MAX_STR_LEN 1024
 %}
 
 %option noyywrap
+%x single_string
+%x triple_string
+%x comment
+
 
 /*
  * Define names for regular expressions here.
  */
-
-digit       [0-9]
 
 %%
 
@@ -53,5 +57,55 @@ digit       [0-9]
   *   - Line counting: You should keep the global variable curr_lineno updated
   *     with the correct line number
   */
+
+  char string_buf[MAX_STR_LEN + 1]
+  char *string_buf_ptr;
+  int comment_open_cnt = 0;
+
+
+  [cC][lL][aA][sS][sS]                {return CLASS;}
+  [eE][lL][sS][eE]                    {return ELSE;}
+  [fF][iI]                            {return FI;}
+  [iI][fF]                            {return IF;}
+  [iI][nN]                            {return IN;}
+  [iI][nN][hH][eE][rR][iI][tT][sS]    {return INHERITS;}
+  [iI][sS][vV][oO][iI][dD]            {return ISVOID;}
+  [lL][eE][tT]                        {return LET;}
+  [lL][oO][oO][pP]                    {return LOOP;}
+  [pP][oO][oO][lL]                    {return POOL;}
+  [tT][hH][eE][nN]                    {return THEN;}
+  [wW][hH][iI][lL][eE]                {return WHILE;}
+  [cC][aA][sS][eE]                    {return CASE;}
+  [eE][sS][aA][cC]                    {return ESAC;}
+  [nN][eE][wW]                        {return NEW;}
+  [oO][fF]                            {return OF;}
+  [nN][oO][tT]                        {return NOT;}
+  [fF][oO][rR]                        {return FOR;}
+  <-                                  {return ASSIGN;}
+  =>                                  {return DARROW;}
+
+
+
+  false                               {cool_yylval.boolean = false; return BOOL_CONST;}
+  true                                {cool_yylval.boolean = true; return BOOL_CONST;}
+
+  [+/-*=<.~,;:()@{}]                  {return *yytext;}
+
+  [0-9]+                              {Symbol symb = inttable.add_string(yytext); cool_yylval.symbol = symb; return INT_CONST;}
+  0x[0-9]+                            {string store_hex = yytext; string store_dec = hex2dec(store_hex); Symbol symb = inttable.add_int(std::stoi(store_dec)); cool_yylval = symb; return INT_CONST;}
+  [A-Z][a-zA-Z0-9_]*                  {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return TYPEID;}
+  SELF | SELF_TYPE                    {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return TYPEID;}
+  [a-z][a-zA-Z0-9_]*                  {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return OBJECTID;}
+
+  [ \f\r\t\v]+                        {}
+  [\n]                                {curr_lineno ++;}  
+
+  \"                                  {BEGIN(single_string);}
+  
+  \"""                                {BEGIN(triple_string);}    
+
+
+  [btnf]
+
 
 %%

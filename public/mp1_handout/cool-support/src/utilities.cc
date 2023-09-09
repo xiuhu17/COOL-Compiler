@@ -41,6 +41,7 @@ void fatal_error(char *msg) {
   exit(1);
 }
 
+// printout the escaped version, for example, if input \n, it will show \n directly in string rather than new line
 void print_escaped_string(std::ostream &str, const char *s) {
   while (*s) {
     switch (*s) {
