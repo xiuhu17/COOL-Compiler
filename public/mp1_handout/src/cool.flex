@@ -34,7 +34,8 @@ extern int curr_lineno;
 %option noyywrap
 %x single_string
 %x triple_string
-%x comment
+%x open_comment
+%x dash_comment
 
 
 /*
@@ -59,7 +60,7 @@ extern int curr_lineno;
   */
 
   char string_buf[MAX_STR_LEN + 1]
-  char *string_buf_ptr;
+  int string_buf_idx = 0;
   int comment_open_cnt = 0;
 
 
@@ -85,27 +86,79 @@ extern int curr_lineno;
   =>                                  {return DARROW;}
 
 
-
   false                               {cool_yylval.boolean = false; return BOOL_CONST;}
   true                                {cool_yylval.boolean = true; return BOOL_CONST;}
 
+
   [+/-*=<.~,;:()@{}]                  {return *yytext;}
 
+
   [0-9]+                              {Symbol symb = inttable.add_string(yytext); cool_yylval.symbol = symb; return INT_CONST;}
-  0x[0-9]+                            {string store_hex = yytext; string store_dec = hex2dec(store_hex); Symbol symb = inttable.add_int(std::stoi(store_dec)); cool_yylval = symb; return INT_CONST;}
+  0x[0-9]+                            {string store_hex = yytext; string store_dec = hex2dec(store_hex); Symbol symb = inttable.add_int(std::stoi(store_dec)); cool_yylval.symbol = symb; return INT_CONST;}
   [A-Z][a-zA-Z0-9_]*                  {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return TYPEID;}
   SELF | SELF_TYPE                    {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return TYPEID;}
   [a-z][a-zA-Z0-9_]*                  {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return OBJECTID;}
 
+
   [ \f\r\t\v]+                        {}
   [\n]                                {curr_lineno ++;}  
 
-  \"                                  {BEGIN(single_string);}
-  
-  \"""                                {BEGIN(triple_string);}    
+
+  "                                   {memset(string_buf, 0, 1024 + 1); string_buf_idx = 0; BEGIN(single_string);}
+  <single_string>\"                   {string_buf[string_buf_idx] = '\0'; Symbol symb = stringtable.add_string(string_buf); cool_yylval.symbol = symb; BEGIN(INITIAL); return STR_CONST;}
+  <single_string>[\\][btnf"]          {
+                                        if (string_buf_idx < 1024 - 1) {
+                                          string_buf[string_buf_idx] = '\\'; 
+                                          string_buf[string_buf_idx + 1] = *(yytext  + 1);
+                                          string_buf_idx += 2;
+                                        } else {
+                                          char *errom = "String constant too long";
+                                          cool_yylval.error_msg = errom; 
+                                          BEGIN(INITIAL);
+                                          return ERROR;
+                                        }
+                                      }
+  <single_string>[\\][.]              {
+                                        if (string_buf_idx < 1024) {
+                                          string_buf[string_buf_idx] = *(yytext);
+                                          string_buf_idx += 1;
+                                        } else {
+                                          char *errom = "String constant too long";
+                                          cool_yylval.error_msg = errom; 
+                                          BEGIN(INITIAL);
+                                          return ERROR;
+                                        }
+                                      }
+  <single_string>[^\\\n\"]+           {
+                                        char *iter = yytext;
+                                        while (iter && *iter) {
+                                          if (string_buf_idx < 1024) {
+                                            string_buf[string_buf_idx] = *iter;
+                                            iter ++;
+                                            string_buf_idx ++;
+                                          } else {
+                                            char *errom = "String constant too long";
+                                            cool_yylval.error_msg = errom; 
+                                            BEGIN(INITIAL);
+                                            return ERROR;
+                                          }
+                                        }
+                                        if ((char next = input()) == '\0') {
+                                          char *errom = "String contains null character.";
+                                          cool_yylval.error_msg = errom; 
+                                          BEGIN(INITIAL);
+                                          return ERROR;
+                                        }
+                                      } 
+  <single_string><<EOF>>              {char *errom = "Unterminated string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+  <single_string>\n                   {char *errom = "Unterminated string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
 
 
-  [btnf]
 
+  """                                 {string_buf_ptr = string_buf; BEGIN(triple_string);}    
+
+
+
+  <<EOF>>                             {BEGIN(INITIAL); return EOF;}
 
 %%
