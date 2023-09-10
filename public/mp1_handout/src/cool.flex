@@ -39,6 +39,8 @@ int str_escaped_helper(char input, char match);
 %x single_string_null
 %x single_string_long
 %x triple_string
+%x triple_string_null
+%x triple_string_long
 %x open_comment
 %x dash_comment
 
@@ -69,8 +71,13 @@ OBJECTID_                   [a-z][a-zA-Z0-9_]*
 BLANK_                      [ \f\r\t\v]+
 NEW_LINE_                   [\n]
 NULL_                       [\0]
+SINGLE_STR_ESCAPED_         [\\][btnf\"]
 SINGLE_STR_N_ESCAPED_       [\\][^btnf\"]
-SINGLE_STR_NORMAL_          [^\\\n\"\0]+
+SINGLE_STR_NORMAL_          [^\\\n\"\0]+          
+
+TRIPLE_STR_ESCAPED_         [\\][btnf\"]
+TRIPLE_STR_N_ESCAPED_       [\\][^btnf\"]
+TRIPLE_STR_NORMAL_          [^\\\n\"\0]+   
 
 %%
 
@@ -152,6 +159,7 @@ SINGLE_STR_NORMAL_          [^\\\n\"\0]+
                                             string_buf_idx ++;
                                           } else {
                                             BEGIN(single_string_long);
+                                            break;
                                           }
                                         }
                                       } 
@@ -171,6 +179,63 @@ SINGLE_STR_NORMAL_          [^\\\n\"\0]+
 
 <single_string_null>.
 <single_string_long>.
+
+\"\"\"                                    {memset(string_buf, 0, 1024 + 1); string_buf_idx = 0; BEGIN(triple_string);}
+<triple_string>\"\"\"                     {string_buf[string_buf_idx] = '\0'; Symbol symb = stringtable.add_string(string_buf); cool_yylval.symbol = symb; BEGIN(INITIAL); return STR_CONST;}
+
+<triple_string>[\\]*\\b                    {int erron = str_escaped_helper('\b', 'b'); if (erron < 0) {BEGIN(triple_string_long);}}
+<triple_string>[\\]*\\t                    {int erron = str_escaped_helper('\t', 't'); if (erron < 0) {BEGIN(triple_string_long);}}
+<triple_string>[\\]*\\n                    {int erron = str_escaped_helper('\n', 'n'); if (erron < 0) {BEGIN(triple_string_long);}}
+<triple_string>[\\]*\\f                    {int erron = str_escaped_helper('\f', 'f'); if (erron < 0) {BEGIN(triple_string_long);}}
+<triple_string>\\\                         {int erron = str_escaped_helper('\\', '\0'); if (erron < 0) {BEGIN(triple_string_long);}}
+<triple_string>\\["]                       {int erron = str_escaped_helper('\"', '\0'); if (erron < 0) {BEGIN(triple_string_long);}}
+
+<triple_string>{TRIPLE_STR_N_ESCAPED_}  {
+                                          if (string_buf_idx < 1024) {
+                                            string_buf[string_buf_idx] = *(yytext + 1);
+                                            string_buf_idx += 1;
+                                          } else {
+                                            BEGIN(triple_string_long);
+                                          }
+                                        }
+<triple_string>{TRIPLE_STR_NORMAL_}   {
+                                        char *iter = yytext;
+                                        while (iter && *iter) {
+                                          if (string_buf_idx < 1024) {
+                                            string_buf[string_buf_idx] = *iter;
+                                            iter ++;
+                                            string_buf_idx ++;
+                                          } else {
+                                            BEGIN(triple_string_long);
+                                            break;
+                                          }
+                                        }
+                                      }
+<triple_string>\"                     { if (string_buf_idx < 1024) {
+                                            string_buf[string_buf_idx] = '\"';
+                                            string_buf_idx += 1;
+                                          } else {
+                                            BEGIN(triple_string_long);
+                                        }
+                                      }                                  
+<triple_string>{NEW_LINE_}            {curr_lineno ++;}
+<triple_string><<EOF>>                {const char *errom = "EOF in string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<triple_string>{NULL_}                {BEGIN(triple_string_null);}
+
+<triple_string_null>{NEW_LINE_}       {curr_lineno ++;}
+<triple_string_long>{NEW_LINE_}       {curr_lineno ++;}
+
+<triple_string_null><<EOF>>           {const char *errom = "EOF in string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<triple_string_long><<EOF>>           {const char *errom = "EOF in string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+
+<triple_string_null>\"\"\"                {const char *errom = "String contains null character."; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<triple_string_long>\"\"\"                {const char *errom = "String constant too long"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+
+<triple_string_null>.
+<triple_string_long>.
+
+
+
 
 <<EOF>> {return 0;}
 %%
