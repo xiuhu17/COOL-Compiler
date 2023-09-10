@@ -36,7 +36,8 @@ int str_escaped_helper(char input, char match);
 
 %option noyywrap
 %x single_string
-%x single_string_null_long
+%x single_string_null
+%x single_string_long
 %x triple_string
 %x open_comment
 %x dash_comment
@@ -128,22 +129,18 @@ SINGLE_STR_NORMAL_          [^\\\n\"\0]+
 \"                                    {memset(string_buf, 0, 1024 + 1); string_buf_idx = 0; BEGIN(single_string);}
 <single_string>\"                     {string_buf[string_buf_idx] = '\0'; Symbol symb = stringtable.add_string(string_buf); cool_yylval.symbol = symb; BEGIN(INITIAL); return STR_CONST;}
 
-<single_string>[\\]*\\b                    {int erron = str_escaped_helper('\b', 'b'); if (erron < 0) {BEGIN(single_string_null_long);}}
-<single_string>[\\]*\\t                    {int erron = str_escaped_helper('\t', 't'); if (erron < 0) {BEGIN(single_string_null_long);}}
-<single_string>[\\]*\\n                    {int erron = str_escaped_helper('\n', 'n'); if (erron < 0) {BEGIN(single_string_null_long);}}
-<single_string>[\\]*\\f                    {int erron = str_escaped_helper('\f', 'f'); if (erron < 0) {BEGIN(single_string_null_long);}}
-<single_string>\\\                         {int erron = str_escaped_helper('\\', '\0'); if (erron < 0) {BEGIN(single_string_null_long);}}
-<single_string>\\["]                       {int erron = str_escaped_helper('\"', '\0'); if (erron < 0) {BEGIN(single_string_null_long);}}
-
+<single_string>[\\]*\\b                    {int erron = str_escaped_helper('\b', 'b'); if (erron < 0) {BEGIN(single_string_long);}}
+<single_string>[\\]*\\t                    {int erron = str_escaped_helper('\t', 't'); if (erron < 0) {BEGIN(single_string_long);}}
+<single_string>[\\]*\\n                    {int erron = str_escaped_helper('\n', 'n'); if (erron < 0) {BEGIN(single_string_long);}}
+<single_string>[\\]*\\f                    {int erron = str_escaped_helper('\f', 'f'); if (erron < 0) {BEGIN(single_string_long);}}
+<single_string>\\\                         {int erron = str_escaped_helper('\\', '\0'); if (erron < 0) {BEGIN(single_string_long);}}
+<single_string>\\["]                       {int erron = str_escaped_helper('\"', '\0'); if (erron < 0) {BEGIN(single_string_long);}}
 <single_string>{SINGLE_STR_N_ESCAPED_}  {
                                           if (string_buf_idx < 1024) {
                                             string_buf[string_buf_idx] = *(yytext + 1);
                                             string_buf_idx += 1;
                                           } else {
-                                            const char *errom = "String constant too long";
-                                            cool_yylval.error_msg = errom; 
-                                            BEGIN(INITIAL);
-                                            return ERROR;
+                                            BEGIN(single_string_long);
                                           }
                                         }
 <single_string>{SINGLE_STR_NORMAL_}   {
@@ -154,43 +151,41 @@ SINGLE_STR_NORMAL_          [^\\\n\"\0]+
                                             iter ++;
                                             string_buf_idx ++;
                                           } else {
-                                            const char *errom = "String constant too long";
-                                            cool_yylval.error_msg = errom; 
-                                            BEGIN(INITIAL);
-                                            return ERROR;
+                                            BEGIN(single_string_long);
                                           }
                                         }
                                       } 
 <single_string>{NEW_LINE_}            {curr_lineno ++; const char *errom = "Unterminated string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
-<single_string>{NULL_}                {const char *errom = "String contains null character."; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
-<single_string><<EOF>>                 {const char *errom = "Unterminated string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
-<single_string_null_long>
+<single_string><<EOF>>                {const char *errom = "EOF in string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<single_string>{NULL_}                {BEGIN(single_string_null);}
+
+
+<single_string_null>{NEW_LINE_}       {curr_lineno ++; const char *errom = "Unterminated string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<single_string_long>{NEW_LINE_}       {curr_lineno ++; const char *errom = "Unterminated string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+
+<single_string_null><<EOF>>           {const char *errom = "EOF in string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<single_string_long><<EOF>>           {const char *errom = "EOF in string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+
+<single_string_null>\"                {const char *errom = "String contains null character."; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<single_string_long>\"                {const char *errom = "String constant too long"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+
+<single_string_null>.
+<single_string_long>.
 
 <<EOF>> {return 0;}
 %%
 
 
 int str_escaped_helper(char input, char match) {
-  char *iter = yytext;
-  int odd = 0;
+  int extra = 0;
   if (match != '\0'){
-    while (iter && *iter) {
-      if (*iter == match) {
-        break;
-      }
-      if (odd) {
-        if (string_buf_idx < 1024) {
-          string_buf[string_buf_idx] = '\\';
-          string_buf_idx ++;
-        } else {
-          return -1;
-        }
-      }
-      odd = 1 - odd;
-      iter ++;
-    }
+    extra += (strlen(yytext) - 2) / 2;
   }
-  if (string_buf_idx < 1024) {
+  if (string_buf_idx + extra < 1024) {
+    for (int i = 0; i < extra; ++ i) {
+      string_buf[string_buf_idx] = '\\';
+      string_buf_idx ++;
+    }
     string_buf[string_buf_idx] = input;
     string_buf_idx ++;
   } else {
