@@ -11,6 +11,9 @@
 #include <cool-parse.h>
 #include <stringtab.h>
 #include <utilities.h>
+#define MAX_STR_LEN 1024
+
+
 
 /* define YY_INPUT so we read from the FILE fin:
  * This change makes it possible to use this scanner in
@@ -22,25 +25,51 @@ extern FILE *fin; /* we read from this file */
   if ((result = fread((char *)buf, sizeof(char), max_size, fin)) < 0)          \
     YY_FATAL_ERROR("read() in flex scanner failed");
 
-
 extern int curr_lineno;
-/*
- *  Add Your own definitions here
- */
+char string_buf[MAX_STR_LEN + 1];
+int string_buf_idx = 0;
+int comment_open_cnt = 0;
+int str_escaped_helper(char input, char match);
 
-#define MAX_STR_LEN 1024
 %}
+
 
 %option noyywrap
 %x single_string
+%x single_string_null_long
 %x triple_string
 %x open_comment
 %x dash_comment
 
-
-/*
- * Define names for regular expressions here.
- */
+digit                       [0-9]
+CLASS_                      [cC][lL][aA][sS][sS]                
+ELSE_                       [eE][lL][sS][eE]                    
+FI_                         [fF][iI]                            
+IF_                         [iI][fF]                            
+IN_                         [iI][nN]                            
+INHERITS_                   [iI][nN][hH][eE][rR][iI][tT][sS]    
+ISVOID_                     [iI][sS][vV][oO][iI][dD]            
+LET_                        [lL][eE][tT]                        
+LOOP_                       [lL][oO][oO][pP]                    
+POOL_                       [pP][oO][oO][lL]                    
+THEN_                       [tT][hH][eE][nN]                    
+WHILE_                      [wW][hH][iI][lL][eE]                
+CASE_                       [cC][aA][sS][eE]                    
+ESAC_                       [eE][sS][aA][cC]                    
+NEW_                        [nN][eE][wW]                        
+OF_                         [oO][fF]                            
+NOT_                        [nN][oO][tT]                        
+FOR_                        [fF][oO][rR]
+OPERATOR_                   [+/-*=<.~,;:()@{}]
+DEC_INT_                    [0-9]+
+HEX_INT_                    [0][x][0-9]+ 
+TYPEID_                     [A-Z][a-zA-Z0-9_]*
+OBJECTID_                   [a-z][a-zA-Z0-9_]* 
+BLANK_                      [ \f\r\t\v]+
+NEW_LINE_                   [\n]
+NULL_                       [\0]
+SINGLE_STR_N_ESCAPED_       [\\][^btnf\"]
+SINGLE_STR_NORMAL_          [^\\\n\"\0]+
 
 %%
 
@@ -58,78 +87,66 @@ extern int curr_lineno;
   *   - Line counting: You should keep the global variable curr_lineno updated
   *     with the correct line number
   */
-
-  char string_buf[MAX_STR_LEN + 1]
-  int string_buf_idx = 0;
-  int comment_open_cnt = 0;
-
-
-  [cC][lL][aA][sS][sS]                {return CLASS;}
-  [eE][lL][sS][eE]                    {return ELSE;}
-  [fF][iI]                            {return FI;}
-  [iI][fF]                            {return IF;}
-  [iI][nN]                            {return IN;}
-  [iI][nN][hH][eE][rR][iI][tT][sS]    {return INHERITS;}
-  [iI][sS][vV][oO][iI][dD]            {return ISVOID;}
-  [lL][eE][tT]                        {return LET;}
-  [lL][oO][oO][pP]                    {return LOOP;}
-  [pP][oO][oO][lL]                    {return POOL;}
-  [tT][hH][eE][nN]                    {return THEN;}
-  [wW][hH][iI][lL][eE]                {return WHILE;}
-  [cC][aA][sS][eE]                    {return CASE;}
-  [eE][sS][aA][cC]                    {return ESAC;}
-  [nN][eE][wW]                        {return NEW;}
-  [oO][fF]                            {return OF;}
-  [nN][oO][tT]                        {return NOT;}
-  [fF][oO][rR]                        {return FOR;}
-  <-                                  {return ASSIGN;}
-  =>                                  {return DARROW;}
+   
+{CLASS_}                          {return CLASS;}
+{ELSE_}                           {return ELSE;}
+{FI_}                             {return FI;}
+{IF_}                             {return IF;}
+{IN_}                             {return IN;}
+{INHERITS_}                       {return INHERITS;}
+{ISVOID_}                         {return ISVOID;}
+{LET_}                            {return LET;}
+{LOOP_}                           {return LOOP;}
+{POOL_}                           {return POOL;}
+{THEN_}                           {return THEN;}
+{WHILE_}                          {return WHILE;}
+{CASE_}                           {return CASE;}
+{ESAC_}                           {return ESAC;}
+{NEW_}                            {return NEW;}
+{OF_}                             {return OF;}
+{NOT_}                            {return NOT;}
+{FOR_}                            {return FOR;}
+"<-"                              {return ASSIGN;}
+"=>"                              {return DARROW;}
 
 
-  false                               {cool_yylval.boolean = false; return BOOL_CONST;}
-  true                                {cool_yylval.boolean = true; return BOOL_CONST;}
+"false"                           {cool_yylval.boolean = false; return BOOL_CONST;}
+"true"                            {cool_yylval.boolean = true; return BOOL_CONST;}
+'+' | '/' | '-' | '*' | '=' | '<' | '.' | '~' | ',' | ';' | ':' | '(' | ')' | '@' | '{' | '}'   {return *yytext;} 
+"SELF_TYPE"                       {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return TYPEID;}
+"self"                            {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return OBJECTID;}
 
+{DEC_INT_}                        {Symbol symb = inttable.add_string(yytext); cool_yylval.symbol = symb; return INT_CONST;}
+{HEX_INT_}                        {std::string store_hex = yytext; std::string store_dec = hex2dec(store_hex); Symbol symb = inttable.add_int(std::stoi(store_dec)); cool_yylval.symbol = symb; return INT_CONST;}
 
-  [+/-*=<.~,;:()@{}]                  {return *yytext;}
+{TYPEID_}                         {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return TYPEID;}
+{OBJECTID_}                       {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return OBJECTID;}
 
+{BLANK_}                          {}
+{NEW_LINE_}                       {curr_lineno ++;}
 
-  [0-9]+                              {Symbol symb = inttable.add_string(yytext); cool_yylval.symbol = symb; return INT_CONST;}
-  0x[0-9]+                            {string store_hex = yytext; string store_dec = hex2dec(store_hex); Symbol symb = inttable.add_int(std::stoi(store_dec)); cool_yylval.symbol = symb; return INT_CONST;}
-  [A-Z][a-zA-Z0-9_]*                  {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return TYPEID;}
-  SELF | SELF_TYPE                    {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return TYPEID;}
-  [a-z][a-zA-Z0-9_]*                  {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return OBJECTID;}
+\"                                    {memset(string_buf, 0, 1024 + 1); string_buf_idx = 0; BEGIN(single_string);}
+<single_string>\"                     {string_buf[string_buf_idx] = '\0'; Symbol symb = stringtable.add_string(string_buf); cool_yylval.symbol = symb; BEGIN(INITIAL); return STR_CONST;}
 
+<single_string>[\\]*\\b                    {int erron = str_escaped_helper('\b', 'b'); if (erron < 0) {BEGIN(single_string_null_long);}}
+<single_string>[\\]*\\t                    {int erron = str_escaped_helper('\t', 't'); if (erron < 0) {BEGIN(single_string_null_long);}}
+<single_string>[\\]*\\n                    {int erron = str_escaped_helper('\n', 'n'); if (erron < 0) {BEGIN(single_string_null_long);}}
+<single_string>[\\]*\\f                    {int erron = str_escaped_helper('\f', 'f'); if (erron < 0) {BEGIN(single_string_null_long);}}
+<single_string>\\\                         {int erron = str_escaped_helper('\\', '\0'); if (erron < 0) {BEGIN(single_string_null_long);}}
+<single_string>\\["]                       {int erron = str_escaped_helper('\"', '\0'); if (erron < 0) {BEGIN(single_string_null_long);}}
 
-  [ \f\r\t\v]+                        {}
-  [\n]                                {curr_lineno ++;}  
-
-
-  "                                   {memset(string_buf, 0, 1024 + 1); string_buf_idx = 0; BEGIN(single_string);}
-  <single_string>\"                   {string_buf[string_buf_idx] = '\0'; Symbol symb = stringtable.add_string(string_buf); cool_yylval.symbol = symb; BEGIN(INITIAL); return STR_CONST;}
-  <single_string>[\\][btnf\"]         {
-                                        if (string_buf_idx < 1024 - 1) {
-                                          string_buf[string_buf_idx] = '\\'; 
-                                          string_buf[string_buf_idx + 1] = *(yytext  + 1);
-                                          string_buf_idx += 2;
-                                        } else {
-                                          char *errom = "String constant too long";
-                                          cool_yylval.error_msg = errom; 
-                                          BEGIN(INITIAL);
-                                          return ERROR;
+<single_string>{SINGLE_STR_N_ESCAPED_}  {
+                                          if (string_buf_idx < 1024) {
+                                            string_buf[string_buf_idx] = *(yytext + 1);
+                                            string_buf_idx += 1;
+                                          } else {
+                                            const char *errom = "String constant too long";
+                                            cool_yylval.error_msg = errom; 
+                                            BEGIN(INITIAL);
+                                            return ERROR;
+                                          }
                                         }
-                                      }
-  <single_string>[\\][^btnf\"]        {
-                                        if (string_buf_idx < 1024) {
-                                          string_buf[string_buf_idx] = *(yytext);
-                                          string_buf_idx += 1;
-                                        } else {
-                                          char *errom = "String constant too long";
-                                          cool_yylval.error_msg = errom; 
-                                          BEGIN(INITIAL);
-                                          return ERROR;
-                                        }
-                                      }
-  <single_string>[^\\\n\"]+           {
+<single_string>{SINGLE_STR_NORMAL_}   {
                                         char *iter = yytext;
                                         while (iter && *iter) {
                                           if (string_buf_idx < 1024) {
@@ -137,98 +154,47 @@ extern int curr_lineno;
                                             iter ++;
                                             string_buf_idx ++;
                                           } else {
-                                            char *errom = "String constant too long";
+                                            const char *errom = "String constant too long";
                                             cool_yylval.error_msg = errom; 
                                             BEGIN(INITIAL);
                                             return ERROR;
                                           }
                                         }
-                                        if ((char next = input()) == '\0') {
-                                          char *errom = "String contains null character.";
-                                          cool_yylval.error_msg = errom; 
-                                          BEGIN(INITIAL);
-                                          return ERROR;
-                                        }
                                       } 
-  <single_string><<EOF>>              {char *errom = "Unterminated string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
-  <single_string>\n                   {curr_lineno ++; char *errom = "Unterminated string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<single_string>{NEW_LINE_}            {curr_lineno ++; const char *errom = "Unterminated string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<single_string>{NULL_}                {const char *errom = "String contains null character."; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<single_string><<EOF>>                 {const char *errom = "Unterminated string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<single_string_null_long>
 
-
-  """                                 {memset(string_buf, 0, 1024 + 1); string_buf_idx = 0; BEGIN(triple_string);}
-  <triple_string>"""                  {string_buf[string_buf_idx] = '\0'; Symbol symb = stringtable.add_string(string_buf); cool_yylval.symbol = symb; BEGIN(INITIAL); return STR_CONST;}
-  <triple_string>\n                   {
-                                        curr_lineno ++; 
-                                        if (string_buf_idx < 1024 - 1) {
-                                          string_buf[string_buf_idx] = '\\'; 
-                                          string_buf[string_buf_idx + 1] = 'n';
-                                          string_buf_idx += 2;
-                                        } else {
-                                          char *errom = "String constant too long";
-                                          cool_yylval.error_msg = errom; 
-                                          BEGIN(INITIAL);
-                                          return ERROR;
-                                        }
-                                      }
-  <triple_string>"                    {
-                                        if (string_buf_idx < 1024 - 1) {
-                                          string_buf[string_buf_idx] = '\\'; 
-                                          string_buf[string_buf_idx + 1] = '"';
-                                          string_buf_idx += 2;
-                                        } else {
-                                          char *errom = "String constant too long";
-                                          cool_yylval.error_msg = errom; 
-                                          BEGIN(INITIAL);
-                                          return ERROR;
-                                        }
-                                      }                                
-  <triple_string>[\\][btnf"]          {
-                                        if (string_buf_idx < 1024 - 1) {
-                                          string_buf[string_buf_idx] = '\\'; 
-                                          string_buf[string_buf_idx + 1] = *(yytext  + 1);
-                                          string_buf_idx += 2;
-                                        } else {
-                                          char *errom = "String constant too long";
-                                          cool_yylval.error_msg = errom; 
-                                          BEGIN(INITIAL);
-                                          return ERROR;
-                                        }
-                                      }
-  <triple_string>[\\][^btnf"]         {
-                                        if (string_buf_idx < 1024) {
-                                          string_buf[string_buf_idx] = *(yytext);
-                                          string_buf_idx += 1;
-                                        } else {
-                                          char *errom = "String constant too long";
-                                          cool_yylval.error_msg = errom; 
-                                          BEGIN(INITIAL);
-                                          return ERROR;
-                                        }
-                                      }
-  <triple_string>[^\\\n\"]+           {
-                                        char *iter = yytext;
-                                        while (iter && *iter) {
-                                          if (string_buf_idx < 1024) {
-                                            string_buf[string_buf_idx] = *iter;
-                                            iter ++;
-                                            string_buf_idx ++;
-                                          } else {
-                                            char *errom = "String constant too long";
-                                            cool_yylval.error_msg = errom; 
-                                            BEGIN(INITIAL);
-                                            return ERROR;
-                                          }
-                                        }
-                                        if ((char next = input()) == '\0') {
-                                          char *errom = "String contains null character.";
-                                          cool_yylval.error_msg = errom; 
-                                          BEGIN(INITIAL);
-                                          return ERROR;
-                                        }
-                                      } 
-  <triple_string><<EOF>>              {char *errom = "Unterminated string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
-
-
-
-  <<EOF>>                             {BEGIN(INITIAL); return EOF;}
-
+<<EOF>> {return 0;}
 %%
+
+
+int str_escaped_helper(char input, char match) {
+  char *iter = yytext;
+  int odd = 0;
+  if (match != '\0'){
+    while (iter && *iter) {
+      if (*iter == match) {
+        break;
+      }
+      if (odd) {
+        if (string_buf_idx < 1024) {
+          string_buf[string_buf_idx] = '\\';
+          string_buf_idx ++;
+        } else {
+          return -1;
+        }
+      }
+      odd = 1 - odd;
+      iter ++;
+    }
+  }
+  if (string_buf_idx < 1024) {
+    string_buf[string_buf_idx] = input;
+    string_buf_idx ++;
+  } else {
+    return -1;
+  }
+  return 0;
+}
