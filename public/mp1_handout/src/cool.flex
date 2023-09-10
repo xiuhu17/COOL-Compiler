@@ -120,7 +120,7 @@ DASH_COMMENT_               [-][-]
 {FOR_}                            {return FOR;}
 "<-"                              {return ASSIGN;}
 "=>"                              {return DARROW;}
-"=<"                              {return LE;}
+"<="                              {return LE;}
 
 
 "false"                           {cool_yylval.boolean = false; return BOOL_CONST;}
