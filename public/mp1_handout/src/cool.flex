@@ -116,11 +116,30 @@ TRIPLE_STR_NORMAL_          [^\\\n\"\0]+
 {FOR_}                            {return FOR;}
 "<-"                              {return ASSIGN;}
 "=>"                              {return DARROW;}
+"=<"                              {return LE;}
 
 
 "false"                           {cool_yylval.boolean = false; return BOOL_CONST;}
 "true"                            {cool_yylval.boolean = true; return BOOL_CONST;}
-'+' | '/' | '-' | '*' | '=' | '<' | '.' | '~' | ',' | ';' | ':' | '(' | ')' | '@' | '{' | '}'   {return *yytext;} 
+
+"+"                               {return '+';}
+"/"                               {return '/';}
+"-"                               {return '-';}
+"*"                               {return '*';}
+"="                               {return '=';}
+"<"                               {return '<';}
+"."                               {return '.';}
+"~"                               {return '~';}
+","                               {return ',';}
+";"                               {return ';';}
+":"                               {return ':';}
+"("                               {return '(';}
+")"                               {return ')';}    
+"@"                               {return '@';}
+"{"                               {return '{';}
+"}"                               {return '}';}
+ 
+
 "SELF_TYPE"                       {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return TYPEID;}
 "self"                            {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return OBJECTID;}
 
@@ -140,9 +159,8 @@ TRIPLE_STR_NORMAL_          [^\\\n\"\0]+
 <single_string>[\\]*\\t                    {int erron = str_escaped_helper('\t', 't'); if (erron < 0) {BEGIN(single_string_long);}}
 <single_string>[\\]*\\n                    {int erron = str_escaped_helper('\n', 'n'); if (erron < 0) {BEGIN(single_string_long);}}
 <single_string>[\\]*\\f                    {int erron = str_escaped_helper('\f', 'f'); if (erron < 0) {BEGIN(single_string_long);}}
-<single_string>\\\                         {int erron = str_escaped_helper('\\', '\0'); if (erron < 0) {BEGIN(single_string_long);}}
 <single_string>\\["]                       {int erron = str_escaped_helper('\"', '\0'); if (erron < 0) {BEGIN(single_string_long);}}
-<single_string>{SINGLE_STR_N_ESCAPED_}  {
+<single_string>{SINGLE_STR_N_ESCAPED_}  { 
                                           if (string_buf_idx < 1024) {
                                             string_buf[string_buf_idx] = *(yytext + 1);
                                             string_buf_idx += 1;
@@ -150,7 +168,7 @@ TRIPLE_STR_NORMAL_          [^\\\n\"\0]+
                                             BEGIN(single_string_long);
                                           }
                                         }
-<single_string>{SINGLE_STR_NORMAL_}   {
+<single_string>{SINGLE_STR_NORMAL_}   { 
                                         char *iter = yytext;
                                         while (iter && *iter) {
                                           if (string_buf_idx < 1024) {
@@ -187,7 +205,6 @@ TRIPLE_STR_NORMAL_          [^\\\n\"\0]+
 <triple_string>[\\]*\\t                    {int erron = str_escaped_helper('\t', 't'); if (erron < 0) {BEGIN(triple_string_long);}}
 <triple_string>[\\]*\\n                    {int erron = str_escaped_helper('\n', 'n'); if (erron < 0) {BEGIN(triple_string_long);}}
 <triple_string>[\\]*\\f                    {int erron = str_escaped_helper('\f', 'f'); if (erron < 0) {BEGIN(triple_string_long);}}
-<triple_string>\\\                         {int erron = str_escaped_helper('\\', '\0'); if (erron < 0) {BEGIN(triple_string_long);}}
 <triple_string>\\["]                       {int erron = str_escaped_helper('\"', '\0'); if (erron < 0) {BEGIN(triple_string_long);}}
 
 <triple_string>{TRIPLE_STR_N_ESCAPED_}  {
@@ -236,7 +253,7 @@ TRIPLE_STR_NORMAL_          [^\\\n\"\0]+
 
 
 
-
+.       {const char *errom = yytext; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
 <<EOF>> {return 0;}
 %%
 
