@@ -28,7 +28,7 @@ extern FILE *fin; /* we read from this file */
 extern int curr_lineno;
 char string_buf[MAX_STR_LEN + 1];
 int string_buf_idx = 0;
-int comment_open_cnt = 0;
+int open_comment_cnt = 0;
 int str_escaped_helper(char input, char match);
 
 %}
@@ -41,7 +41,7 @@ int str_escaped_helper(char input, char match);
 %x triple_string
 %x triple_string_null
 %x triple_string_long
-%x open_comment
+%x comment
 %x dash_comment
 
 digit                       [0-9]
@@ -73,11 +73,15 @@ NEW_LINE_                   [\n]
 NULL_                       [\0]
 SINGLE_STR_ESCAPED_         [\\][btnf\"]
 SINGLE_STR_N_ESCAPED_       [\\][^btnf\"]
-SINGLE_STR_NORMAL_          [^\\\n\"\0]+          
+SINGLE_STR_NORMAL_          [^\\\n\"\0]+  
 
 TRIPLE_STR_ESCAPED_         [\\][btnf\"]
 TRIPLE_STR_N_ESCAPED_       [\\][^btnf\"]
-TRIPLE_STR_NORMAL_          [^\\\n\"\0]+   
+TRIPLE_STR_NORMAL_          [^\\\n\"\0]+ 
+
+COMMENT_L_                  [(][*]
+COMMENT_R_                  [*][)]
+DASH_COMMENT_               [-][-]
 
 %%
 
@@ -245,12 +249,25 @@ TRIPLE_STR_NORMAL_          [^\\\n\"\0]+
 <triple_string_null><<EOF>>           {const char *errom = "EOF in string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
 <triple_string_long><<EOF>>           {const char *errom = "EOF in string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
 
-<triple_string_null>\"\"\"                {const char *errom = "String contains null character."; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
-<triple_string_long>\"\"\"                {const char *errom = "String constant too long"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<triple_string_null>\"\"\"            {const char *errom = "String contains null character."; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<triple_string_long>\"\"\"            {const char *errom = "String constant too long"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
 
 <triple_string_null>.
 <triple_string_long>.
 
+
+{COMMENT_L_}                            {open_comment_cnt ++; BEGIN(comment);}
+<comment>{COMMENT_L_}                   {open_comment_cnt ++;}
+<comment>{COMMENT_R_}                   {open_comment_cnt --; if (open_comment_cnt == 0) {BEGIN(INITIAL);}}
+<comment>\n                             {curr_lineno ++;}
+<comment><<EOF>>                        {const char* errom = "EOF in comment"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+<comment>.                              {}
+{COMMENT_R_}                            {const char* errom = "Unmatched *)"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+
+{DASH_COMMENT_}                         {BEGIN(dash_comment);}  
+<dash_comment>\n                        {curr_lineno ++; BEGIN(INITIAL);}
+<dash_comment><<EOF>>                   {return 0;}
+<dash_comment>.                         {}
 
 
 .       {const char *errom = yytext; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
