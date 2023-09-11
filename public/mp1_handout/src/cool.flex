@@ -270,8 +270,8 @@ DASH_COMMENT_               [-][-]
 <dash_comment>.                         {}
 
 
-.       {const char *errom = yytext; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
 <<EOF>> {return 0;}
+.       {const char *errom = yytext; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
 %%
 
 
