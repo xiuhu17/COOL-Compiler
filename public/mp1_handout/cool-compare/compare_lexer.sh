@@ -11,6 +11,10 @@ TMP_DIR=$(mktemp -d -t lexer_diff-XXXXXXXXXX)
 # 初始化一个变量来跟踪是否有差异
 DIFF_FOUND=0
 
+# Initialize counter variables for passed tests and total tests
+PASSED_TESTS=0
+TOTAL_TESTS=$(ls $EXAMPLES_DIR/*.cl | wc -l)
+
 # 遍历所有 .cl 文件
 for cl_file in $EXAMPLES_DIR/*.cl; do
   filename=$(basename -- "$cl_file")
@@ -27,6 +31,8 @@ for cl_file in $EXAMPLES_DIR/*.cl; do
   if [ $? -eq 0 ]; then
     # 无差异
     rm $TMP_DIR/diff_$filename.txt  # 可选：删除没有差异的 diff 文件
+    PASSED_TESTS=$((PASSED_TESTS + 1))
+    echo "[$PASSED_TESTS/$TOTAL_TESTS] Pass!"
   else
     # 有差异
     DIFF_FOUND=1
