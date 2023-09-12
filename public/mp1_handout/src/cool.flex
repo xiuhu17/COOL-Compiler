@@ -65,7 +65,7 @@ NOT_                        [nN][oO][tT]
 FOR_                        [fF][oO][rR]
 OPERATOR_                   [+/-*=<.~,;:()@{}]
 DEC_INT_                    [0-9]+
-HEX_INT_                    [0][x][0-9]+ 
+HEX_INT_                    [0][x][0-9abcdef]+ 
 TYPEID_                     [A-Z][a-zA-Z0-9_]*
 OBJECTID_                   [a-z][a-zA-Z0-9_]* 
 BLANK_                      [ \f\r\t\v]+
@@ -210,7 +210,6 @@ DASH_COMMENT_               [-][-]
 <triple_string>[\\]*\\n                    {int erron = str_escaped_helper('\n', 'n'); if (erron < 0) {BEGIN(triple_string_long);}}
 <triple_string>[\\]*\\f                    {int erron = str_escaped_helper('\f', 'f'); if (erron < 0) {BEGIN(triple_string_long);}}
 <triple_string>\\["]                       {int erron = str_escaped_helper('\"', '\0'); if (erron < 0) {BEGIN(triple_string_long);}}
-
 <triple_string>{TRIPLE_STR_N_ESCAPED_}  {
                                           if (string_buf_idx < 1024) {
                                             string_buf[string_buf_idx] = *(yytext + 1);
@@ -219,7 +218,8 @@ DASH_COMMENT_               [-][-]
                                             BEGIN(triple_string_long);
                                           }
                                         }
-<triple_string>{TRIPLE_STR_NORMAL_}   {
+
+<triple_string>{TRIPLE_STR_NORMAL_}   { 
                                         char *iter = yytext;
                                         while (iter && *iter) {
                                           if (string_buf_idx < 1024) {
@@ -239,7 +239,15 @@ DASH_COMMENT_               [-][-]
                                             BEGIN(triple_string_long);
                                         }
                                       }                                  
-<triple_string>{NEW_LINE_}            {curr_lineno ++;}
+<triple_string>{NEW_LINE_}            { 
+                                        curr_lineno ++; 
+                                        if (string_buf_idx < 1024) {
+                                            string_buf[string_buf_idx] = '\n';
+                                            string_buf_idx += 1;
+                                          } else {
+                                            BEGIN(triple_string_long);
+                                        }
+                                      }
 <triple_string><<EOF>>                {const char *errom = "EOF in string constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
 <triple_string>{NULL_}                {BEGIN(triple_string_null);}
 
