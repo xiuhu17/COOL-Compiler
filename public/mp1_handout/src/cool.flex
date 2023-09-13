@@ -30,7 +30,6 @@ char string_buf[MAX_STR_LEN + 1];
 int string_buf_idx = 0;
 int open_comment_cnt = 0;
 int str_escaped_helper(char input, char match);
-
 %}
 
 
@@ -64,8 +63,13 @@ OF_                         [oO][fF]
 NOT_                        [nN][oO][tT]                        
 FOR_                        [fF][oO][rR]
 OPERATOR_                   [+/-*=<.~,;:()@{}]
+
 DEC_INT_                    [0-9]+
-HEX_INT_                    [0][x][0-9abcdef]+ 
+DEC_INT_ERROR_              [0-9]+[a-zA-Z_][0-9a-zA-Z_]*
+HEX_INT_                    [0][x][0-9abcdef]+
+HEX_INT_ERROR_              [0][x][0-9abcdef]+[g-zA-Z_][0-9a-zA-Z_]*
+
+
 TYPEID_                     [A-Z][a-zA-Z0-9_]*
 OBJECTID_                   [a-z][a-zA-Z0-9_]* 
 BLANK_                      [ \f\r\t\v]+
@@ -149,6 +153,12 @@ DASH_COMMENT_               [-][-]
 
 {DEC_INT_}                        {Symbol symb = inttable.add_string(yytext); cool_yylval.symbol = symb; return INT_CONST;}
 {HEX_INT_}                        {std::string store_hex = yytext; std::string store_dec = hex2dec(store_hex); Symbol symb = inttable.add_int(std::stoi(store_dec)); cool_yylval.symbol = symb; return INT_CONST;}
+
+{DEC_INT_ERROR_}                  {const char *errom = "Invalid integer constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+{HEX_INT_ERROR_}                  {const char *errom = "Invalid integer constant"; cool_yylval.error_msg = errom; BEGIN(INITIAL); return ERROR;}
+
+
+
 
 {TYPEID_}                         {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return TYPEID;}
 {OBJECTID_}                       {Symbol symb = idtable.add_string(yytext); cool_yylval.symbol = symb; return OBJECTID;}
