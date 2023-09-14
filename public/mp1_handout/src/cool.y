@@ -95,11 +95,35 @@ extern int VERBOSE_ERRORS;
 %type <classes> class_list
 %type <class_> class
 
+%type <features> feature_list_star
+%type <feature> feature_single
+
+%type <formals> formal_list_star
+%type <formal> formal_single
+
+%type <cases> case_list_pos
+%type <case_> case_single
+
+%type <expressions> expression_list
+%type <expressions> expression_list_star
+%type <expressions> expression_list_pos
+%type <expression> expression_single 
+%type <expression> begin_let 
+
 /* You will want to change the following line. */
-%type <features> dummy_feature_list
+/* %type <features> dummy_feature_list */
 
 /* Precedence declarations go here. */
 
+%right ASSIGN
+%left NOT
+%nonassoc LE '<' '='
+%left '+' '-'
+%left '*' '/'
+%left ISVOID
+%left '~'
+%left '@'
+%left '.'
 
 %%
 /* 
@@ -116,17 +140,64 @@ class_list
         ;
 
 /* If no parent is specified, the class inherits from the Object class. */
-class  : CLASS TYPEID '{' dummy_feature_list '}' ';'
-                { $$ = class_($2,idtable.add_string("Object"),$4,
-                              stringtable.add_string(curr_filename)); }
-        | CLASS TYPEID INHERITS TYPEID '{' dummy_feature_list '}' ';'
+class  : CLASS TYPEID '{' feature_list_star '}' ';'
+                { $$ = class_($2,idtable.add_string("Object"), $4, stringtable.add_string(curr_filename)); }
+        | CLASS TYPEID INHERITS TYPEID '{' feature_list_star '}' ';'
                 { $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
-        ;
+        ; 
 
 /* Feature list may be empty, but no empty features in list. */
-dummy_feature_list:        /* empty */
-                {  $$ = nil_Features(); }
-        ;
+feature_list_star      :  /* empty */
+                                {  $$ = nil_Features(); }
+                        | feature_list_star feature_single ';'
+                                {}
+                ;          
+feature_single          : OBJECTID '(' ')' ':' TYPEID '{' expression_single '}' 
+                                {}
+                        | OBJECTID '(' formal_single formal_list_star ')' ':' TYPEID '{' expression_single '}'
+                                {}
+                        | OBJECTID ':' TYPEID 
+                                {}
+                        | OBJECTID ':' TYPEID ASSIGN expression_single 
+                                {}
+                ;
+
+
+formal_list_star        : /* empty */
+                                {}
+                        | formal_list_star ',' formal_single
+                                {}
+                ;
+formal_single           : OBJECTID ':' TYPEID 
+                                {}
+                ;
+
+
+case_list_pos           : case_single ';'
+                                {}
+                        | case_list_pos case_single ';'
+                                {}
+                ;
+case_single             : OBJECTID ':' TYPEID DARROW expression_single 
+                                {}
+                ;
+
+
+expression_list_star    : /* empty */
+                                {}
+                        | expression_list_star ',' expression_single
+                                {}
+                ;
+expression_list_pos     : expression_single ';'
+                                {}
+                        | expression_list_pos expression_single ';'
+                                {}
+                ;
+
+begin_let               : 
+
+expression_list: ASSIGN{};
+expression_single:ASSIGN {};
 
 /* end of grammar */
 %%

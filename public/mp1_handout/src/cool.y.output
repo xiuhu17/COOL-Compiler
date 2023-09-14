@@ -1,0 +1,535 @@
+Nonterminals useless in grammar
+
+    case_list_pos
+    case_single
+    expression_list_star
+    expression_list_pos
+    expression_list
+
+
+Terminals unused in grammar
+
+    ELSE
+    FI
+    IF
+    IN
+    LET
+    LOOP
+    POOL
+    THEN
+    WHILE
+    CASE
+    ESAC
+    OF
+    DARROW
+    NEW
+    ISVOID
+    STR_CONST
+    INT_CONST
+    BOOL_CONST
+    NOT
+    LE
+    FOR
+    ERROR
+    '<'
+    '='
+    '+'
+    '-'
+    '*'
+    '/'
+    '~'
+    '@'
+    '.'
+
+
+Rules useless in grammar
+
+   16 case_list_pos: case_single ';'
+   17              | case_list_pos case_single ';'
+
+   18 case_single: OBJECTID ':' TYPEID DARROW expression_single
+
+   19 expression_list_star: ε
+   20                     | expression_list_star ',' expression_single
+
+   21 expression_list_pos: expression_single ';'
+   22                    | expression_list_pos expression_single ';'
+
+   23 expression_list: ASSIGN
+
+
+Grammar
+
+    0 $accept: program $end
+
+    1 program: class_list
+
+    2 class_list: class
+    3           | class_list class
+
+    4 class: CLASS TYPEID '{' feature_list_star '}' ';'
+    5      | CLASS TYPEID INHERITS TYPEID '{' feature_list_star '}' ';'
+
+    6 feature_list_star: ε
+    7                  | feature_list_star feature_single ';'
+
+    8 feature_single: OBJECTID '(' ')' ':' TYPEID '{' expression_single '}'
+    9               | OBJECTID '(' formal_single formal_list_star ')' ':' TYPEID '{' expression_single '}'
+   10               | OBJECTID ':' TYPEID
+   11               | OBJECTID ':' TYPEID ASSIGN expression_single
+
+   12 formal_list_star: ε
+   13                 | formal_list_star ',' formal_single
+
+   14 formal_single: OBJECTID ':' TYPEID
+
+   15 expression_single: ASSIGN
+
+
+Terminals, with rules where they appear
+
+    $end (0) 0
+    '(' (40) 8 9
+    ')' (41) 8 9
+    '*' (42)
+    '+' (43)
+    ',' (44) 13
+    '-' (45)
+    '.' (46)
+    '/' (47)
+    ':' (58) 8 9 10 11 14
+    ';' (59) 4 5 7
+    '<' (60)
+    '=' (61)
+    '@' (64)
+    '{' (123) 4 5 8 9
+    '}' (125) 4 5 8 9
+    '~' (126)
+    error (256)
+    CLASS (258) 4 5
+    ELSE (259)
+    FI (260)
+    IF (261)
+    IN (262)
+    INHERITS (263) 5
+    LET (264)
+    LOOP (265)
+    POOL (266)
+    THEN (267)
+    WHILE (268)
+    CASE (269)
+    ESAC (270)
+    OF (271)
+    DARROW (272)
+    NEW (273)
+    ISVOID (274)
+    STR_CONST <symbol> (275)
+    INT_CONST <symbol> (276)
+    BOOL_CONST <boolean> (277)
+    TYPEID <symbol> (278) 4 5 8 9 10 11 14
+    OBJECTID <symbol> (279) 8 9 10 11 14
+    ASSIGN (280) 11 15
+    NOT (281)
+    LE (282)
+    FOR (283)
+    ERROR (284)
+
+
+Nonterminals, with rules where they appear
+
+    $accept (46)
+        on left: 0
+    program <program> (47)
+        on left: 1
+        on right: 0
+    class_list <classes> (48)
+        on left: 2 3
+        on right: 1 3
+    class <class_> (49)
+        on left: 4 5
+        on right: 2 3
+    feature_list_star <features> (50)
+        on left: 6 7
+        on right: 4 5 7
+    feature_single <feature> (51)
+        on left: 8 9 10 11
+        on right: 7
+    formal_list_star <formals> (52)
+        on left: 12 13
+        on right: 9 13
+    formal_single <formal> (53)
+        on left: 14
+        on right: 9 13
+    expression_single <expression> (54)
+        on left: 15
+        on right: 8 9 11
+
+
+State 0
+
+    0 $accept: • program $end
+
+    CLASS  shift, and go to state 1
+
+    program     go to state 2
+    class_list  go to state 3
+    class       go to state 4
+
+
+State 1
+
+    4 class: CLASS • TYPEID '{' feature_list_star '}' ';'
+    5      | CLASS • TYPEID INHERITS TYPEID '{' feature_list_star '}' ';'
+
+    TYPEID  shift, and go to state 5
+
+
+State 2
+
+    0 $accept: program • $end
+
+    $end  shift, and go to state 6
+
+
+State 3
+
+    1 program: class_list •
+    3 class_list: class_list • class
+
+    CLASS  shift, and go to state 1
+
+    $default  reduce using rule 1 (program)
+
+    class  go to state 7
+
+
+State 4
+
+    2 class_list: class •
+
+    $default  reduce using rule 2 (class_list)
+
+
+State 5
+
+    4 class: CLASS TYPEID • '{' feature_list_star '}' ';'
+    5      | CLASS TYPEID • INHERITS TYPEID '{' feature_list_star '}' ';'
+
+    INHERITS  shift, and go to state 8
+    '{'       shift, and go to state 9
+
+
+State 6
+
+    0 $accept: program $end •
+
+    $default  accept
+
+
+State 7
+
+    3 class_list: class_list class •
+
+    $default  reduce using rule 3 (class_list)
+
+
+State 8
+
+    5 class: CLASS TYPEID INHERITS • TYPEID '{' feature_list_star '}' ';'
+
+    TYPEID  shift, and go to state 10
+
+
+State 9
+
+    4 class: CLASS TYPEID '{' • feature_list_star '}' ';'
+
+    $default  reduce using rule 6 (feature_list_star)
+
+    feature_list_star  go to state 11
+
+
+State 10
+
+    5 class: CLASS TYPEID INHERITS TYPEID • '{' feature_list_star '}' ';'
+
+    '{'  shift, and go to state 12
+
+
+State 11
+
+    4 class: CLASS TYPEID '{' feature_list_star • '}' ';'
+    7 feature_list_star: feature_list_star • feature_single ';'
+
+    OBJECTID  shift, and go to state 13
+    '}'       shift, and go to state 14
+
+    feature_single  go to state 15
+
+
+State 12
+
+    5 class: CLASS TYPEID INHERITS TYPEID '{' • feature_list_star '}' ';'
+
+    $default  reduce using rule 6 (feature_list_star)
+
+    feature_list_star  go to state 16
+
+
+State 13
+
+    8 feature_single: OBJECTID • '(' ')' ':' TYPEID '{' expression_single '}'
+    9               | OBJECTID • '(' formal_single formal_list_star ')' ':' TYPEID '{' expression_single '}'
+   10               | OBJECTID • ':' TYPEID
+   11               | OBJECTID • ':' TYPEID ASSIGN expression_single
+
+    '('  shift, and go to state 17
+    ':'  shift, and go to state 18
+
+
+State 14
+
+    4 class: CLASS TYPEID '{' feature_list_star '}' • ';'
+
+    ';'  shift, and go to state 19
+
+
+State 15
+
+    7 feature_list_star: feature_list_star feature_single • ';'
+
+    ';'  shift, and go to state 20
+
+
+State 16
+
+    5 class: CLASS TYPEID INHERITS TYPEID '{' feature_list_star • '}' ';'
+    7 feature_list_star: feature_list_star • feature_single ';'
+
+    OBJECTID  shift, and go to state 13
+    '}'       shift, and go to state 21
+
+    feature_single  go to state 15
+
+
+State 17
+
+    8 feature_single: OBJECTID '(' • ')' ':' TYPEID '{' expression_single '}'
+    9               | OBJECTID '(' • formal_single formal_list_star ')' ':' TYPEID '{' expression_single '}'
+
+    OBJECTID  shift, and go to state 22
+    ')'       shift, and go to state 23
+
+    formal_single  go to state 24
+
+
+State 18
+
+   10 feature_single: OBJECTID ':' • TYPEID
+   11               | OBJECTID ':' • TYPEID ASSIGN expression_single
+
+    TYPEID  shift, and go to state 25
+
+
+State 19
+
+    4 class: CLASS TYPEID '{' feature_list_star '}' ';' •
+
+    $default  reduce using rule 4 (class)
+
+
+State 20
+
+    7 feature_list_star: feature_list_star feature_single ';' •
+
+    $default  reduce using rule 7 (feature_list_star)
+
+
+State 21
+
+    5 class: CLASS TYPEID INHERITS TYPEID '{' feature_list_star '}' • ';'
+
+    ';'  shift, and go to state 26
+
+
+State 22
+
+   14 formal_single: OBJECTID • ':' TYPEID
+
+    ':'  shift, and go to state 27
+
+
+State 23
+
+    8 feature_single: OBJECTID '(' ')' • ':' TYPEID '{' expression_single '}'
+
+    ':'  shift, and go to state 28
+
+
+State 24
+
+    9 feature_single: OBJECTID '(' formal_single • formal_list_star ')' ':' TYPEID '{' expression_single '}'
+
+    $default  reduce using rule 12 (formal_list_star)
+
+    formal_list_star  go to state 29
+
+
+State 25
+
+   10 feature_single: OBJECTID ':' TYPEID •
+   11               | OBJECTID ':' TYPEID • ASSIGN expression_single
+
+    ASSIGN  shift, and go to state 30
+
+    $default  reduce using rule 10 (feature_single)
+
+
+State 26
+
+    5 class: CLASS TYPEID INHERITS TYPEID '{' feature_list_star '}' ';' •
+
+    $default  reduce using rule 5 (class)
+
+
+State 27
+
+   14 formal_single: OBJECTID ':' • TYPEID
+
+    TYPEID  shift, and go to state 31
+
+
+State 28
+
+    8 feature_single: OBJECTID '(' ')' ':' • TYPEID '{' expression_single '}'
+
+    TYPEID  shift, and go to state 32
+
+
+State 29
+
+    9 feature_single: OBJECTID '(' formal_single formal_list_star • ')' ':' TYPEID '{' expression_single '}'
+   13 formal_list_star: formal_list_star • ',' formal_single
+
+    ')'  shift, and go to state 33
+    ','  shift, and go to state 34
+
+
+State 30
+
+   11 feature_single: OBJECTID ':' TYPEID ASSIGN • expression_single
+
+    ASSIGN  shift, and go to state 35
+
+    expression_single  go to state 36
+
+
+State 31
+
+   14 formal_single: OBJECTID ':' TYPEID •
+
+    $default  reduce using rule 14 (formal_single)
+
+
+State 32
+
+    8 feature_single: OBJECTID '(' ')' ':' TYPEID • '{' expression_single '}'
+
+    '{'  shift, and go to state 37
+
+
+State 33
+
+    9 feature_single: OBJECTID '(' formal_single formal_list_star ')' • ':' TYPEID '{' expression_single '}'
+
+    ':'  shift, and go to state 38
+
+
+State 34
+
+   13 formal_list_star: formal_list_star ',' • formal_single
+
+    OBJECTID  shift, and go to state 22
+
+    formal_single  go to state 39
+
+
+State 35
+
+   15 expression_single: ASSIGN •
+
+    $default  reduce using rule 15 (expression_single)
+
+
+State 36
+
+   11 feature_single: OBJECTID ':' TYPEID ASSIGN expression_single •
+
+    $default  reduce using rule 11 (feature_single)
+
+
+State 37
+
+    8 feature_single: OBJECTID '(' ')' ':' TYPEID '{' • expression_single '}'
+
+    ASSIGN  shift, and go to state 35
+
+    expression_single  go to state 40
+
+
+State 38
+
+    9 feature_single: OBJECTID '(' formal_single formal_list_star ')' ':' • TYPEID '{' expression_single '}'
+
+    TYPEID  shift, and go to state 41
+
+
+State 39
+
+   13 formal_list_star: formal_list_star ',' formal_single •
+
+    $default  reduce using rule 13 (formal_list_star)
+
+
+State 40
+
+    8 feature_single: OBJECTID '(' ')' ':' TYPEID '{' expression_single • '}'
+
+    '}'  shift, and go to state 42
+
+
+State 41
+
+    9 feature_single: OBJECTID '(' formal_single formal_list_star ')' ':' TYPEID • '{' expression_single '}'
+
+    '{'  shift, and go to state 43
+
+
+State 42
+
+    8 feature_single: OBJECTID '(' ')' ':' TYPEID '{' expression_single '}' •
+
+    $default  reduce using rule 8 (feature_single)
+
+
+State 43
+
+    9 feature_single: OBJECTID '(' formal_single formal_list_star ')' ':' TYPEID '{' • expression_single '}'
+
+    ASSIGN  shift, and go to state 35
+
+    expression_single  go to state 44
+
+
+State 44
+
+    9 feature_single: OBJECTID '(' formal_single formal_list_star ')' ':' TYPEID '{' expression_single • '}'
+
+    '}'  shift, and go to state 45
+
+
+State 45
+
+    9 feature_single: OBJECTID '(' formal_single formal_list_star ')' ':' TYPEID '{' expression_single '}' •
+
+    $default  reduce using rule 9 (feature_single)
