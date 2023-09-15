@@ -1,29 +1,3 @@
+Script started on 2023-09-15 11:21:03-05:00 [TERM="xterm-256color" TTY="/dev/pts/2" COLUMNS="-1" LINES="-1"]
 
-(*
- *  execute "../reference-binaries/lexer bad.cl | ../reference-binaries/parser"
- *  to see the error messages that the reference parser generates
- *
- *  execute "./lexer bad.cl | ./parser" to see the error messages that your
- *  parser generates
- *)
-
-(* no error *)
-class A {
-};
-
-(* error:  b is not a type identifier *)
-Class b inherits A {
-};
-
-(* error:  a is not a type identifier *)
-Class C inherits a {
-};
-
-(* error:  keyword inherits is misspelled *)
-Class D inherts A {
-};
-
-(* error:  closing brace is missing *)
-Class E inherits A {
-;
-
+Script done on 2023-09-15 11:21:03-05:00 [COMMAND_EXIT_CODE="0"]
