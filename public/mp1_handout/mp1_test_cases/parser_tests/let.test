@@ -1,0 +1,14 @@
+class A {
+    main() : Integer {
+
+        {
+
+            let a : Integer in a + 1;
+            let b : Integer <- 5 in b + 1;
+            let c : Integer <- let d : Integer in c in d + c ;
+            let e : Integer <- let f : Integer <- 3 in f in e + f ;
+            let x : Integer <- let y : Integer <- 3 in y, z : Integer <- let p : Integer <- let q : Integer <- 3 in q in p + q in x + z ;
+        }
+        
+    };
+};

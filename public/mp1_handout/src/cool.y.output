@@ -33,12 +33,13 @@ Grammar
 
    17 case_single: OBJECTID ':' TYPEID DARROW expression_single
 
-   18 let_expand: IN expression_single
-   19           | ',' OBJECTID ':' TYPEID let_expand
-   20           | ',' OBJECTID ':' TYPEID ASSIGN expression_single let_expand
+   18 no_expr_helper: ε
+   19               | ASSIGN expression_single
 
-   21 let_begin: LET OBJECTID ':' TYPEID let_expand
-   22          | LET OBJECTID ':' TYPEID ASSIGN expression_single let_expand
+   20 let_expand: IN expression_single
+   21           | ',' OBJECTID ':' TYPEID no_expr_helper let_expand
+
+   22 let_begin: LET OBJECTID ':' TYPEID no_expr_helper let_expand
 
    23 for_second: ';' expression_single ';' expression_single ')' '{' expression_single '}'
 
@@ -93,11 +94,11 @@ Terminals, with rules where they appear
     ')' (41) 8 9 23 34 35 36 37 38 39 57
     '*' (42) 50
     '+' (43) 48
-    ',' (44) 13 19 20 25 26 30
+    ',' (44) 13 21 25 26 30
     '-' (45) 49
     '.' (46) 34 35 36 37
     '/' (47) 51
-    ':' (58) 8 9 10 11 14 17 19 20 21 22 25 26 27 28
+    ':' (58) 8 9 10 11 14 17 21 22 25 26 27 28
     ';' (59) 4 5 7 15 16 23 31 32
     '<' (60) 53
     '=' (61) 55
@@ -110,9 +111,9 @@ Terminals, with rules where they appear
     ELSE (259) 40
     FI (260) 40
     IF (261) 40
-    IN (262) 18
+    IN (262) 20
     INHERITS (263) 5
-    LET (264) 21 22
+    LET (264) 22
     LOOP (265) 41
     POOL (266) 41
     THEN (267) 40
@@ -126,9 +127,9 @@ Terminals, with rules where they appear
     STR_CONST <symbol> (275) 60
     INT_CONST <symbol> (276) 59
     BOOL_CONST <boolean> (277) 61
-    TYPEID <symbol> (278) 4 5 8 9 10 11 14 17 19 20 21 22 25 26 27 28 36 37 46
-    OBJECTID <symbol> (279) 8 9 10 11 14 17 19 20 21 22 25 26 27 28 33 34 35 36 37 38 39 58
-    ASSIGN (280) 11 20 22 26 28 33
+    TYPEID <symbol> (278) 4 5 8 9 10 11 14 17 21 22 25 26 27 28 36 37 46
+    OBJECTID <symbol> (279) 8 9 10 11 14 17 21 22 25 26 27 28 33 34 35 36 37 38 39 58
+    ASSIGN (280) 11 19 26 28 33
     NOT (281) 56
     LE (282) 54
     FOR (283) 27 28
@@ -167,30 +168,33 @@ Nonterminals, with rules where they appear
     case_single <case_> (56)
         on left: 17
         on right: 15 16
-    let_expand <expression> (57)
-        on left: 18 19 20
-        on right: 19 20 21 22
-    let_begin <expression> (58)
-        on left: 21 22
+    no_expr_helper <expression> (57)
+        on left: 18 19
+        on right: 21 22
+    let_expand <expression> (58)
+        on left: 20 21
+        on right: 21 22
+    let_begin <expression> (59)
+        on left: 22
         on right: 43
-    for_second <expression> (59)
+    for_second <expression> (60)
         on left: 23
         on right: 24
-    for_expand <expression> (60)
+    for_expand <expression> (61)
         on left: 24 25 26
         on right: 25 26 27 28
-    for_begin <expression> (61)
+    for_begin <expression> (62)
         on left: 27 28
         on right: 44
-    expression_list_star <expressions> (62)
+    expression_list_star <expressions> (63)
         on left: 29 30
         on right: 30 35 37 39
-    expression_list_pos <expressions> (63)
+    expression_list_pos <expressions> (64)
         on left: 31 32
         on right: 32 42
-    expression_single <expression> (64)
+    expression_single <expression> (65)
         on left: 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61
-        on right: 8 9 11 17 18 20 22 23 26 28 30 31 32 33 34 35 36 37 39 40 41 45 47 48 49 50 51 52 53 54 55 56 57
+        on right: 8 9 11 17 19 20 23 26 28 30 31 32 33 34 35 36 37 39 40 41 45 47 48 49 50 51 52 53 54 55 56 57
 
 
 State 0
@@ -525,8 +529,7 @@ State 35
 
 State 36
 
-   21 let_begin: LET • OBJECTID ':' TYPEID let_expand
-   22          | LET • OBJECTID ':' TYPEID ASSIGN expression_single let_expand
+   22 let_begin: LET • OBJECTID ':' TYPEID no_expr_helper let_expand
 
     OBJECTID  shift, and go to state 57
 
@@ -866,8 +869,7 @@ State 56
 
 State 57
 
-   21 let_begin: LET OBJECTID • ':' TYPEID let_expand
-   22          | LET OBJECTID • ':' TYPEID ASSIGN expression_single let_expand
+   22 let_begin: LET OBJECTID • ':' TYPEID no_expr_helper let_expand
 
     ':'  shift, and go to state 82
 
@@ -1396,8 +1398,7 @@ State 81
 
 State 82
 
-   21 let_begin: LET OBJECTID ':' • TYPEID let_expand
-   22          | LET OBJECTID ':' • TYPEID ASSIGN expression_single let_expand
+   22 let_begin: LET OBJECTID ':' • TYPEID no_expr_helper let_expand
 
     TYPEID  shift, and go to state 105
 
@@ -1810,14 +1811,13 @@ State 104
 
 State 105
 
-   21 let_begin: LET OBJECTID ':' TYPEID • let_expand
-   22          | LET OBJECTID ':' TYPEID • ASSIGN expression_single let_expand
+   22 let_begin: LET OBJECTID ':' TYPEID • no_expr_helper let_expand
 
-    IN      shift, and go to state 117
-    ASSIGN  shift, and go to state 118
-    ','     shift, and go to state 119
+    ASSIGN  shift, and go to state 117
 
-    let_expand  go to state 120
+    $default  reduce using rule 18 (no_expr_helper)
+
+    no_expr_helper  go to state 118
 
 
 State 106
@@ -1835,7 +1835,7 @@ State 106
    54                  | expression_single • LE expression_single
    55                  | expression_single • '=' expression_single
 
-    POOL  shift, and go to state 121
+    POOL  shift, and go to state 119
     LE    shift, and go to state 70
     '<'   shift, and go to state 71
     '='   shift, and go to state 72
@@ -1851,7 +1851,7 @@ State 107
 
    17 case_single: OBJECTID • ':' TYPEID DARROW expression_single
 
-    ':'  shift, and go to state 122
+    ':'  shift, and go to state 120
 
 
 State 108
@@ -1859,17 +1859,17 @@ State 108
    16 case_list_pos: case_list_pos • case_single ';'
    45 expression_single: CASE expression_single OF case_list_pos • ESAC
 
-    ESAC      shift, and go to state 123
+    ESAC      shift, and go to state 121
     OBJECTID  shift, and go to state 107
 
-    case_single  go to state 124
+    case_single  go to state 122
 
 
 State 109
 
    15 case_list_pos: case_single • ';'
 
-    ';'  shift, and go to state 125
+    ';'  shift, and go to state 123
 
 
 State 110
@@ -1877,8 +1877,8 @@ State 110
    30 expression_list_star: expression_list_star • ',' expression_single
    39 expression_single: OBJECTID '(' expression_single expression_list_star • ')'
 
-    ')'  shift, and go to state 126
-    ','  shift, and go to state 127
+    ')'  shift, and go to state 124
+    ','  shift, and go to state 125
 
 
 State 111
@@ -1886,7 +1886,7 @@ State 111
    27 for_begin: FOR '(' OBJECTID ':' • TYPEID for_expand
    28          | FOR '(' OBJECTID ':' • TYPEID ASSIGN expression_single for_expand
 
-    TYPEID  shift, and go to state 128
+    TYPEID  shift, and go to state 126
 
 
 State 112
@@ -1901,7 +1901,7 @@ State 113
    36 expression_single: expression_single '@' TYPEID '.' • OBJECTID '(' ')'
    37                  | expression_single '@' TYPEID '.' • OBJECTID '(' expression_single expression_list_star ')'
 
-    OBJECTID  shift, and go to state 129
+    OBJECTID  shift, and go to state 127
 
 
 State 114
@@ -1924,11 +1924,11 @@ State 114
     '~'         shift, and go to state 47
     '{'         shift, and go to state 48
     '('         shift, and go to state 49
-    ')'         shift, and go to state 130
+    ')'         shift, and go to state 128
 
     let_begin          go to state 50
     for_begin          go to state 51
-    expression_single  go to state 131
+    expression_single  go to state 129
 
 
 State 115
@@ -1955,7 +1955,7 @@ State 115
     '/'  shift, and go to state 76
     '@'  shift, and go to state 77
     '.'  shift, and go to state 78
-    '}'  shift, and go to state 132
+    '}'  shift, and go to state 130
 
 
 State 116
@@ -1980,12 +1980,12 @@ State 116
 
     let_begin          go to state 50
     for_begin          go to state 51
-    expression_single  go to state 133
+    expression_single  go to state 131
 
 
 State 117
 
-   18 let_expand: IN • expression_single
+   19 no_expr_helper: ASSIGN • expression_single
 
     IF          shift, and go to state 35
     LET         shift, and go to state 36
@@ -2005,92 +2005,62 @@ State 117
 
     let_begin          go to state 50
     for_begin          go to state 51
-    expression_single  go to state 134
+    expression_single  go to state 132
 
 
 State 118
 
-   22 let_begin: LET OBJECTID ':' TYPEID ASSIGN • expression_single let_expand
+   22 let_begin: LET OBJECTID ':' TYPEID no_expr_helper • let_expand
 
-    IF          shift, and go to state 35
-    LET         shift, and go to state 36
-    WHILE       shift, and go to state 37
-    CASE        shift, and go to state 38
-    NEW         shift, and go to state 39
-    ISVOID      shift, and go to state 40
-    STR_CONST   shift, and go to state 41
-    INT_CONST   shift, and go to state 42
-    BOOL_CONST  shift, and go to state 43
-    OBJECTID    shift, and go to state 44
-    NOT         shift, and go to state 45
-    FOR         shift, and go to state 46
-    '~'         shift, and go to state 47
-    '{'         shift, and go to state 48
-    '('         shift, and go to state 49
+    IN   shift, and go to state 133
+    ','  shift, and go to state 134
 
-    let_begin          go to state 50
-    for_begin          go to state 51
-    expression_single  go to state 135
+    let_expand  go to state 135
 
 
 State 119
-
-   19 let_expand: ',' • OBJECTID ':' TYPEID let_expand
-   20           | ',' • OBJECTID ':' TYPEID ASSIGN expression_single let_expand
-
-    OBJECTID  shift, and go to state 136
-
-
-State 120
-
-   21 let_begin: LET OBJECTID ':' TYPEID let_expand •
-
-    $default  reduce using rule 21 (let_begin)
-
-
-State 121
 
    41 expression_single: WHILE expression_single LOOP expression_single POOL •
 
     $default  reduce using rule 41 (expression_single)
 
 
-State 122
+State 120
 
    17 case_single: OBJECTID ':' • TYPEID DARROW expression_single
 
-    TYPEID  shift, and go to state 137
+    TYPEID  shift, and go to state 136
 
 
-State 123
+State 121
 
    45 expression_single: CASE expression_single OF case_list_pos ESAC •
 
     $default  reduce using rule 45 (expression_single)
 
 
-State 124
+State 122
 
    16 case_list_pos: case_list_pos case_single • ';'
 
-    ';'  shift, and go to state 138
+    ';'  shift, and go to state 137
 
 
-State 125
+State 123
 
    15 case_list_pos: case_single ';' •
 
     $default  reduce using rule 15 (case_list_pos)
 
 
-State 126
+State 124
 
    39 expression_single: OBJECTID '(' expression_single expression_list_star ')' •
 
     $default  reduce using rule 39 (expression_single)
 
 
-State 127
+State 125
 
    30 expression_list_star: expression_list_star ',' • expression_single
 
@@ -2112,38 +2082,38 @@ State 127
 
     let_begin          go to state 50
     for_begin          go to state 51
-    expression_single  go to state 139
+    expression_single  go to state 138
 
 
-State 128
+State 126
 
    27 for_begin: FOR '(' OBJECTID ':' TYPEID • for_expand
    28          | FOR '(' OBJECTID ':' TYPEID • ASSIGN expression_single for_expand
 
-    ASSIGN  shift, and go to state 140
-    ';'     shift, and go to state 141
-    ','     shift, and go to state 142
+    ASSIGN  shift, and go to state 139
+    ';'     shift, and go to state 140
+    ','     shift, and go to state 141
 
-    for_second  go to state 143
-    for_expand  go to state 144
+    for_second  go to state 142
+    for_expand  go to state 143
 
 
-State 129
+State 127
 
    36 expression_single: expression_single '@' TYPEID '.' OBJECTID • '(' ')'
    37                  | expression_single '@' TYPEID '.' OBJECTID • '(' expression_single expression_list_star ')'
 
-    '('  shift, and go to state 145
+    '('  shift, and go to state 144
 
 
-State 130
+State 128
 
    34 expression_single: expression_single '.' OBJECTID '(' ')' •
 
     $default  reduce using rule 34 (expression_single)
 
 
-State 131
+State 129
 
    34 expression_single: expression_single • '.' OBJECTID '(' ')'
    35                  | expression_single • '.' OBJECTID '(' expression_single expression_list_star ')'
@@ -2170,17 +2140,17 @@ State 131
 
     $default  reduce using rule 29 (expression_list_star)
 
-    expression_list_star  go to state 146
+    expression_list_star  go to state 145
 
 
-State 132
+State 130
 
     9 feature_single: OBJECTID '(' formal_single formal_list_star ')' ':' TYPEID '{' expression_single '}' •
 
     $default  reduce using rule 9 (feature_single)
 
 
-State 133
+State 131
 
    34 expression_single: expression_single • '.' OBJECTID '(' ')'
    35                  | expression_single • '.' OBJECTID '(' expression_single expression_list_star ')'
@@ -2195,7 +2165,7 @@ State 133
    54                  | expression_single • LE expression_single
    55                  | expression_single • '=' expression_single
 
-    FI   shift, and go to state 147
+    FI   shift, and go to state 146
     LE   shift, and go to state 70
     '<'  shift, and go to state 71
     '='  shift, and go to state 72
@@ -2205,89 +2175,90 @@ State 133
     '/'  shift, and go to state 76
     '@'  shift, and go to state 77
     '.'  shift, and go to state 78
+
+
+State 132
+
+   19 no_expr_helper: ASSIGN expression_single •
+   34 expression_single: expression_single • '.' OBJECTID '(' ')'
+   35                  | expression_single • '.' OBJECTID '(' expression_single expression_list_star ')'
+   36                  | expression_single • '@' TYPEID '.' OBJECTID '(' ')'
+   37                  | expression_single • '@' TYPEID '.' OBJECTID '(' expression_single expression_list_star ')'
+   48                  | expression_single • '+' expression_single
+   49                  | expression_single • '-' expression_single
+   50                  | expression_single • '*' expression_single
+   51                  | expression_single • '/' expression_single
+   53                  | expression_single • '<' expression_single
+   54                  | expression_single • LE expression_single
+   55                  | expression_single • '=' expression_single
+
+    LE   shift, and go to state 70
+    '<'  shift, and go to state 71
+    '='  shift, and go to state 72
+    '+'  shift, and go to state 73
+    '-'  shift, and go to state 74
+    '*'  shift, and go to state 75
+    '/'  shift, and go to state 76
+    '@'  shift, and go to state 77
+    '.'  shift, and go to state 78
+
+    $default  reduce using rule 19 (no_expr_helper)
+
+
+State 133
+
+   20 let_expand: IN • expression_single
+
+    IF          shift, and go to state 35
+    LET         shift, and go to state 36
+    WHILE       shift, and go to state 37
+    CASE        shift, and go to state 38
+    NEW         shift, and go to state 39
+    ISVOID      shift, and go to state 40
+    STR_CONST   shift, and go to state 41
+    INT_CONST   shift, and go to state 42
+    BOOL_CONST  shift, and go to state 43
+    OBJECTID    shift, and go to state 44
+    NOT         shift, and go to state 45
+    FOR         shift, and go to state 46
+    '~'         shift, and go to state 47
+    '{'         shift, and go to state 48
+    '('         shift, and go to state 49
+
+    let_begin          go to state 50
+    for_begin          go to state 51
+    expression_single  go to state 147
 
 
 State 134
 
-   18 let_expand: IN expression_single •
-   34 expression_single: expression_single • '.' OBJECTID '(' ')'
-   35                  | expression_single • '.' OBJECTID '(' expression_single expression_list_star ')'
-   36                  | expression_single • '@' TYPEID '.' OBJECTID '(' ')'
-   37                  | expression_single • '@' TYPEID '.' OBJECTID '(' expression_single expression_list_star ')'
-   48                  | expression_single • '+' expression_single
-   49                  | expression_single • '-' expression_single
-   50                  | expression_single • '*' expression_single
-   51                  | expression_single • '/' expression_single
-   53                  | expression_single • '<' expression_single
-   54                  | expression_single • LE expression_single
-   55                  | expression_single • '=' expression_single
+   21 let_expand: ',' • OBJECTID ':' TYPEID no_expr_helper let_expand
 
-    LE   shift, and go to state 70
-    '<'  shift, and go to state 71
-    '='  shift, and go to state 72
-    '+'  shift, and go to state 73
-    '-'  shift, and go to state 74
-    '*'  shift, and go to state 75
-    '/'  shift, and go to state 76
-    '@'  shift, and go to state 77
-    '.'  shift, and go to state 78
-
-    $default  reduce using rule 18 (let_expand)
+    OBJECTID  shift, and go to state 148
 
 
 State 135
 
-   22 let_begin: LET OBJECTID ':' TYPEID ASSIGN expression_single • let_expand
-   34 expression_single: expression_single • '.' OBJECTID '(' ')'
-   35                  | expression_single • '.' OBJECTID '(' expression_single expression_list_star ')'
-   36                  | expression_single • '@' TYPEID '.' OBJECTID '(' ')'
-   37                  | expression_single • '@' TYPEID '.' OBJECTID '(' expression_single expression_list_star ')'
-   48                  | expression_single • '+' expression_single
-   49                  | expression_single • '-' expression_single
-   50                  | expression_single • '*' expression_single
-   51                  | expression_single • '/' expression_single
-   53                  | expression_single • '<' expression_single
-   54                  | expression_single • LE expression_single
-   55                  | expression_single • '=' expression_single
+   22 let_begin: LET OBJECTID ':' TYPEID no_expr_helper let_expand •
 
-    IN   shift, and go to state 117
-    LE   shift, and go to state 70
-    '<'  shift, and go to state 71
-    '='  shift, and go to state 72
-    '+'  shift, and go to state 73
-    '-'  shift, and go to state 74
-    '*'  shift, and go to state 75
-    '/'  shift, and go to state 76
-    '@'  shift, and go to state 77
-    '.'  shift, and go to state 78
-    ','  shift, and go to state 119
-
-    let_expand  go to state 148
+    $default  reduce using rule 22 (let_begin)
 
 
 State 136
 
-   19 let_expand: ',' OBJECTID • ':' TYPEID let_expand
-   20           | ',' OBJECTID • ':' TYPEID ASSIGN expression_single let_expand
+   17 case_single: OBJECTID ':' TYPEID • DARROW expression_single
 
-    ':'  shift, and go to state 149
+    DARROW  shift, and go to state 149
 
 
 State 137
-
-   17 case_single: OBJECTID ':' TYPEID • DARROW expression_single
-
-    DARROW  shift, and go to state 150
-
-
-State 138
 
    16 case_list_pos: case_list_pos case_single ';' •
 
     $default  reduce using rule 16 (case_list_pos)
 
 
-State 139
+State 138
 
    30 expression_list_star: expression_list_star ',' expression_single •
    34 expression_single: expression_single • '.' OBJECTID '(' ')'
@@ -2315,9 +2286,34 @@ State 139
     $default  reduce using rule 30 (expression_list_star)
 
 
-State 140
+State 139
 
    28 for_begin: FOR '(' OBJECTID ':' TYPEID ASSIGN • expression_single for_expand
+
+    IF          shift, and go to state 35
+    LET         shift, and go to state 36
+    WHILE       shift, and go to state 37
+    CASE        shift, and go to state 38
+    NEW         shift, and go to state 39
+    ISVOID      shift, and go to state 40
+    STR_CONST   shift, and go to state 41
+    INT_CONST   shift, and go to state 42
+    BOOL_CONST  shift, and go to state 43
+    OBJECTID    shift, and go to state 44
+    NOT         shift, and go to state 45
+    FOR         shift, and go to state 46
+    '~'         shift, and go to state 47
+    '{'         shift, and go to state 48
+    '('         shift, and go to state 49
+
+    let_begin          go to state 50
+    for_begin          go to state 51
+    expression_single  go to state 150
+
+
+State 140
+
+   23 for_second: ';' • expression_single ';' expression_single ')' '{' expression_single '}'
 
     IF          shift, and go to state 35
     LET         shift, and go to state 36
@@ -2342,52 +2338,27 @@ State 140
 
 State 141
 
-   23 for_second: ';' • expression_single ';' expression_single ')' '{' expression_single '}'
-
-    IF          shift, and go to state 35
-    LET         shift, and go to state 36
-    WHILE       shift, and go to state 37
-    CASE        shift, and go to state 38
-    NEW         shift, and go to state 39
-    ISVOID      shift, and go to state 40
-    STR_CONST   shift, and go to state 41
-    INT_CONST   shift, and go to state 42
-    BOOL_CONST  shift, and go to state 43
-    OBJECTID    shift, and go to state 44
-    NOT         shift, and go to state 45
-    FOR         shift, and go to state 46
-    '~'         shift, and go to state 47
-    '{'         shift, and go to state 48
-    '('         shift, and go to state 49
-
-    let_begin          go to state 50
-    for_begin          go to state 51
-    expression_single  go to state 152
-
-
-State 142
-
    25 for_expand: ',' • OBJECTID ':' TYPEID for_expand
    26           | ',' • OBJECTID ':' TYPEID ASSIGN expression_single for_expand
 
-    OBJECTID  shift, and go to state 153
+    OBJECTID  shift, and go to state 152
 
 
-State 143
+State 142
 
    24 for_expand: for_second •
 
     $default  reduce using rule 24 (for_expand)
 
 
-State 144
+State 143
 
    27 for_begin: FOR '(' OBJECTID ':' TYPEID for_expand •
 
     $default  reduce using rule 27 (for_begin)
 
 
-State 145
+State 144
 
    36 expression_single: expression_single '@' TYPEID '.' OBJECTID '(' • ')'
    37                  | expression_single '@' TYPEID '.' OBJECTID '(' • expression_single expression_list_star ')'
@@ -2407,45 +2378,65 @@ State 145
     '~'         shift, and go to state 47
     '{'         shift, and go to state 48
     '('         shift, and go to state 49
-    ')'         shift, and go to state 154
+    ')'         shift, and go to state 153
 
     let_begin          go to state 50
     for_begin          go to state 51
-    expression_single  go to state 155
+    expression_single  go to state 154
 
 
-State 146
+State 145
 
    30 expression_list_star: expression_list_star • ',' expression_single
    35 expression_single: expression_single '.' OBJECTID '(' expression_single expression_list_star • ')'
 
-    ')'  shift, and go to state 156
-    ','  shift, and go to state 127
+    ')'  shift, and go to state 155
+    ','  shift, and go to state 125
 
 
-State 147
+State 146
 
    40 expression_single: IF expression_single THEN expression_single ELSE expression_single FI •
 
     $default  reduce using rule 40 (expression_single)
 
 
+State 147
+
+   20 let_expand: IN expression_single •
+   34 expression_single: expression_single • '.' OBJECTID '(' ')'
+   35                  | expression_single • '.' OBJECTID '(' expression_single expression_list_star ')'
+   36                  | expression_single • '@' TYPEID '.' OBJECTID '(' ')'
+   37                  | expression_single • '@' TYPEID '.' OBJECTID '(' expression_single expression_list_star ')'
+   48                  | expression_single • '+' expression_single
+   49                  | expression_single • '-' expression_single
+   50                  | expression_single • '*' expression_single
+   51                  | expression_single • '/' expression_single
+   53                  | expression_single • '<' expression_single
+   54                  | expression_single • LE expression_single
+   55                  | expression_single • '=' expression_single
+
+    LE   shift, and go to state 70
+    '<'  shift, and go to state 71
+    '='  shift, and go to state 72
+    '+'  shift, and go to state 73
+    '-'  shift, and go to state 74
+    '*'  shift, and go to state 75
+    '/'  shift, and go to state 76
+    '@'  shift, and go to state 77
+    '.'  shift, and go to state 78
+
+    $default  reduce using rule 20 (let_expand)
+
+
 State 148
 
-   22 let_begin: LET OBJECTID ':' TYPEID ASSIGN expression_single let_expand •
+   21 let_expand: ',' OBJECTID • ':' TYPEID no_expr_helper let_expand
 
-    $default  reduce using rule 22 (let_begin)
+    ':'  shift, and go to state 156
 
 
 State 149
-
-   19 let_expand: ',' OBJECTID ':' • TYPEID let_expand
-   20           | ',' OBJECTID ':' • TYPEID ASSIGN expression_single let_expand
-
-    TYPEID  shift, and go to state 157
-
-
-State 150
 
    17 case_single: OBJECTID ':' TYPEID DARROW • expression_single
 
@@ -2467,10 +2458,10 @@ State 150
 
     let_begin          go to state 50
     for_begin          go to state 51
-    expression_single  go to state 158
+    expression_single  go to state 157
 
 
-State 151
+State 150
 
    28 for_begin: FOR '(' OBJECTID ':' TYPEID ASSIGN expression_single • for_expand
    34 expression_single: expression_single • '.' OBJECTID '(' ')'
@@ -2494,14 +2485,14 @@ State 151
     '/'  shift, and go to state 76
     '@'  shift, and go to state 77
     '.'  shift, and go to state 78
-    ';'  shift, and go to state 141
-    ','  shift, and go to state 142
+    ';'  shift, and go to state 140
+    ','  shift, and go to state 141
 
-    for_second  go to state 143
-    for_expand  go to state 159
+    for_second  go to state 142
+    for_expand  go to state 158
 
 
-State 152
+State 151
 
    23 for_second: ';' expression_single • ';' expression_single ')' '{' expression_single '}'
    34 expression_single: expression_single • '.' OBJECTID '(' ')'
@@ -2525,25 +2516,25 @@ State 152
     '/'  shift, and go to state 76
     '@'  shift, and go to state 77
     '.'  shift, and go to state 78
-    ';'  shift, and go to state 160
+    ';'  shift, and go to state 159
 
 
-State 153
+State 152
 
    25 for_expand: ',' OBJECTID • ':' TYPEID for_expand
    26           | ',' OBJECTID • ':' TYPEID ASSIGN expression_single for_expand
 
-    ':'  shift, and go to state 161
+    ':'  shift, and go to state 160
 
 
-State 154
+State 153
 
    36 expression_single: expression_single '@' TYPEID '.' OBJECTID '(' ')' •
 
     $default  reduce using rule 36 (expression_single)
 
 
-State 155
+State 154
 
    34 expression_single: expression_single • '.' OBJECTID '(' ')'
    35                  | expression_single • '.' OBJECTID '(' expression_single expression_list_star ')'
@@ -2570,29 +2561,24 @@ State 155
 
     $default  reduce using rule 29 (expression_list_star)
 
-    expression_list_star  go to state 162
+    expression_list_star  go to state 161
 
 
-State 156
+State 155
 
    35 expression_single: expression_single '.' OBJECTID '(' expression_single expression_list_star ')' •
 
     $default  reduce using rule 35 (expression_single)
 
 
+State 156
+
+   21 let_expand: ',' OBJECTID ':' • TYPEID no_expr_helper let_expand
+
+    TYPEID  shift, and go to state 162
+
+
 State 157
-
-   19 let_expand: ',' OBJECTID ':' TYPEID • let_expand
-   20           | ',' OBJECTID ':' TYPEID • ASSIGN expression_single let_expand
-
-    IN      shift, and go to state 117
-    ASSIGN  shift, and go to state 163
-    ','     shift, and go to state 119
-
-    let_expand  go to state 164
-
-
-State 158
 
    17 case_single: OBJECTID ':' TYPEID DARROW expression_single •
    34 expression_single: expression_single • '.' OBJECTID '(' ')'
@@ -2620,14 +2606,14 @@ State 158
     $default  reduce using rule 17 (case_single)
 
 
-State 159
+State 158
 
    28 for_begin: FOR '(' OBJECTID ':' TYPEID ASSIGN expression_single for_expand •
 
     $default  reduce using rule 28 (for_begin)
 
 
-State 160
+State 159
 
    23 for_second: ';' expression_single ';' • expression_single ')' '{' expression_single '}'
 
@@ -2649,59 +2635,38 @@ State 160
 
     let_begin          go to state 50
     for_begin          go to state 51
-    expression_single  go to state 165
+    expression_single  go to state 163
 
 
-State 161
+State 160
 
    25 for_expand: ',' OBJECTID ':' • TYPEID for_expand
    26           | ',' OBJECTID ':' • TYPEID ASSIGN expression_single for_expand
 
-    TYPEID  shift, and go to state 166
+    TYPEID  shift, and go to state 164
 
 
-State 162
+State 161
 
    30 expression_list_star: expression_list_star • ',' expression_single
    37 expression_single: expression_single '@' TYPEID '.' OBJECTID '(' expression_single expression_list_star • ')'
 
-    ')'  shift, and go to state 167
-    ','  shift, and go to state 127
+    ')'  shift, and go to state 165
+    ','  shift, and go to state 125
+
+
+State 162
+
+   21 let_expand: ',' OBJECTID ':' TYPEID • no_expr_helper let_expand
+
+    ASSIGN  shift, and go to state 117
+
+    $default  reduce using rule 18 (no_expr_helper)
+
+    no_expr_helper  go to state 166
 
 
 State 163
-
-   20 let_expand: ',' OBJECTID ':' TYPEID ASSIGN • expression_single let_expand
-
-    IF          shift, and go to state 35
-    LET         shift, and go to state 36
-    WHILE       shift, and go to state 37
-    CASE        shift, and go to state 38
-    NEW         shift, and go to state 39
-    ISVOID      shift, and go to state 40
-    STR_CONST   shift, and go to state 41
-    INT_CONST   shift, and go to state 42
-    BOOL_CONST  shift, and go to state 43
-    OBJECTID    shift, and go to state 44
-    NOT         shift, and go to state 45
-    FOR         shift, and go to state 46
-    '~'         shift, and go to state 47
-    '{'         shift, and go to state 48
-    '('         shift, and go to state 49
-
-    let_begin          go to state 50
-    for_begin          go to state 51
-    expression_single  go to state 168
-
-
-State 164
-
-   19 let_expand: ',' OBJECTID ':' TYPEID let_expand •
-
-    $default  reduce using rule 19 (let_expand)
-
-
-State 165
 
    23 for_second: ';' expression_single ';' expression_single • ')' '{' expression_single '}'
    34 expression_single: expression_single • '.' OBJECTID '(' ')'
@@ -2725,67 +2690,47 @@ State 165
     '/'  shift, and go to state 76
     '@'  shift, and go to state 77
     '.'  shift, and go to state 78
-    ')'  shift, and go to state 169
+    ')'  shift, and go to state 167
 
 
-State 166
+State 164
 
    25 for_expand: ',' OBJECTID ':' TYPEID • for_expand
    26           | ',' OBJECTID ':' TYPEID • ASSIGN expression_single for_expand
 
-    ASSIGN  shift, and go to state 170
-    ';'     shift, and go to state 141
-    ','     shift, and go to state 142
+    ASSIGN  shift, and go to state 168
+    ';'     shift, and go to state 140
+    ','     shift, and go to state 141
 
-    for_second  go to state 143
-    for_expand  go to state 171
+    for_second  go to state 142
+    for_expand  go to state 169
 
 
-State 167
+State 165
 
    37 expression_single: expression_single '@' TYPEID '.' OBJECTID '(' expression_single expression_list_star ')' •
 
     $default  reduce using rule 37 (expression_single)
 
 
-State 168
+State 166
 
-   20 let_expand: ',' OBJECTID ':' TYPEID ASSIGN expression_single • let_expand
-   34 expression_single: expression_single • '.' OBJECTID '(' ')'
-   35                  | expression_single • '.' OBJECTID '(' expression_single expression_list_star ')'
-   36                  | expression_single • '@' TYPEID '.' OBJECTID '(' ')'
-   37                  | expression_single • '@' TYPEID '.' OBJECTID '(' expression_single expression_list_star ')'
-   48                  | expression_single • '+' expression_single
-   49                  | expression_single • '-' expression_single
-   50                  | expression_single • '*' expression_single
-   51                  | expression_single • '/' expression_single
-   53                  | expression_single • '<' expression_single
-   54                  | expression_single • LE expression_single
-   55                  | expression_single • '=' expression_single
+   21 let_expand: ',' OBJECTID ':' TYPEID no_expr_helper • let_expand
 
-    IN   shift, and go to state 117
-    LE   shift, and go to state 70
-    '<'  shift, and go to state 71
-    '='  shift, and go to state 72
-    '+'  shift, and go to state 73
-    '-'  shift, and go to state 74
-    '*'  shift, and go to state 75
-    '/'  shift, and go to state 76
-    '@'  shift, and go to state 77
-    '.'  shift, and go to state 78
-    ','  shift, and go to state 119
+    IN   shift, and go to state 133
+    ','  shift, and go to state 134
 
-    let_expand  go to state 172
+    let_expand  go to state 170
 
 
-State 169
+State 167
 
    23 for_second: ';' expression_single ';' expression_single ')' • '{' expression_single '}'
 
-    '{'  shift, and go to state 173
+    '{'  shift, and go to state 171
 
 
-State 170
+State 168
 
    26 for_expand: ',' OBJECTID ':' TYPEID ASSIGN • expression_single for_expand
 
@@ -2807,24 +2752,24 @@ State 170
 
     let_begin          go to state 50
     for_begin          go to state 51
-    expression_single  go to state 174
+    expression_single  go to state 172
 
 
-State 171
+State 169
 
    25 for_expand: ',' OBJECTID ':' TYPEID for_expand •
 
     $default  reduce using rule 25 (for_expand)
 
 
-State 172
+State 170
 
-   20 let_expand: ',' OBJECTID ':' TYPEID ASSIGN expression_single let_expand •
+   21 let_expand: ',' OBJECTID ':' TYPEID no_expr_helper let_expand •
 
-    $default  reduce using rule 20 (let_expand)
+    $default  reduce using rule 21 (let_expand)
 
 
-State 173
+State 171
 
    23 for_second: ';' expression_single ';' expression_single ')' '{' • expression_single '}'
 
@@ -2846,10 +2791,10 @@ State 173
 
     let_begin          go to state 50
     for_begin          go to state 51
-    expression_single  go to state 175
+    expression_single  go to state 173
 
 
-State 174
+State 172
 
    26 for_expand: ',' OBJECTID ':' TYPEID ASSIGN expression_single • for_expand
    34 expression_single: expression_single • '.' OBJECTID '(' ')'
@@ -2873,14 +2818,14 @@ State 174
     '/'  shift, and go to state 76
     '@'  shift, and go to state 77
     '.'  shift, and go to state 78
-    ';'  shift, and go to state 141
-    ','  shift, and go to state 142
+    ';'  shift, and go to state 140
+    ','  shift, and go to state 141
 
-    for_second  go to state 143
-    for_expand  go to state 176
+    for_second  go to state 142
+    for_expand  go to state 174
 
 
-State 175
+State 173
 
    23 for_second: ';' expression_single ';' expression_single ')' '{' expression_single • '}'
    34 expression_single: expression_single • '.' OBJECTID '(' ')'
@@ -2904,17 +2849,17 @@ State 175
     '/'  shift, and go to state 76
     '@'  shift, and go to state 77
     '.'  shift, and go to state 78
-    '}'  shift, and go to state 177
+    '}'  shift, and go to state 175
 
 
-State 176
+State 174
 
    26 for_expand: ',' OBJECTID ':' TYPEID ASSIGN expression_single for_expand •
 
     $default  reduce using rule 26 (for_expand)
 
 
-State 177
+State 175
 
    23 for_second: ';' expression_single ';' expression_single ')' '{' expression_single '}' •
 

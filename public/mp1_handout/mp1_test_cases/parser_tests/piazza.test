@@ -1,0 +1,7 @@
+class Main {
+     main() : Integer {
+        let a : Integer in (
+           a <- 2 * 3
+        )
+   };
+  };
