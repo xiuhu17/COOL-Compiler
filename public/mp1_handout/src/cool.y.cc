@@ -82,7 +82,7 @@
 #include "utilities.h"
 
 /* Add your own C declarations here */
-
+#define PARSE_ERR NULL
 
 /************************************************************************/
 /*                DONT CHANGE ANYTHING IN THIS SECTION                  */
@@ -1368,331 +1368,331 @@ yyreduce:
 
   case 8: /* feature_list_star: feature_list_star feature_single ';'  */
 #line 161 "cool.y"
-                                {}
+                                {  (yyval.features) = append_Features((yyvsp[-2].features), single_Features((yyvsp[-1].feature))); }
 #line 1373 "cool.y.cc"
     break;
 
   case 9: /* feature_single: OBJECTID '(' ')' ':' TYPEID '{' expression_single '}'  */
 #line 164 "cool.y"
-                                {}
+                                {  (yyval.feature) = method((yyvsp[-7].symbol), nil_Formals(), (yyvsp[-3].symbol), (yyvsp[-1].expression));  }
 #line 1379 "cool.y.cc"
     break;
 
   case 10: /* feature_single: OBJECTID '(' formal_single formal_list_star ')' ':' TYPEID '{' expression_single '}'  */
 #line 166 "cool.y"
-                                {}
+                                {  (yyval.feature) = method((yyvsp[-9].symbol), append_Formals(single_Formals((yyvsp[-7].formal)), (yyvsp[-6].formals)), (yyvsp[-3].symbol), (yyvsp[-1].expression));  }
 #line 1385 "cool.y.cc"
     break;
 
   case 11: /* feature_single: OBJECTID ':' TYPEID  */
 #line 168 "cool.y"
-                                {}
+                                {  (yyval.feature) = attr((yyvsp[-2].symbol), (yyvsp[0].symbol), no_expr());  }
 #line 1391 "cool.y.cc"
     break;
 
   case 12: /* feature_single: OBJECTID ':' TYPEID ASSIGN expression_single  */
 #line 170 "cool.y"
-                                {}
+                                {  (yyval.feature) = attr((yyvsp[-4].symbol), (yyvsp[-2].symbol), (yyvsp[0].expression));  }
 #line 1397 "cool.y.cc"
     break;
 
   case 13: /* formal_list_star: %empty  */
 #line 175 "cool.y"
-                                {}
+                                {  (yyval.formals) = nil_Formals();  }
 #line 1403 "cool.y.cc"
     break;
 
   case 14: /* formal_list_star: formal_list_star ',' formal_single  */
 #line 177 "cool.y"
-                                {}
+                                {  (yyval.formals) = append_Formals((yyvsp[-2].formals), single_Formals((yyvsp[0].formal)));  }
 #line 1409 "cool.y.cc"
     break;
 
   case 15: /* formal_single: OBJECTID ':' TYPEID  */
 #line 180 "cool.y"
-                                {}
+                                {  (yyval.formal) = formal((yyvsp[-2].symbol), (yyvsp[0].symbol));  }
 #line 1415 "cool.y.cc"
     break;
 
   case 16: /* case_list_pos: case_single ';'  */
 #line 185 "cool.y"
-                                {}
+                                {  (yyval.cases) = single_Cases((yyvsp[-1].case_));  }
 #line 1421 "cool.y.cc"
     break;
 
   case 17: /* case_list_pos: case_list_pos case_single ';'  */
 #line 187 "cool.y"
-                                {}
+                                {  (yyval.cases) = append_Cases((yyvsp[-2].cases), single_Cases((yyvsp[-1].case_)));  }
 #line 1427 "cool.y.cc"
     break;
 
   case 18: /* case_single: OBJECTID ':' TYPEID DARROW expression_single  */
 #line 190 "cool.y"
-                                {}
+                                {  (yyval.case_) = branch((yyvsp[-4].symbol), (yyvsp[-2].symbol), (yyvsp[0].expression));  }
 #line 1433 "cool.y.cc"
     break;
 
   case 19: /* let_expand: IN expression_single  */
 #line 195 "cool.y"
-                                {}
+                                {  (yyval.expression) = (yyvsp[0].expression);  }
 #line 1439 "cool.y.cc"
     break;
 
   case 20: /* let_expand: ',' OBJECTID ':' TYPEID let_expand  */
 #line 197 "cool.y"
-                                {}
+                                {  (yyval.expression) = let((yyvsp[-3].symbol), (yyvsp[-1].symbol), no_expr(), (yyvsp[0].expression));  }
 #line 1445 "cool.y.cc"
     break;
 
   case 21: /* let_expand: ',' OBJECTID ':' TYPEID ASSIGN expression_single let_expand  */
 #line 199 "cool.y"
-                                {}
+                                {  (yyval.expression) = let((yyvsp[-5].symbol), (yyvsp[-3].symbol), (yyvsp[-1].expression), (yyvsp[0].expression));  }
 #line 1451 "cool.y.cc"
     break;
 
   case 22: /* let_begin: LET OBJECTID ':' TYPEID let_expand  */
 #line 202 "cool.y"
-                                {}
+                                {  (yyval.expression) = let((yyvsp[-3].symbol), (yyvsp[-1].symbol), no_expr(), (yyvsp[0].expression));  }
 #line 1457 "cool.y.cc"
     break;
 
   case 23: /* let_begin: LET OBJECTID ':' TYPEID ASSIGN expression_single let_expand  */
 #line 204 "cool.y"
-                                {}
+                                {  (yyval.expression) = let((yyvsp[-5].symbol), (yyvsp[-3].symbol), (yyvsp[-1].expression), (yyvsp[0].expression));  }
 #line 1463 "cool.y.cc"
     break;
 
   case 24: /* for_second: ';' expression_single ';' expression_single ')' '{' expression_single '}'  */
 #line 209 "cool.y"
-                                {}
+                                {  (yyval.expression) = loop((yyvsp[-6].expression), block(append_Expressions(single_Expressions((yyvsp[-1].expression)), single_Expressions((yyvsp[-4].expression)))));  }
 #line 1469 "cool.y.cc"
     break;
 
   case 25: /* for_expand: for_second  */
 #line 212 "cool.y"
-                                {}
+                                {  (yyval.expression) = (yyvsp[0].expression);  }
 #line 1475 "cool.y.cc"
     break;
 
   case 26: /* for_expand: ',' OBJECTID ':' TYPEID for_expand  */
 #line 214 "cool.y"
-                                {}
+                                {  (yyval.expression) = let((yyvsp[-3].symbol), (yyvsp[-1].symbol), no_expr(), (yyvsp[0].expression));  }
 #line 1481 "cool.y.cc"
     break;
 
   case 27: /* for_expand: ',' OBJECTID ':' TYPEID ASSIGN expression_single for_expand  */
 #line 216 "cool.y"
-                                {}
+                                {  (yyval.expression) = let((yyvsp[-5].symbol), (yyvsp[-3].symbol), (yyvsp[-1].expression), (yyvsp[0].expression));  }
 #line 1487 "cool.y.cc"
     break;
 
   case 28: /* for_begin: FOR '(' OBJECTID ':' TYPEID for_expand  */
 #line 219 "cool.y"
-                                {}
+                                {  (yyval.expression) = let((yyvsp[-3].symbol), (yyvsp[-1].symbol), no_expr(), (yyvsp[0].expression));  }
 #line 1493 "cool.y.cc"
     break;
 
   case 29: /* for_begin: FOR '(' OBJECTID ':' TYPEID ASSIGN expression_single for_expand  */
 #line 221 "cool.y"
-                                {}
+                                {  (yyval.expression) = let((yyvsp[-5].symbol), (yyvsp[-3].symbol), (yyvsp[-1].expression), (yyvsp[0].expression));  }
 #line 1499 "cool.y.cc"
     break;
 
   case 30: /* expression_list_star: %empty  */
 #line 227 "cool.y"
-                                {}
+                                {  (yyval.expressions) = nil_Expressions();  }
 #line 1505 "cool.y.cc"
     break;
 
   case 31: /* expression_list_star: expression_list_star ',' expression_single  */
 #line 229 "cool.y"
-                                {}
+                                {  (yyval.expressions) = append_Expressions((yyvsp[-2].expressions), single_Expressions((yyvsp[0].expression)));  }
 #line 1511 "cool.y.cc"
     break;
 
   case 32: /* expression_list_pos: expression_single ';'  */
 #line 232 "cool.y"
-                                {}
+                                {  (yyval.expressions) = single_Expressions((yyvsp[-1].expression));  }
 #line 1517 "cool.y.cc"
     break;
 
   case 33: /* expression_list_pos: expression_list_pos expression_single ';'  */
 #line 234 "cool.y"
-                                {}
+                                {  (yyval.expressions) = append_Expressions((yyvsp[-2].expressions), single_Expressions((yyvsp[-1].expression)));  }
 #line 1523 "cool.y.cc"
     break;
 
   case 34: /* expression_single: OBJECTID ASSIGN expression_single  */
 #line 238 "cool.y"
-                                {}
+                                {  (yyval.expression) = assign((yyvsp[-2].symbol), (yyvsp[0].expression));  }
 #line 1529 "cool.y.cc"
     break;
 
   case 35: /* expression_single: expression_single '.' OBJECTID '(' ')'  */
 #line 240 "cool.y"
-                                {}
+                                {  (yyval.expression) = dispatch((yyvsp[-4].expression), (yyvsp[-2].symbol), nil_Expressions());  }
 #line 1535 "cool.y.cc"
     break;
 
   case 36: /* expression_single: expression_single '.' OBJECTID '(' expression_single expression_list_star ')'  */
 #line 242 "cool.y"
-                                {}
+                                {  (yyval.expression) = dispatch((yyvsp[-6].expression), (yyvsp[-4].symbol), append_Expressions(single_Expressions((yyvsp[-2].expression)), (yyvsp[-1].expressions)));  }
 #line 1541 "cool.y.cc"
     break;
 
   case 37: /* expression_single: expression_single '@' TYPEID '.' OBJECTID '(' ')'  */
 #line 244 "cool.y"
-                                {}
+                                {  (yyval.expression) = static_dispatch((yyvsp[-6].expression), (yyvsp[-4].symbol), (yyvsp[-2].symbol), nil_Expressions());  }
 #line 1547 "cool.y.cc"
     break;
 
   case 38: /* expression_single: expression_single '@' TYPEID '.' OBJECTID '(' expression_single expression_list_star ')'  */
 #line 246 "cool.y"
-                                {}
+                                {  (yyval.expression) = static_dispatch((yyvsp[-8].expression), (yyvsp[-6].symbol), (yyvsp[-4].symbol), append_Expressions(single_Expressions((yyvsp[-2].expression)), (yyvsp[-1].expressions)));  }
 #line 1553 "cool.y.cc"
     break;
 
   case 39: /* expression_single: OBJECTID '(' ')'  */
 #line 248 "cool.y"
-                                {}
+                                {  (yyval.expression) = dispatch(object(idtable.add_string("self")), (yyvsp[-2].symbol), nil_Expressions());  }
 #line 1559 "cool.y.cc"
     break;
 
   case 40: /* expression_single: OBJECTID '(' expression_single expression_list_star ')'  */
 #line 250 "cool.y"
-                                {}
+                                {  (yyval.expression) = dispatch(object(idtable.add_string("self")), (yyvsp[-4].symbol), append_Expressions(single_Expressions((yyvsp[-2].expression)), (yyvsp[-1].expressions)));  }
 #line 1565 "cool.y.cc"
     break;
 
   case 41: /* expression_single: IF expression_single THEN expression_single ELSE expression_single FI  */
 #line 252 "cool.y"
-                                {}
+                                {  (yyval.expression) = cond((yyvsp[-5].expression), (yyvsp[-3].expression), (yyvsp[-1].expression));  }
 #line 1571 "cool.y.cc"
     break;
 
   case 42: /* expression_single: WHILE expression_single LOOP expression_single POOL  */
 #line 254 "cool.y"
-                                {}
+                                {  (yyval.expression) = loop((yyvsp[-3].expression), (yyvsp[-1].expression));  }
 #line 1577 "cool.y.cc"
     break;
 
   case 43: /* expression_single: '{' expression_list_pos '}'  */
 #line 256 "cool.y"
-                                {}
+                                {  (yyval.expression) = block((yyvsp[-1].expressions));  }
 #line 1583 "cool.y.cc"
     break;
 
   case 44: /* expression_single: let_begin  */
 #line 258 "cool.y"
-                                {}
+                                {  (yyval.expression) = (yyvsp[0].expression); }
 #line 1589 "cool.y.cc"
     break;
 
   case 45: /* expression_single: for_begin  */
 #line 260 "cool.y"
-                                {}
+                                {  (yyval.expression) = (yyvsp[0].expression); }
 #line 1595 "cool.y.cc"
     break;
 
   case 46: /* expression_single: CASE expression_single OF case_list_pos ESAC  */
 #line 262 "cool.y"
-                                {}
+                                {  (yyval.expression) = typcase((yyvsp[-3].expression), (yyvsp[-1].cases));  }
 #line 1601 "cool.y.cc"
     break;
 
   case 47: /* expression_single: NEW TYPEID  */
 #line 264 "cool.y"
-                                {}
+                                {  (yyval.expression) = new_((yyvsp[0].symbol));  }
 #line 1607 "cool.y.cc"
     break;
 
   case 48: /* expression_single: ISVOID expression_single  */
 #line 266 "cool.y"
-                                {}
+                                {  (yyval.expression) = isvoid((yyvsp[0].expression));  }
 #line 1613 "cool.y.cc"
     break;
 
   case 49: /* expression_single: expression_single '+' expression_single  */
 #line 268 "cool.y"
-                                {}
+                                {  (yyval.expression) = plus((yyvsp[-2].expression), (yyvsp[0].expression));  }
 #line 1619 "cool.y.cc"
     break;
 
   case 50: /* expression_single: expression_single '-' expression_single  */
 #line 270 "cool.y"
-                                {}
+                                {  (yyval.expression) = sub((yyvsp[-2].expression), (yyvsp[0].expression));  }
 #line 1625 "cool.y.cc"
     break;
 
   case 51: /* expression_single: expression_single '*' expression_single  */
 #line 272 "cool.y"
-                                {}
+                                {  (yyval.expression) = mul((yyvsp[-2].expression), (yyvsp[0].expression));  }
 #line 1631 "cool.y.cc"
     break;
 
   case 52: /* expression_single: expression_single '/' expression_single  */
 #line 274 "cool.y"
-                                {}
+                                {  (yyval.expression) = divide((yyvsp[-2].expression), (yyvsp[0].expression));  }
 #line 1637 "cool.y.cc"
     break;
 
   case 53: /* expression_single: '~' expression_single  */
 #line 276 "cool.y"
-                                {}
+                                {  (yyval.expression) = neg((yyvsp[0].expression));  }
 #line 1643 "cool.y.cc"
     break;
 
   case 54: /* expression_single: expression_single '<' expression_single  */
 #line 278 "cool.y"
-                                {}
+                                {  (yyval.expression) = lt((yyvsp[-2].expression), (yyvsp[0].expression));  }
 #line 1649 "cool.y.cc"
     break;
 
   case 55: /* expression_single: expression_single LE expression_single  */
 #line 280 "cool.y"
-                                {}
+                                {  (yyval.expression) = leq((yyvsp[-2].expression), (yyvsp[0].expression));  }
 #line 1655 "cool.y.cc"
     break;
 
   case 56: /* expression_single: expression_single '=' expression_single  */
 #line 282 "cool.y"
-                                {}
+                                {  (yyval.expression) = eq((yyvsp[-2].expression), (yyvsp[0].expression));  }
 #line 1661 "cool.y.cc"
     break;
 
   case 57: /* expression_single: NOT expression_single  */
 #line 284 "cool.y"
-                                {}
+                                {  (yyval.expression) = comp((yyvsp[0].expression));  }
 #line 1667 "cool.y.cc"
     break;
 
   case 58: /* expression_single: '(' expression_single ')'  */
 #line 286 "cool.y"
-                                {}
+                                {  (yyval.expression) = (yyvsp[-1].expression);  }
 #line 1673 "cool.y.cc"
     break;
 
   case 59: /* expression_single: OBJECTID  */
 #line 288 "cool.y"
-                                {}
+                                {  (yyval.expression) = object((yyvsp[0].symbol));  }
 #line 1679 "cool.y.cc"
     break;
 
   case 60: /* expression_single: INT_CONST  */
 #line 290 "cool.y"
-                                {}
+                                {  (yyval.expression) = int_const((yyvsp[0].symbol));  }
 #line 1685 "cool.y.cc"
     break;
 
   case 61: /* expression_single: STR_CONST  */
 #line 292 "cool.y"
-                                {}
+                                {  (yyval.expression) = string_const((yyvsp[0].symbol));  }
 #line 1691 "cool.y.cc"
     break;
 
   case 62: /* expression_single: BOOL_CONST  */
 #line 294 "cool.y"
-                                {}
+                                {  (yyval.expression) = bool_const((yyvsp[0].boolean));  }
 #line 1697 "cool.y.cc"
     break;
 

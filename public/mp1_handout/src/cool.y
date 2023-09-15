@@ -10,7 +10,7 @@
 #include "utilities.h"
 
 /* Add your own C declarations here */
-
+#define PARSE_ERR NULL
 
 /************************************************************************/
 /*                DONT CHANGE ANYTHING IN THIS SECTION                  */
@@ -158,141 +158,141 @@ class  : CLASS TYPEID '{' feature_list_star '}' ';'
 feature_list_star      :  /* empty */
                                 {  $$ = nil_Features(); }
                         | feature_list_star feature_single ';'
-                                {}
+                                {  $$ = append_Features($1, single_Features($2)); }
                 ;          
 feature_single          : OBJECTID '(' ')' ':' TYPEID '{' expression_single '}' 
-                                {}
+                                {  $$ = method($1, nil_Formals(), $5, $7);  }
                         | OBJECTID '(' formal_single formal_list_star ')' ':' TYPEID '{' expression_single '}'
-                                {}
+                                {  $$ = method($1, append_Formals(single_Formals($3), $4), $7, $9);  }
                         | OBJECTID ':' TYPEID 
-                                {}
+                                {  $$ = attr($1, $3, no_expr());  }
                         | OBJECTID ':' TYPEID ASSIGN expression_single 
-                                {}
+                                {  $$ = attr($1, $3, $5);  }
                 ;
 
 
 formal_list_star        : /* empty */
-                                {}
+                                {  $$ = nil_Formals();  }
                         | formal_list_star ',' formal_single
-                                {}
+                                {  $$ = append_Formals($1, single_Formals($3));  }
                 ;
 formal_single           : OBJECTID ':' TYPEID 
-                                {}
+                                {  $$ = formal($1, $3);  }
                 ;
 
 
 case_list_pos           : case_single ';'
-                                {}
+                                {  $$ = single_Cases($1);  }
                         | case_list_pos case_single ';'
-                                {}
+                                {  $$ = append_Cases($1, single_Cases($2));  }
                 ;
 case_single             : OBJECTID ':' TYPEID DARROW expression_single 
-                                {}
+                                {  $$ = branch($1, $3, $5);  }
                 ;
 
 
 let_expand              : IN expression_single  %prec prec_let_expand
-                                {}
+                                {  $$ = $2;  }
                         | ',' OBJECTID ':' TYPEID let_expand  
-                                {}
+                                {  $$ = let($2, $4, no_expr(), $5);  }
                         | ',' OBJECTID ':' TYPEID ASSIGN expression_single let_expand  
-                                {} 
+                                {  $$ = let($2, $4, $6, $7);  } 
                 ;
 let_begin               : LET OBJECTID ':' TYPEID let_expand 
-                                {}
+                                {  $$ = let($2, $4, no_expr(), $5);  }
                         | LET OBJECTID ':' TYPEID ASSIGN expression_single let_expand  
-                                {}
+                                {  $$ = let($2, $4, $6, $7);  }
                 ;
                 
 
 for_second              : ';' expression_single ';' expression_single ')' '{' expression_single '}' 
-                                {}
+                                {  $$ = loop($2, block(append_Expressions(single_Expressions($7), single_Expressions($4))));  }
                 ;
 for_expand              : for_second 
-                                {}
+                                {  $$ = $1;  }
                         | ',' OBJECTID ':' TYPEID for_expand 
-                                {}
+                                {  $$ = let($2, $4, no_expr(), $5);  }
                         | ',' OBJECTID ':' TYPEID ASSIGN expression_single for_expand
-                                {}
+                                {  $$ = let($2, $4, $6, $7);  }
                 ;
 for_begin               : FOR '(' OBJECTID ':' TYPEID for_expand  
-                                {}         
+                                {  $$ = let($3, $5, no_expr(), $6);  }         
                         | FOR '(' OBJECTID ':' TYPEID ASSIGN expression_single for_expand
-                                {}
+                                {  $$ = let($3, $5, $7, $8);  }
                 ;
 
 
 
 expression_list_star    : /* empty */
-                                {}
+                                {  $$ = nil_Expressions();  }
                         | expression_list_star ',' expression_single
-                                {}
+                                {  $$ = append_Expressions($1, single_Expressions($3));  }
                 ;
 expression_list_pos     : expression_single ';'
-                                {}
+                                {  $$ = single_Expressions($1);  }
                         | expression_list_pos expression_single ';'
-                                {}
+                                {  $$ = append_Expressions($1, single_Expressions($2));  }
                 ;
 
 expression_single       : OBJECTID ASSIGN expression_single
-                                {}
+                                {  $$ = assign($1, $3);  }
                         | expression_single '.' OBJECTID '('  ')'
-                                {}
+                                {  $$ = dispatch($1, $3, nil_Expressions());  }
                         | expression_single '.' OBJECTID '(' expression_single  expression_list_star ')'
-                                {}
+                                {  $$ = dispatch($1, $3, append_Expressions(single_Expressions($5), $6));  }
                         | expression_single '@' TYPEID '.' OBJECTID '('  ')'
-                                {}
+                                {  $$ = static_dispatch($1, $3, $5, nil_Expressions());  }
                         | expression_single '@' TYPEID '.' OBJECTID '(' expression_single  expression_list_star ')'
-                                {}
+                                {  $$ = static_dispatch($1, $3, $5, append_Expressions(single_Expressions($7), $8));  }
                         | OBJECTID '(' ')'
-                                {}
+                                {  $$ = dispatch(object(idtable.add_string("self")), $1, nil_Expressions());  }
                         | OBJECTID '(' expression_single  expression_list_star ')'
-                                {}
+                                {  $$ = dispatch(object(idtable.add_string("self")), $1, append_Expressions(single_Expressions($3), $4));  }                       
                         | IF expression_single THEN expression_single ELSE expression_single FI 
-                                {}
+                                {  $$ = cond($2, $4, $6);  }
                         | WHILE expression_single LOOP expression_single POOL
-                                {}
+                                {  $$ = loop($2, $4);  }
                         | '{' expression_list_pos '}' 
-                                {}
+                                {  $$ = block($2);  }
                         | let_begin
-                                {}
+                                {  $$ = $1; }
                         | for_begin
-                                {}
+                                {  $$ = $1; }
                         | CASE expression_single OF case_list_pos ESAC 
-                                {}
+                                {  $$ = typcase($2, $4);  }
                         | NEW TYPEID
-                                {}
+                                {  $$ = new_($2);  }
                         | ISVOID expression_single
-                                {}
+                                {  $$ = isvoid($2);  }
                         | expression_single '+' expression_single 
-                                {}
+                                {  $$ = plus($1, $3);  }
                         | expression_single '-' expression_single
-                                {}
+                                {  $$ = sub($1, $3);  }
                         | expression_single '*' expression_single
-                                {}
+                                {  $$ = mul($1, $3);  }
                         | expression_single '/' expression_single
-                                {}
+                                {  $$ = divide($1, $3);  }
                         | '~' expression_single 
-                                {}
+                                {  $$ = neg($2);  }
                         | expression_single '<' expression_single 
-                                {}
+                                {  $$ = lt($1, $3);  }
                         | expression_single LE expression_single 
-                                {}
+                                {  $$ = leq($1, $3);  }
                         | expression_single '=' expression_single 
-                                {}
+                                {  $$ = eq($1, $3);  }
                         | NOT expression_single 
-                                {}
+                                {  $$ = comp($2);  }
                         | '(' expression_single ')'
-                                {}
+                                {  $$ = $2;  }
                         | OBJECTID
-                                {}
+                                {  $$ = object($1);  }
                         | INT_CONST
-                                {}
+                                {  $$ = int_const($1);  }
                         | STR_CONST
-                                {}
+                                {  $$ = string_const($1);  }
                         | BOOL_CONST
-                                {}
-                ;
+                                {  $$ = bool_const($1);  }
+                ; 
 
 /* end of grammar */
 %%
