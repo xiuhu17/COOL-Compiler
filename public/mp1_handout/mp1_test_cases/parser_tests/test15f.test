@@ -1,0 +1,10 @@
+class Main inherits IO {
+    main() : Object { {
+        out_string("range(100) = [");
+        for (i: Int <- 0, j: Int <- 5; i < 100; i <- i + 1) { {
+            out_int(i);
+            out_string(", ");
+        } };
+        out_string("]\n");
+    } };
+};
