@@ -240,7 +240,7 @@ expression_single       : OBJECTID ASSIGN expression_single
                                 {}
                         | expression_single '.' OBJECTID '(' expression_single  expression_list_star ')'
                                 {}
-                        | expression_single '@' TYPEID '.' '('  ')'
+                        | expression_single '@' TYPEID '.' OBJECTID '('  ')'
                                 {}
                         | expression_single '@' TYPEID '.' OBJECTID '(' expression_single  expression_list_star ')'
                                 {}
