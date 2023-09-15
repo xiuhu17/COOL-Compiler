@@ -80,7 +80,8 @@ extern int cool_yydebug;
     NOT = 281,                     /* NOT  */
     LE = 282,                      /* LE  */
     FOR = 283,                     /* FOR  */
-    ERROR = 284                    /* ERROR  */
+    ERROR = 284,                   /* ERROR  */
+    prec_let_expand = 286          /* prec_let_expand  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -116,6 +117,7 @@ extern int cool_yydebug;
 #define LE 282
 #define FOR 283
 #define ERROR 284
+#define prec_let_expand 286
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
@@ -138,7 +140,7 @@ union YYSTYPE
   Expressions expressions;
   char *error_msg;
 
-#line 142 "cool.y.h"
+#line 144 "cool.y.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

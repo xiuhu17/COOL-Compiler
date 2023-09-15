@@ -104,16 +104,24 @@ extern int VERBOSE_ERRORS;
 %type <cases> case_list_pos
 %type <case_> case_single
 
-%type <expressions> expression_list
 %type <expressions> expression_list_star
 %type <expressions> expression_list_pos
 %type <expression> expression_single 
-%type <expression> begin_let 
+
+%type <expression> let_begin 
+%type <expression> let_expand
+%type <expression> for_begin
+%type <expression> for_second  
+%type <expression> for_expand
+
+
 
 /* You will want to change the following line. */
 /* %type <features> dummy_feature_list */
 
 /* Precedence declarations go here. */
+
+%nonassoc prec_let_expand
 
 %right ASSIGN
 %left NOT
@@ -183,6 +191,38 @@ case_single             : OBJECTID ':' TYPEID DARROW expression_single
                 ;
 
 
+let_expand              : IN expression_single  %prec prec_let_expand
+                                {}
+                        | ',' OBJECTID ':' TYPEID let_expand  
+                                {}
+                        | ',' OBJECTID ':' TYPEID ASSIGN expression_single let_expand  
+                                {} 
+                ;
+let_begin               : LET OBJECTID ':' TYPEID let_expand 
+                                {}
+                        | LET OBJECTID ':' TYPEID ASSIGN expression_single let_expand  
+                                {}
+                ;
+                
+
+for_second              : ';' expression_single ';' expression_single ')' '{' expression_single '}' 
+                                {}
+                ;
+for_expand              : for_second 
+                                {}
+                        | ',' OBJECTID ':' TYPEID for_expand 
+                                {}
+                        | ',' OBJECTID ':' TYPEID ASSIGN expression_single for_expand
+                                {}
+                ;
+for_begin               : FOR '(' OBJECTID ':' TYPEID for_expand  
+                                {}         
+                        | FOR '(' OBJECTID ':' TYPEID ASSIGN expression_single for_expand
+                                {}
+                ;
+
+
+
 expression_list_star    : /* empty */
                                 {}
                         | expression_list_star ',' expression_single
@@ -194,10 +234,65 @@ expression_list_pos     : expression_single ';'
                                 {}
                 ;
 
-begin_let               : 
-
-expression_list: ASSIGN{};
-expression_single:ASSIGN {};
+expression_single       : OBJECTID ASSIGN expression_single
+                                {}
+                        | expression_single '.' OBJECTID '('  ')'
+                                {}
+                        | expression_single '.' OBJECTID '(' expression_single  expression_list_star ')'
+                                {}
+                        | expression_single '@' TYPEID '.' '('  ')'
+                                {}
+                        | expression_single '@' TYPEID '.' OBJECTID '(' expression_single  expression_list_star ')'
+                                {}
+                        | OBJECTID '(' ')'
+                                {}
+                        | OBJECTID '(' expression_single  expression_list_star ')'
+                                {}
+                        | IF expression_single THEN expression_single ELSE expression_single FI 
+                                {}
+                        | WHILE expression_single LOOP expression_single POOL
+                                {}
+                        | '{' expression_list_pos '}' 
+                                {}
+                        | let_begin
+                                {}
+                        | for_begin
+                                {}
+                        | CASE expression_single OF case_list_pos ESAC 
+                                {}
+                        | NEW TYPEID
+                                {}
+                        | ISVOID expression_single
+                                {}
+                        | expression_single '+' expression_single 
+                                {}
+                        | expression_single '-' expression_single
+                                {}
+                        | expression_single '*' expression_single
+                                {}
+                        | expression_single '/' expression_single
+                                {}
+                        | '~' expression_single 
+                                {}
+                        | expression_single '<' expression_single 
+                                {}
+                        | expression_single LE expression_single 
+                                {}
+                        | expression_single '=' expression_single 
+                                {}
+                        | NOT expression_single 
+                                {}
+                        | '(' expression_single ')'
+                                {}
+                        | OBJECTID
+                                {}
+                        | INT_CONST
+                                {}
+                        | STR_CONST
+                                {}
+                        | BOOL_CONST
+                                {}
+                ;
 
 /* end of grammar */
 %%
