@@ -144,7 +144,7 @@ program : class_list { ast_root = program($1); }
 class_list
         : class ';'           /* single class */
                 { $$ = single_Classes($1); }
-        | error
+        | error              /* support the situation that error could be appear at the beginning of the class_list, {erro, normal, normal ...} */
                 {  yyclearin;   }
         | class_list class ';' /* several classes */
                 { $$ = append_Classes($1,single_Classes($2)); }
@@ -152,6 +152,7 @@ class_list
                 {  yyclearin;   }
         ;
 
+/* error will be popped to higher level, that is, class_list */
 /* If no parent is specified, the class inherits from the Object class. */
 class  : CLASS TYPEID '{' feature_list_star '}' 
                 { $$ = class_($2,idtable.add_string("Object"), $4, stringtable.add_string(curr_filename)); }
@@ -167,7 +168,7 @@ feature_list_star      :  /* empty */
                                 {  $$ = nil_Features(); }
                         | feature_list_star feature_single ';'
                                 {  $$ = append_Features($1, single_Features($2)); }
-                        | feature_list_star error ';' 
+                        | feature_list_star error ';'
                                 {  yyclearin;  }
                 ;          
 feature_single          : OBJECTID '(' ')' ':' TYPEID '{' expression_single '}' 
@@ -177,7 +178,7 @@ feature_single          : OBJECTID '(' ')' ':' TYPEID '{' expression_single '}'
                         | OBJECTID ':' TYPEID 
                                 {  $$ = attr($1, $3, no_expr());  }
                         | OBJECTID ':' TYPEID ASSIGN expression_single 
-                                {  $$ = attr($1, $3, $5);  }
+                                {  $$ = attr($1, $3, $5);  }      
                 ;
 
 
@@ -252,11 +253,14 @@ expression_list_star    : /* empty */
                         | expression_list_star ',' expression_single
                                 {  $$ = append_Expressions($1, single_Expressions($3));  }
                 ;
+/* error will be popped to the higher level, that is, expression_single */
 expression_list_pos     : expression_single ';'
                                 {  $$ = single_Expressions($1);  }
                         | expression_list_pos expression_single ';'
                                 {  $$ = append_Expressions($1, single_Expressions($2));  }
                         | expression_list_pos error ';'
+                                {  yyclearin;  }
+                        | error ';'                 /* support the situation that error could be appear at the beginning of the block, {erro, normal, normal ...} */
                                 {  yyclearin;  }
                 ;
 
@@ -318,6 +322,8 @@ expression_single       : OBJECTID ASSIGN expression_single
                                 {  $$ = string_const($1);  }
                         | BOOL_CONST
                                 {  $$ = bool_const($1);  }
+                        | '{' error '}'
+                                {  yyclearin;  }
                 ; 
 
 /* end of grammar */
