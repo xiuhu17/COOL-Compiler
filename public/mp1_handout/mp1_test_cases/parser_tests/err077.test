@@ -1,0 +1,13 @@
+-- {-} blocks must contain at least one expression.
+class Main {
+	 foo () : Integer  { 
+        {
+            3;
+            3 +;
+            3 ++;
+            3+++;
+            3+2;
+        }
+
+     };
+};

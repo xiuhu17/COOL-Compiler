@@ -4,3 +4,22 @@ class B inherits A {
 		a.(foo)
 	};
 };
+
+-- omitted keyword
+class B inherits A {
+	main() : Object {
+		a.(foo)
+	};
+	main() : Object {
+		a.(foo)
+	};
+	main() : Object {
+		a.(foo)
+	};
+	main() : Object {
+		a.(foo)
+	};
+	main() : Object {
+		a.(foo)
+	};
+};

@@ -1,0 +1,20 @@
+class A {
+    a : <-  isvoid (1 + 2);
+    a : bool <- isvoid (1 + 2);
+    a  a a a;
+    a : Bool  isvoid (1 + 2);
+    a : <-  isvoid (1 + 2);
+
+    main() : Object {
+	let r : Main in
+	    if isvoid r then abort() else out_string("OK") fi
+    };
+     main() : object {
+	let r : Main in
+	    if isvoid r then abort() else out_string("OK") fi
+    };
+     main() : object {
+	let r  Main in
+	    if isvoid r then abort() else out_string("OK") fi
+    };
+};

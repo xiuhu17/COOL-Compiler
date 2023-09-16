@@ -18,7 +18,7 @@ for i in $(ls "$TEST_DIR"); do
 
     # 在reference-binaries目录中执行 lexer 和 parser 的组合并将输出保存到临时文件
     cd "$REF_DIR"
-    ./lexer "$TEST_DIR/$i" | ./parser > /tmp/output2.txt 2>&1
+    /home/zhihaow6/Desktop/426/public/mp1_handout/reference-binaries/lexer "$TEST_DIR/$i" | ./parser > /tmp/output2.txt 2>&1
 
     # 比较两个输出
     if diff -q /tmp/output1.txt /tmp/output2.txt > /dev/null; then
