@@ -8,3 +8,12 @@ class Main inherits IO {
         out_string("]\n");
     } };
 };
+
+class Main inherits IO {
+    main() : Object { 
+        
+        for (i: Int <- 0, j: Int <- 5; i < 100; i <- i + 1) { 1 + 2}
+
+     };
+};
+

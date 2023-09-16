@@ -202,7 +202,7 @@ enum yysymbol_kind_t
   YYSYMBOL_formal_single = 54,             /* formal_single  */
   YYSYMBOL_case_list_pos = 55,             /* case_list_pos  */
   YYSYMBOL_case_single = 56,               /* case_single  */
-  YYSYMBOL_no_expr_helper = 57,            /* no_expr_helper  */
+  YYSYMBOL_let_no_expr_helper = 57,        /* let_no_expr_helper  */
   YYSYMBOL_let_expand = 58,                /* let_expand  */
   YYSYMBOL_let_begin = 59,                 /* let_begin  */
   YYSYMBOL_for_second = 60,                /* for_second  */
@@ -629,9 +629,9 @@ static const char *const yytname[] =
   "'~'", "'@'", "'.'", "'{'", "'}'", "';'", "'('", "')'", "':'", "','",
   "$accept", "program", "class_list", "class", "feature_list_star",
   "feature_single", "formal_list_star", "formal_single", "case_list_pos",
-  "case_single", "no_expr_helper", "let_expand", "let_begin", "for_second",
-  "for_expand", "for_begin", "expression_list_star", "expression_list_pos",
-  "expression_single", YY_NULLPTR
+  "case_single", "let_no_expr_helper", "let_expand", "let_begin",
+  "for_second", "for_expand", "for_begin", "expression_list_star",
+  "expression_list_pos", "expression_single", YY_NULLPTR
 };
 
 static const char *
@@ -1425,13 +1425,13 @@ yyreduce:
 #line 1426 "cool.y.cc"
     break;
 
-  case 19: /* no_expr_helper: %empty  */
+  case 19: /* let_no_expr_helper: %empty  */
 #line 195 "cool.y"
                                 {  (yyval.expression) = no_expr();  }
 #line 1432 "cool.y.cc"
     break;
 
-  case 20: /* no_expr_helper: ASSIGN expression_single  */
+  case 20: /* let_no_expr_helper: ASSIGN expression_single  */
 #line 197 "cool.y"
                                 {  (yyval.expression) = (yyvsp[0].expression);  }
 #line 1438 "cool.y.cc"
@@ -1443,13 +1443,13 @@ yyreduce:
 #line 1444 "cool.y.cc"
     break;
 
-  case 22: /* let_expand: ',' OBJECTID ':' TYPEID no_expr_helper let_expand  */
+  case 22: /* let_expand: ',' OBJECTID ':' TYPEID let_no_expr_helper let_expand  */
 #line 202 "cool.y"
                                 {  (yyval.expression) = let((yyvsp[-4].symbol), (yyvsp[-2].symbol), (yyvsp[-1].expression),  (yyvsp[0].expression));  }
 #line 1450 "cool.y.cc"
     break;
 
-  case 23: /* let_begin: LET OBJECTID ':' TYPEID no_expr_helper let_expand  */
+  case 23: /* let_begin: LET OBJECTID ':' TYPEID let_no_expr_helper let_expand  */
 #line 205 "cool.y"
                                 {  (yyval.expression) = let((yyvsp[-4].symbol), (yyvsp[-2].symbol), (yyvsp[-1].expression), (yyvsp[0].expression));  }
 #line 1456 "cool.y.cc"

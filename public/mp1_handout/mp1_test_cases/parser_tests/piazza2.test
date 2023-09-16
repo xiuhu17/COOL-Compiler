@@ -1,0 +1,42 @@
+class Main {
+    main() : Integer {
+       let a : Integer in (
+           a <- 2 * 3
+       )
+       + (a * 4)
+   };
+};
+
+
+class Main1 {
+    main() : Integer {
+       let a : Integer in (
+           a <- 2 * 3
+       )
+      
+      
+
+
+
+   };
+};
+
+
+class Main2 {
+    main() : Integer {
+       let a : Integer in {1 + 
+       
+       
+       2;}
+   };
+};
+
+
+class Main3 {
+    main() : Integer {
+       let a : Integer in b 
+
+       (2 + 3)
+   };
+};
+

@@ -113,7 +113,7 @@ extern int VERBOSE_ERRORS;
 %type <expression> for_begin
 %type <expression> for_second  
 %type <expression> for_expand
-%type <expression> no_expr_helper
+%type <expression> let_no_expr_helper
 
 
 
@@ -123,7 +123,6 @@ extern int VERBOSE_ERRORS;
 /* Precedence declarations go here. */
 
 %nonassoc prec_let_expand
-
 %right ASSIGN
 %left NOT
 %nonassoc LE '<' '='
@@ -133,6 +132,7 @@ extern int VERBOSE_ERRORS;
 %left '~'
 %left '@'
 %left '.'
+
 
 %%
 /* 
@@ -191,17 +191,17 @@ case_single             : OBJECTID ':' TYPEID DARROW expression_single
                                 {  $$ = branch($1, $3, $5);  }
                 ;
 
-no_expr_helper          : /* empty */ 
+let_no_expr_helper      : /* empty */ 
                                 {  $$ = no_expr();  }
                         | ASSIGN expression_single 
                                 {  $$ = $2;  }
                 ;
 let_expand              : IN expression_single %prec prec_let_expand
                                 {  $$ = $2;  }
-                        | ',' OBJECTID ':' TYPEID no_expr_helper let_expand  
+                        | ',' OBJECTID ':' TYPEID let_no_expr_helper let_expand  
                                 {  $$ = let($2, $4, $5,  $6);  }
                 ;
-let_begin               : LET OBJECTID ':' TYPEID no_expr_helper let_expand 
+let_begin               : LET OBJECTID ':' TYPEID let_no_expr_helper let_expand 
                                 {  $$ = let($2, $4, $5, $6);  }
                 ;
                 

@@ -33,13 +33,13 @@ Grammar
 
    17 case_single: OBJECTID ':' TYPEID DARROW expression_single
 
-   18 no_expr_helper: ε
-   19               | ASSIGN expression_single
+   18 let_no_expr_helper: ε
+   19                   | ASSIGN expression_single
 
    20 let_expand: IN expression_single
-   21           | ',' OBJECTID ':' TYPEID no_expr_helper let_expand
+   21           | ',' OBJECTID ':' TYPEID let_no_expr_helper let_expand
 
-   22 let_begin: LET OBJECTID ':' TYPEID no_expr_helper let_expand
+   22 let_begin: LET OBJECTID ':' TYPEID let_no_expr_helper let_expand
 
    23 for_second: ';' expression_single ';' expression_single ')' '{' expression_single '}'
 
@@ -168,7 +168,7 @@ Nonterminals, with rules where they appear
     case_single <case_> (56)
         on left: 17
         on right: 15 16
-    no_expr_helper <expression> (57)
+    let_no_expr_helper <expression> (57)
         on left: 18 19
         on right: 21 22
     let_expand <expression> (58)
@@ -529,7 +529,7 @@ State 35
 
 State 36
 
-   22 let_begin: LET • OBJECTID ':' TYPEID no_expr_helper let_expand
+   22 let_begin: LET • OBJECTID ':' TYPEID let_no_expr_helper let_expand
 
     OBJECTID  shift, and go to state 57
 
@@ -869,7 +869,7 @@ State 56
 
 State 57
 
-   22 let_begin: LET OBJECTID • ':' TYPEID no_expr_helper let_expand
+   22 let_begin: LET OBJECTID • ':' TYPEID let_no_expr_helper let_expand
 
     ':'  shift, and go to state 82
 
@@ -1398,7 +1398,7 @@ State 81
 
 State 82
 
-   22 let_begin: LET OBJECTID ':' • TYPEID no_expr_helper let_expand
+   22 let_begin: LET OBJECTID ':' • TYPEID let_no_expr_helper let_expand
 
     TYPEID  shift, and go to state 105
 
@@ -1811,13 +1811,13 @@ State 104
 
 State 105
 
-   22 let_begin: LET OBJECTID ':' TYPEID • no_expr_helper let_expand
+   22 let_begin: LET OBJECTID ':' TYPEID • let_no_expr_helper let_expand
 
     ASSIGN  shift, and go to state 117
 
-    $default  reduce using rule 18 (no_expr_helper)
+    $default  reduce using rule 18 (let_no_expr_helper)
 
-    no_expr_helper  go to state 118
+    let_no_expr_helper  go to state 118
 
 
 State 106
@@ -1985,7 +1985,7 @@ State 116
 
 State 117
 
-   19 no_expr_helper: ASSIGN • expression_single
+   19 let_no_expr_helper: ASSIGN • expression_single
 
     IF          shift, and go to state 35
     LET         shift, and go to state 36
@@ -2010,7 +2010,7 @@ State 117
 
 State 118
 
-   22 let_begin: LET OBJECTID ':' TYPEID no_expr_helper • let_expand
+   22 let_begin: LET OBJECTID ':' TYPEID let_no_expr_helper • let_expand
 
     IN   shift, and go to state 133
     ','  shift, and go to state 134
@@ -2179,7 +2179,7 @@ State 131
 
 State 132
 
-   19 no_expr_helper: ASSIGN expression_single •
+   19 let_no_expr_helper: ASSIGN expression_single •
    34 expression_single: expression_single • '.' OBJECTID '(' ')'
    35                  | expression_single • '.' OBJECTID '(' expression_single expression_list_star ')'
    36                  | expression_single • '@' TYPEID '.' OBJECTID '(' ')'
@@ -2202,7 +2202,7 @@ State 132
     '@'  shift, and go to state 77
     '.'  shift, and go to state 78
 
-    $default  reduce using rule 19 (no_expr_helper)
+    $default  reduce using rule 19 (let_no_expr_helper)
 
 
 State 133
@@ -2232,14 +2232,14 @@ State 133
 
 State 134
 
-   21 let_expand: ',' • OBJECTID ':' TYPEID no_expr_helper let_expand
+   21 let_expand: ',' • OBJECTID ':' TYPEID let_no_expr_helper let_expand
 
     OBJECTID  shift, and go to state 148
 
 
 State 135
 
-   22 let_begin: LET OBJECTID ':' TYPEID no_expr_helper let_expand •
+   22 let_begin: LET OBJECTID ':' TYPEID let_no_expr_helper let_expand •
 
     $default  reduce using rule 22 (let_begin)
 
@@ -2431,7 +2431,7 @@ State 147
 
 State 148
 
-   21 let_expand: ',' OBJECTID • ':' TYPEID no_expr_helper let_expand
+   21 let_expand: ',' OBJECTID • ':' TYPEID let_no_expr_helper let_expand
 
     ':'  shift, and go to state 156
 
@@ -2573,7 +2573,7 @@ State 155
 
 State 156
 
-   21 let_expand: ',' OBJECTID ':' • TYPEID no_expr_helper let_expand
+   21 let_expand: ',' OBJECTID ':' • TYPEID let_no_expr_helper let_expand
 
     TYPEID  shift, and go to state 162
 
@@ -2657,13 +2657,13 @@ State 161
 
 State 162
 
-   21 let_expand: ',' OBJECTID ':' TYPEID • no_expr_helper let_expand
+   21 let_expand: ',' OBJECTID ':' TYPEID • let_no_expr_helper let_expand
 
     ASSIGN  shift, and go to state 117
 
-    $default  reduce using rule 18 (no_expr_helper)
+    $default  reduce using rule 18 (let_no_expr_helper)
 
-    no_expr_helper  go to state 166
+    let_no_expr_helper  go to state 166
 
 
 State 163
@@ -2715,7 +2715,7 @@ State 165
 
 State 166
 
-   21 let_expand: ',' OBJECTID ':' TYPEID no_expr_helper • let_expand
+   21 let_expand: ',' OBJECTID ':' TYPEID let_no_expr_helper • let_expand
 
     IN   shift, and go to state 133
     ','  shift, and go to state 134
@@ -2764,7 +2764,7 @@ State 169
 
 State 170
 
-   21 let_expand: ',' OBJECTID ':' TYPEID no_expr_helper let_expand •
+   21 let_expand: ',' OBJECTID ':' TYPEID let_no_expr_helper let_expand •
 
     $default  reduce using rule 21 (let_expand)
 
