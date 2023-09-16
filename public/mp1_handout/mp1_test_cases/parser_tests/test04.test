@@ -68,3 +68,22 @@ class D {
     let y : Bool <- true in y
   };
 };
+
+class E {
+  foo () : String {
+    -- let expression without initialization
+    let x : String <- "ini" +
+    "ini"
+    
+    in "a string"
+
+
+    + "test"
+
+  };
+
+  bar () : Bool {
+    -- let expression with initialization
+    let y : Bool <- true in y
+  };
+};

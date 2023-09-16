@@ -142,24 +142,33 @@ program : class_list { ast_root = program($1); }
         ;
 
 class_list
-        : class            /* single class */
+        : class ';'           /* single class */
                 { $$ = single_Classes($1); }
-        | class_list class /* several classes */
+        | error
+                {  yyclearin;   }
+        | class_list class ';' /* several classes */
                 { $$ = append_Classes($1,single_Classes($2)); }
+        | class_list error ';'
+                {  yyclearin;   }
         ;
 
 /* If no parent is specified, the class inherits from the Object class. */
-class  : CLASS TYPEID '{' feature_list_star '}' ';'
+class  : CLASS TYPEID '{' feature_list_star '}' 
                 { $$ = class_($2,idtable.add_string("Object"), $4, stringtable.add_string(curr_filename)); }
-        | CLASS TYPEID INHERITS TYPEID '{' feature_list_star '}' ';'
+        | CLASS TYPEID INHERITS TYPEID '{' feature_list_star '}' 
                 { $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
-        ; 
+        | error '{' feature_list_star '}' 
+                {  yyclearin;  }
+        ;
+        
 
 /* Feature list may be empty, but no empty features in list. */
 feature_list_star      :  /* empty */
                                 {  $$ = nil_Features(); }
                         | feature_list_star feature_single ';'
                                 {  $$ = append_Features($1, single_Features($2)); }
+                        | feature_list_star error ';' 
+                                {  yyclearin;  }
                 ;          
 feature_single          : OBJECTID '(' ')' ':' TYPEID '{' expression_single '}' 
                                 {  $$ = method($1, nil_Formals(), $5, $7);  }
@@ -191,20 +200,34 @@ case_single             : OBJECTID ':' TYPEID DARROW expression_single
                                 {  $$ = branch($1, $3, $5);  }
                 ;
 
+
+/* every time there is a nonterminal-reduce match, it will indicate the line number, 
+   that is the reason we want to the no-ini/'empty' to be in a seperate nonterminal expand, if that, 
+   when there is a no-ini/'empty', it will also force a reduce once it match no-ini/'empty',  
+   rather than scan the entire let_expand or let_begin, then the line number is correct */
 let_no_expr_helper      : /* empty */ 
                                 {  $$ = no_expr();  }
                         | ASSIGN expression_single 
                                 {  $$ = $2;  }
+                        | error 
+                                {  yyclearin;  }
                 ;
+/* purpose of prec_let_expand is to eliminate the shift/reduce conflict, it will prefer choosing the ontinueing scan
+   expression_single, in order to make a larger expression_single through + - * /, etc. */ 
 let_expand              : IN expression_single %prec prec_let_expand
                                 {  $$ = $2;  }
                         | ',' OBJECTID ':' TYPEID let_no_expr_helper let_expand  
                                 {  $$ = let($2, $4, $5,  $6);  }
+                        | ',' error let_expand
+                                {  yyclearin;  }
+                        
                 ;
 let_begin               : LET OBJECTID ':' TYPEID let_no_expr_helper let_expand 
                                 {  $$ = let($2, $4, $5, $6);  }
-                ;
-                
+                        | LET error let_expand
+                                {  yyclearin;  }   
+                ; 
+                   
 
 for_second              : ';' expression_single ';' expression_single ')' '{' expression_single '}' 
                                 {  $$ = loop($2, block(append_Expressions(single_Expressions($7), single_Expressions($4))));  }
@@ -233,6 +256,8 @@ expression_list_pos     : expression_single ';'
                                 {  $$ = single_Expressions($1);  }
                         | expression_list_pos expression_single ';'
                                 {  $$ = append_Expressions($1, single_Expressions($2));  }
+                        | expression_list_pos error ';'
+                                {  yyclearin;  }
                 ;
 
 expression_single       : OBJECTID ASSIGN expression_single
