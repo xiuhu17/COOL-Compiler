@@ -2,11 +2,39 @@ class Main inherits IO {
 
     another() : Object {
 	let r : Main z : Object <- 0, i : Int <- 3 + 4 in
-	     isvoid r;
+	     isvoid r
         let r : Main z : Object <- 0, i : Int <- 3 + 4 in
-	     isvoid r;
+	     isvoid r
          let r : Main z : Object <- 0, i : Int <- 3 + 4 in
-	     isvoid r;
+	     isvoid r
+         let r : Integer <- 3, s : aa, q : Integer <-, t : Integer in 3 + 2
+         let r : bbb, s : aa, q : Integer <-, t : Integer in 3 + 2
+         let r : bbb, s : aa, q : Integer <-, t : ccc in 3 + 2
     };
 
 };
+
+
+class Main inherits IO {
+
+    another() : Object {
+
+         let r : bbb, s : aa, q : Integer <-, t : Integer in 3 + 2
+         let r : bbb, s : aa, q : Integer <-, t : ccc in 3 + 2
+         let r : Int,  s : aa, q : Integer <-, t : Integer in 3 + 2
+         let r : Int,   s : aa, q : Integer <-, t : ccc in 3 + 2
+    };
+
+};
+
+class Main inherits IO {
+
+    another() : Object {
+
+         
+         let r : Int,  s : aa, q : Integer <-, t : Integer in 3 + 2
+         let r : Int,   s : aa, q : Integer <-, t : ccc in 3 + 2
+    };
+
+};
+

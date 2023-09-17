@@ -1,0 +1,7 @@
+class A {
+    a : <-  isvoid (1 + 2);
+    a : <-  isvoid (1 + 2);
+    a : <-  isvoid (1 + 2);
+    a : <-  isvoid (1 + 2);
+    a : Integer;
+};

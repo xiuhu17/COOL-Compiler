@@ -210,8 +210,6 @@ let_no_expr_helper      : /* empty */
                                 {  $$ = no_expr();  }
                         | ASSIGN expression_single 
                                 {  $$ = $2;  }
-                        | error 
-                                {  yyclearin;  }
                 ;
 /* purpose of prec_let_expand is to eliminate the shift/reduce conflict, it will prefer choosing the ontinueing scan
    expression_single, in order to make a larger expression_single through + - * /, etc. */ 
@@ -220,16 +218,15 @@ let_expand              : IN expression_single %prec prec_let_expand
                         | ',' OBJECTID ':' TYPEID let_no_expr_helper let_expand  
                                 {  $$ = let($2, $4, $5,  $6);  }
                         | ',' error let_expand
-                                {  yyclearin;  }
+                                {   }
                         
                 ;
-let_begin               : LET OBJECTID ':' TYPEID let_no_expr_helper let_expand 
+let_begin               : LET OBJECTID ':' TYPEID let_no_expr_helper  let_expand 
                                 {  $$ = let($2, $4, $5, $6);  }
                         | LET error let_expand
-                                {  yyclearin;  }   
+                                {  }   
                 ; 
                    
-
 for_second              : ';' expression_single ';' expression_single ')' '{' expression_single '}' 
                                 {  $$ = loop($2, block(append_Expressions(single_Expressions($7), single_Expressions($4))));  }
                 ;
