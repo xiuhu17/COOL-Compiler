@@ -1,6 +1,7 @@
 LEXER = ../reference-binaries/lexer
 PARSER = ../reference-binaries/parser
 SEMANT = ../reference-binaries/semant
+CGENREF = ../reference-binaries/cgen-1
 CLANG = clang-15
 OPT = opt-15
 
@@ -27,7 +28,7 @@ SRCS := $(wildcard *.cl)
 # Disable built-in rules and variables
 .SUFFIXES:
 
-.PRECIOUS: %.ast %.ll %-o3.ll %.bin
+.PRECIOUS: %.ast %.ll %-o3.ll %.bin %.llref 
 
 default: all
 all: $(SRCS:%.cl=%.out)
@@ -46,6 +47,9 @@ cgen-2:
 %.ll: %.ast $(CGEN)
 	$(proj_dir)/$(CGEN) $(CGENOPTS) < $< > $@
 
+%.llref: %.ast
+	$(CGENREF) $(CGENOPTS) < $< > $@
+
 %-o3.ll: %.ll
 	$(OPT) -O3 -S $< -f -o $*-o3.ll
 
@@ -62,4 +66,4 @@ cgen-2:
 	diff -u $< $(<:%.out=%.refout)
 
 clean:
-	-rm -f *.bin *.ll *.out *.ast *.verify
+	-rm -f *.bin *.ll *.out *.ast *.verify *.llref
