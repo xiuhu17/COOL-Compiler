@@ -47,19 +47,10 @@ cgen-2:
 %.ll: %.ast $(CGEN)
 	$(proj_dir)/$(CGEN) $(CGENOPTS) < $< > $@
 
-%.llref: %.ast
-	$(CGENREF) $(CGENOPTS) < $< > $@
-
 %-o3.ll: %.ll
 	$(OPT) -O3 -S $< -f -o $*-o3.ll
 
-%-o3.llref: %.llref
-	$(OPT) -O3 -S $< -f -o $*-o3.llref
-
 %.bin: %-o3.ll $(COOLRT)
-	$(CLANG) -g $+ -o $@
-
-%.binref: %-o3.llref $(COOLRT)
 	$(CLANG) -g $+ -o $@
 
 %.verify: %.ll
@@ -68,11 +59,20 @@ cgen-2:
 %.out: %.bin
 	./$< > $@ || true
 
-%.outref: %.binref
-	./$< > $@ || true
-
 %.check: %.out
 	diff -u $< $(<:%.out=%.refout)
+
+%.llref: %.cl
+	$(LEXER) $< | $(PARSER) | $(SEMANT) | $(CGENREF) > $@
+
+%-o3.llref: %.llref
+	$(OPT) -O3 -S $< -f -o $*-o3.llref
+
+%.binref: %-o3.llref $(COOLRT)
+	$(CLANG) -g -x ir - -o $@ < $<
+
+%.outref: %.binref
+	./$< > $@ || true
 
 clean:
 	-rm -f *.bin *.ll *.out *.ast *.verify *.llref *.binref *.outref
