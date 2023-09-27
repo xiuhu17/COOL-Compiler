@@ -28,7 +28,7 @@ SRCS := $(wildcard *.cl)
 # Disable built-in rules and variables
 .SUFFIXES:
 
-.PRECIOUS: %.ast %.ll %-o3.ll %.bin %.llref 
+.PRECIOUS: %.ast %.ll %-o3.ll %.bin %.llref %-o3.llref %.binref %.outref
 
 default: all
 all: $(SRCS:%.cl=%.out)
@@ -53,7 +53,13 @@ cgen-2:
 %-o3.ll: %.ll
 	$(OPT) -O3 -S $< -f -o $*-o3.ll
 
+%-o3.llref: %.llref
+	$(OPT) -O3 -S $< -f -o $*-o3.llref
+
 %.bin: %-o3.ll $(COOLRT)
+	$(CLANG) -g $+ -o $@
+
+%.binref: %-o3.llref $(COOLRT)
 	$(CLANG) -g $+ -o $@
 
 %.verify: %.ll
@@ -62,8 +68,11 @@ cgen-2:
 %.out: %.bin
 	./$< > $@ || true
 
+%.outref: %.binref
+	./$< > $@ || true
+
 %.check: %.out
 	diff -u $< $(<:%.out=%.refout)
 
 clean:
-	-rm -f *.bin *.ll *.out *.ast *.verify *.llref
+	-rm -f *.bin *.ll *.out *.ast *.verify *.llref *.binref *.outref
