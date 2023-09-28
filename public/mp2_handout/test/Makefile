@@ -75,4 +75,5 @@ cgen-2:
 	./$< > $@ || true
 
 clean:
-	-rm -f *.bin *.ll *.out *.ast *.verify *.llref *.binref *.outref
+	-rm -f *.bin *.ll *.out *.ast *.verify *.llref *.binref *.outref 
+	make -C $(proj_dir) clean

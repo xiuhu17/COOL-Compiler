@@ -95,7 +95,7 @@ CgenClassTable::CgenClassTable(Classes classes, std::ostream &s)
   install_classes(classes);
   build_inheritance_tree();
 
-  // First pass
+  // First pass  
   setup();
 
   // Second pass
@@ -103,12 +103,12 @@ CgenClassTable::CgenClassTable(Classes classes, std::ostream &s)
   // Done with code generation: exit scopes
   exitscope();
 }
-
+ 
 // Creates AST nodes for the basic classes and installs them in the class list
 void CgenClassTable::install_basic_classes() {
   // The tree package uses these globals to annotate the classes built below.
   curr_lineno = 0;
-  Symbol filename = stringtable.add_string("<basic class>");
+  Symbol filename = stringtable.add_string("<basic class>") ;
 
   //
   // A few special class names are installed in the lookup table but not
@@ -370,11 +370,23 @@ void CgenClassTable::code_constants() {
 void CgenClassTable::code_main(){
 // TODO: add code here
 
+// define the general use value
+  ValuePrinter vp(*ct_stream);
+  op_type i32_type(INT32);
+
 // Define a function main that has no parameters and returns an i32
+// setup function: define i32 @main()
+  std::vector<operand> main_args;
+  vp.define(*ct_stream, i32_type, "main", main_args);
 
 // Define an entry basic block
+  label main_entry = "entry";
+  vp.begin_block(main_entry);
 
 // Call Main_main(). This returns int for phase 1, Object for phase 2
+  std::vector<op_type> Main_main_arg_types;
+  std::vector<operand> Main_main_args;
+  operand ret_Main_main = vp.call(Main_main_arg_types, i32_type, "Main_main", true, Main_main_args);
 
 #ifdef MP3
 // MP3

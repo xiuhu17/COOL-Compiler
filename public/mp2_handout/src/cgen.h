@@ -44,7 +44,9 @@ private:
   void setup_external_functions();
   void setup_classes(CgenNode *c, int depth);
 
+  /*********************************************************************
   // TODO: implement the following functions.
+  *********************************************************************/
   // Setup each class in the table and prepare for code generation phase
   void setup();
   // Code generation functions. You need to write these functions.
@@ -110,10 +112,10 @@ public:
   }
   std::string get_init_function_name() { return get_type_name() + "_new"; }
 #endif
-
+  /*********************************************************************
   // TODO: Complete the implementations of following functions
   // and add more as necessary
-
+  *********************************************************************/
   // Class setup. You need to write the body of this function.
   void setup(int tag, int depth);
 #ifdef MP3
@@ -135,7 +137,9 @@ private:
   int tag, max_child;
   std::ostream *ct_stream;
 
+  /*********************************************************************
   // TODO: Add more functions / fields here as necessary.
+  *********************************************************************/
 };
 
 // CgenEnvironment provides the environment for code generation of a method.
@@ -153,7 +157,9 @@ public:
       : var_table(), cur_class(cur_class), block_count(0), tmp_count(0),
         ok_count(0), cur_stream(&stream) {
     var_table.enterscope();
+    /*********************************************************************
     // TODO: add code here
+    *********************************************************************/
   }
 
   // fresh name generation functions
@@ -177,9 +183,9 @@ public:
   void add_binding(Symbol name, operand *op) { var_table.insert(name, op); }
   void open_scope() { var_table.enterscope(); }
   void close_scope() { var_table.exitscope(); }
-
+  /*********************************************************************
   // TODO: Add more functions as necessary.
-
+  *********************************************************************/
 private:
   cool::SymbolTable<operand>
       var_table; // mapping from variable names to memory locations
@@ -199,3 +205,16 @@ public:
 // dest_type, assuming it has already been checked to be compatible
 operand conform(operand src, op_type dest_type, CgenEnvironment *env);
 #endif
+
+
+/*
+@.str = internal constant [25 x i8] c"Main.main() returned %d\n"
+define i32 @main() {
+entry:
+ %tmp.0 = call i32 @Main_main( )
+ %tmp.1 = getelementptr [25 x i8], [25 x i8]* @.str, i32 0, i32 0
+ %tmp.2 = call i32(i8*, ... ) @printf(i8* %tmp.1, i32 %tmp.0)
+ ret i32 0
+}
+
+*/
