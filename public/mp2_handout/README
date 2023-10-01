@@ -91,3 +91,43 @@ From the support code:
     // ...
   }
   ```
+
+
+Hi all,
+
+Seeing that many of you have had some difficulties with the starter code of MP2, let me explain a few key points in the code and give some hints on what you are expected to do:
+
+Class Hierarchy: CGenClassTable, CGenNode, and CGenEnvironment
+You should check out the README in the handout for what they do, if you havent done so.
+
+For what you should do, the gist is this: the function CgenClassTable::code_module generates code for the entire program, and boils down (in MP2 only) to merely mainNode->codeGenMainmain() and code_main(). The former is where you generate the entire Cools Main::main function, and the latter is just for getting an entry-point main function for your LLVM code to start from.
+
+This diagram may help if you feel that the relationship between these two things are complicated:
+
+---------------------------------------------------------------
+    Cool              CodeGen                LLVM
+    ---------------------------------------------------
+    --                code_main()            main()
+                                              ↓ invokes
+    Main::main()      codeGenMainmain()      Main_main()
+---------------------------------------------------------------
+
+To generate code for Cool construct, call code() on the top-level AST node (actually method-level, at least for MP2). In codeGenMainmain, you have access to the mainMethod AST node. You should also implement code() so that each AST node calls code() on its children. That will give you a tree walk.
+
+In MP2, everything you need to write are called from code_module. Search for // TODO in cgen.{cc|h} to see where you need to add code.
+
+What is make_alloca()?
+make_alloca() is where we expect you write code to emit alloca instructions if you need on-stack space.
+
+Hint: youll likely only need to alloca for let expressions, if-else expressions, and loops. Some of you didnt even need alloca for these exprs (Im assuming you used phi-node), and thats fine too.
+make_alloca() is a separate function from code() because alloca instructions is best placed in the very first basic block of a function (consider why), but ValuePrinter prints sequentially, so by the time code() of an expression is called, you may be too far into a function to put your alloca at the right location.
+
+Hint: this means you should remember to call make_alloca() before calling code() when you generate a function. Your make_alloca() of top-level expressions should also call make_alloca() on its immediate children.
+Symbol Tables
+Look at cgen.h: CgenEnvironment (one per function / method) has a symbol table var_table for the local variables in the function. Meanwhile, CgenClassTable is a symbol table because
+---------------------------------------------------------------
+      class CgenClassTable : public cool::SymbolTable<CgenNode> { ... };
+---------------------------------------------------------------
+and it holds the globally defined symbols (classes + methods).
+
+In MP2 you most likely wont need to use the CgenClassTable symbol table, but you can access it indirectly through the current CgenEnvironment *env.
