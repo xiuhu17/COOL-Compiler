@@ -374,7 +374,7 @@ void CgenClassTable::code_main(){
   ValuePrinter vp(*ct_stream);
   op_type i32_type(INT32);
   op_arr_type i8_arr_type(INT8, 25);
-  const_value string_content(i8_arr_type, "Main.main() returned %d\x0A\x00", true);
+  const_value string_content(i8_arr_type, "Main_main() returned %d\x0A\x00", true);
   vp.init_constant(*ct_stream, "main.printout.str", string_content);
 
 
@@ -542,6 +542,25 @@ void CgenNode::codeGenMainmain() {
   // Generally what you need to do are:
   // -- setup or create the environment, env, for translating this method
   // -- invoke mainMethod->code(env) to translate the method
+  ValuePrinter vp(*ct_stream);
+  op_type i32_type(INT32);
+  std::vector<operand> Main_main_args;
+  vp.define(*ct_stream, i32_type, "Main_main", Main_main_args);
+
+  label Main_main_entry = "entry";
+  vp.begin_block(Main_main_entry);
+
+
+  label Main_main_abort = "abort";
+  vp.begin_block(Main_main_abort);
+
+  op_type void_type(VOID);
+  std::vector<op_type> abort_arg_types;
+  std::vector<operand> abort_arg;
+  vp.call(abort_arg_types, void_type, "abort", true, abort_arg);
+  vp.unreachable();
+
+  vp.end_define();
 }
 
 #endif
