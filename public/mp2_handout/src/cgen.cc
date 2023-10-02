@@ -369,10 +369,14 @@ void CgenClassTable::code_constants() {
 //
 void CgenClassTable::code_main(){
 // TODO: add code here
-
-// define the general use value
+// declare general type
+// declare the string
   ValuePrinter vp(*ct_stream);
   op_type i32_type(INT32);
+  op_arr_type i8_arr_type(INT8, 25);
+  const_value string_content(i8_arr_type, "Main.main() returned %d\x0A\x00", true);
+  vp.init_constant(*ct_stream, "main.printout.str", string_content);
+
 
 // Define a function main that has no parameters and returns an i32
 // setup function: define i32 @main()
@@ -394,11 +398,29 @@ void CgenClassTable::code_main(){
 // MP2
 // Get the address of the string "Main_main() returned %d\n" using
 // getelementptr
+  global_value main_printout_str(i8_arr_type.get_ptr_type(), "main.printout.str");
+  int_value op2_(0);
+  int_value op3_(0);
+  operand tpm_reg(op_type(INT8_PTR), "tpm");
+  vp.getelementptr(*ct_stream, i8_arr_type, main_printout_str, op2_, op3_, tpm_reg);
 
 // Call printf with the string address of "Main_main() returned %d\n"
 // and the return value of Main_main() as its arguments
+  std::vector<op_type> printf_arg_types;
+  std::vector<operand> printf_args;
+  op_type  i8ptr_type(INT8_PTR), vararg_type(VAR_ARG);
+  printf_arg_types.push_back(INT8_PTR);
+  printf_arg_types.push_back(vararg_type);
+  printf_args.push_back(tpm_reg);
+  printf_args.push_back(ret_Main_main);
+  vp.call(printf_arg_types, i32_type, "printf", true, printf_args);
 
 // Insert return 0
+  int_value ret_(0);
+  vp.ret(*ct_stream, ret_);
+
+// end define
+  vp.end_define();
 #endif
 }
 
@@ -516,7 +538,7 @@ void CgenNode::codeGenMainmain() {
   assert(std::string(this->name->get_string()) == std::string("Main"));
   method_class *mainMethod = (method_class *)features->nth(features->first());
 
-  // TODO: add code here to generate the function `int Mainmain()`.
+  // TODO: add code here to generate the function `int Main_main()`.
   // Generally what you need to do are:
   // -- setup or create the environment, env, for translating this method
   // -- invoke mainMethod->code(env) to translate the method

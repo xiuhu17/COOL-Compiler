@@ -394,6 +394,7 @@ void ValuePrinter::getelementptr(std::ostream &o, op_type type, operand op1,
            op4.get_typename() + " " + op4.get_name() + ", " +
            op5.get_typename() + " " + op5.get_name() + "\n";
 }
+
 operand ValuePrinter::getelementptr(op_type type, operand op1, operand op2,
                                     operand op3, operand op4, operand op5,
                                     op_type result_type) {
