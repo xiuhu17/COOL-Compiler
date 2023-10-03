@@ -1,0 +1,5 @@
+class Main {
+    main() : Int {
+        let x: Int in y
+    };
+};

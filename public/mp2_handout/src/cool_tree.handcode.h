@@ -55,6 +55,7 @@ typedef Cases_class *Cases;
   virtual void dump_with_types(std::ostream &, int) = 0;                       \
   virtual void layout_feature(CgenNode *cls) = 0;                              \
   virtual void make_alloca(CgenEnvironment *env) = 0;                          \
+  virtual Expression get_expression() = 0;                                     \
   virtual void code(CgenEnvironment *env) = 0;
 
 #define Expression_EXTRAS                                                      \
@@ -88,7 +89,11 @@ typedef Cases_class *Cases;
   void code(CgenEnvironment *env);
 
 #define method_EXTRAS                                                          \
+  Expression get_expression() override { return expr; }                        \
   virtual Symbol get_return_type() { return return_type; }
+
+#define attr_EXTRAS                                                            \
+  Expression get_expression() override { return init; }                        
 
 #define Formal_EXTRAS                                                          \
   virtual Symbol get_type_decl() = 0; /* ## */                                 \
@@ -134,5 +139,12 @@ typedef Cases_class *Cases;
 #define typcase_EXTRAS                                                         \
   op_type alloca_type;                                                         \
   operand alloca_op;
+#define loop_EXTRAS                                                            \
+  op_type result_type;                                                         \
+  operand res_ptr;
+#define assign_EXTRAS                                                          \
+  op_type result_type;                                                         \
+  operand res_ptr;
+
 
 #endif /* COOL_TREE_HANDCODE_H */

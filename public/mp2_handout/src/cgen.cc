@@ -9,6 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <limits>
 
 extern int cgen_debug, curr_lineno;
 
@@ -416,8 +417,8 @@ void CgenClassTable::code_main(){
   vp.call(printf_arg_types, i32_type, "printf", true, printf_args);
 
 // Insert return 0
-  int_value ret_(0);
-  vp.ret(*ct_stream, ret_);
+  int_value res_main(0);
+  vp.ret(*ct_stream, res_main);
 
 // end define
   vp.end_define();
@@ -540,8 +541,6 @@ void CgenNode::codeGenMainmain() {
 
   // TODO: add code here to generate the function `int Main_main()`.
   // Generally what you need to do are:
-  // -- setup or create the environment, env, for translating this method
-  // -- invoke mainMethod->code(env) to translate the method
   ValuePrinter vp(*ct_stream);
   op_type i32_type(INT32);
   std::vector<operand> Main_main_args;
@@ -550,6 +549,11 @@ void CgenNode::codeGenMainmain() {
   label Main_main_entry = "entry";
   vp.begin_block(Main_main_entry);
 
+  CgenEnvironment *Main_main_env = new CgenEnvironment(*ct_stream, this);
+  // -- setup or create the environment, env, for translating this method
+  // -- invoke mainMethod->code(env) to translate the method
+  // get into code() function, which will 1: make alloca 2: generate/emit code for method body
+  mainMethod->code(Main_main_env); 
 
   label Main_main_abort = "abort";
   vp.begin_block(Main_main_abort);
@@ -561,6 +565,7 @@ void CgenNode::codeGenMainmain() {
   vp.unreachable();
 
   vp.end_define();
+  delete Main_main_env;
 }
 
 #endif
@@ -610,6 +615,15 @@ void method_class::code(CgenEnvironment *env) {
 
   ValuePrinter vp(*env->cur_stream);
   // TODO: add code here
+
+  // make alloca
+  expr->make_alloca(env);
+
+  // generate code and get the ret val
+  operand res_Main_main = expr->code(env);
+
+  // ret
+  vp.ret(*env->cur_stream, res_Main_main);
 }
 
 // Codegen for expressions. Note that each expression has a value.
@@ -644,7 +658,16 @@ operand block_class::code(CgenEnvironment *env) {
     std::cerr << "block" << std::endl;
 
   // TODO: add code here and replace `return operand()`
-  return operand();
+  int i = 0;
+  for(i = body->first(); body->more(i) && body->more(i+1); i = body->next(i)) {
+    auto expr_iter = body->nth(i);
+    expr_iter->code(env);
+  }
+
+  auto expr_iter = body->nth(i);
+  operand block_res = expr_iter->code(env);
+
+  return block_res;
 }
 
 operand let_class::code(CgenEnvironment *env) {
@@ -659,24 +682,36 @@ operand plus_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "plus" << std::endl;
 
-  // TODO: add code here and replace `return operand()`
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand op1_ = e1->code(env);
+  operand op2_ = e2->code(env);
+  operand plus_res = vp.add(op1_, op2_);
+
+  return plus_res;
 }
 
 operand sub_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "sub" << std::endl;
 
-  // TODO: add code here and replace `return operand()`
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand op1_ = e1->code(env);
+  operand op2_ = e2->code(env);
+  operand sub_res = vp.sub(op1_, op2_);
+
+  return sub_res;
 }
 
 operand mul_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "mul" << std::endl;
 
-  // TODO: add code here and replace `return operand()`
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand op1_ = e1->code(env);
+  operand op2_ = e2->code(env);
+  operand mul_res = vp.mul(op1_, op2_);
+
+  return mul_res;
 }
 
 operand divide_class::code(CgenEnvironment *env) {
@@ -691,40 +726,60 @@ operand neg_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "neg" << std::endl;
 
-  // TODO: add code here and replace `return operand()`
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  int_value op1_(0);
+  operand op2_ = e1->code(env);
+  operand neg_res = vp.sub(op1_, op2_);
+
+  return neg_res;
 }
 
 operand lt_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "lt" << std::endl;
 
-  // TODO: add code here and replace `return operand()`
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand op1_ = e1->code(env);
+  operand op2_ = e2->code(env);
+  operand lt_res = vp.icmp(LT, op1_, op2_);
+
+  return lt_res;
 }
 
 operand eq_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "eq" << std::endl;
 
-  // TODO: add code here and replace `return operand()`
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand op1_ = e1->code(env);
+  operand op2_ = e2->code(env);
+  operand eq_res = vp.icmp(EQ, op1_, op2_);
+
+  return eq_res;
 }
 
 operand leq_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "leq" << std::endl;
 
-  // TODO: add code here and replace `return operand()`
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand op1_ = e1->code(env);
+  operand op2_ = e2->code(env);
+  operand leq_res = vp.icmp(LE, op1_, op2_);
+
+  return leq_res;
 }
 
 operand comp_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "complement" << std::endl;
 
-  // TODO: add code here and replace `return operand()`
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand op1_ = e1->code(env);
+  bool_value op2_(true, true);
+  operand comp_res = vp.xor_in(op1_, op2_);
+
+  return comp_res;
 }
 
 operand int_const_class::code(CgenEnvironment *env) {
@@ -732,7 +787,13 @@ operand int_const_class::code(CgenEnvironment *env) {
     std::cerr << "Integer Constant" << std::endl;
 
   // TODO: add code here and replace `return operand()`
-  return operand();
+  std::string int_val = token->get_string();
+  const char *string_to_char = int_val.c_str();
+  int real_val = std::atoi(string_to_char);
+  int val_constraints = std::min(std::max(std::numeric_limits<int>::min(), real_val), std::numeric_limits<int>::max());
+  int_value res(val_constraints);
+
+  return res;
 }
 
 operand bool_const_class::code(CgenEnvironment *env) {
@@ -740,7 +801,11 @@ operand bool_const_class::code(CgenEnvironment *env) {
     std::cerr << "Boolean Constant" << std::endl;
 
   // TODO: add code here and replace `return operand()`
-  return operand();
+  if (val) {
+    return bool_value(true, true);
+  } 
+  
+  return bool_value(false, true);
 }
 
 operand object_class::code(CgenEnvironment *env) {
@@ -881,6 +946,8 @@ void assign_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "assign" << std::endl;
 
   // TODO: add code here
+  
+  
 }
 
 void cond_class::make_alloca(CgenEnvironment *env) {

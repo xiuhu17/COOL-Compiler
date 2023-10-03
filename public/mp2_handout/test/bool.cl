@@ -1,10 +1,10 @@
 class Main {
     main() : Int {
         {
-            3;
-            2+3;
-            6;
 
+            not true;
+            not false;
+            3;
         }
     };
 };
