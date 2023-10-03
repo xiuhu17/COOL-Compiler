@@ -616,7 +616,7 @@ void method_class::code(CgenEnvironment *env) {
   ValuePrinter vp(*env->cur_stream);
   // TODO: add code here
 
-  // make alloca
+  // make alloca for all exp
   expr->make_alloca(env);
 
   // generate code and get the ret val
@@ -1055,6 +1055,8 @@ void plus_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "plus" << std::endl;
 
   // TODO: add code here
+  e1->make_alloca(env);
+  e2->make_alloca(env);
 }
 
 void sub_class::make_alloca(CgenEnvironment *env) {
@@ -1062,6 +1064,8 @@ void sub_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "sub" << std::endl;
 
   // TODO: add code here
+  e1->make_alloca(env);
+  e2->make_alloca(env);
 }
 
 void mul_class::make_alloca(CgenEnvironment *env) {
@@ -1069,6 +1073,8 @@ void mul_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "mul" << std::endl;
 
   // TODO: add code here
+  e1->make_alloca(env);
+  e2->make_alloca(env);
 }
 
 void divide_class::make_alloca(CgenEnvironment *env) {
@@ -1076,6 +1082,8 @@ void divide_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "div" << std::endl;
 
   // TODO: add code here
+  e1->make_alloca(env);
+  e2->make_alloca(env);
 }
 
 void neg_class::make_alloca(CgenEnvironment *env) {
@@ -1083,6 +1091,7 @@ void neg_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "neg" << std::endl;
 
   // TODO: add code here
+  e1->make_alloca(env);
 }
 
 void lt_class::make_alloca(CgenEnvironment *env) {
@@ -1090,6 +1099,8 @@ void lt_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "lt" << std::endl;
 
   // TODO: add code here
+  e1->make_alloca(env);
+  e2->make_alloca(env);
 }
 
 void eq_class::make_alloca(CgenEnvironment *env) {
@@ -1097,6 +1108,8 @@ void eq_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "eq" << std::endl;
 
   // TODO: add code here
+  e1->make_alloca(env);
+  e2->make_alloca(env);
 }
 
 void leq_class::make_alloca(CgenEnvironment *env) {
@@ -1104,6 +1117,8 @@ void leq_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "leq" << std::endl;
 
   // TODO: add code here
+  e1->make_alloca(env);
+  e2->make_alloca(env);
 }
 
 void comp_class::make_alloca(CgenEnvironment *env) {
@@ -1111,6 +1126,7 @@ void comp_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "complement" << std::endl;
 
   // TODO: add code here
+  e1->make_alloca(env);
 }
 
 void int_const_class::make_alloca(CgenEnvironment *env) {
