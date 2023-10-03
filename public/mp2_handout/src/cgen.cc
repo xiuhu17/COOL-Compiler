@@ -627,14 +627,20 @@ void method_class::code(CgenEnvironment *env) {
 }
 
 // Codegen for expressions. Note that each expression has a value.
-
+// note the return val of assign itself 
 operand assign_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "assign" << std::endl;
 
+  // TODO: add code here and replace `return operand()
   ValuePrinter vp(*env->cur_stream);
-  // TODO: add code here and replace `return operand()`
-  return operand();
+  operand assign_rhs = expr->code(env);
+  operand *assign_lhs = env->find_in_scopes(name);
+  
+  // after getting the location assign_lhs 
+  vp.store(*env->cur_stream, assign_rhs, *assign_lhs);
+
+  return assign_rhs;
 }
 
 operand cond_class::code(CgenEnvironment *env) {
@@ -677,16 +683,6 @@ operand let_class::code(CgenEnvironment *env) {
   // TODO: add code here and replace `return operand()`
   // is_empty()
   ValuePrinter vp(*env->cur_stream);
-  /*
-    Symbol identifier;
-    Symbol type_decl;
-    Expression init;
-    Expression body;
-
-    op_type id_type;                                                             
-    operand id_op;
-  
-  */
 
   // first evaluate init
   operand init_op = init->code(env);
@@ -995,7 +991,7 @@ void assign_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "assign" << std::endl;
 
   // TODO: add code here
-  
+  expr->make_alloca(env);
 }
 
 void cond_class::make_alloca(CgenEnvironment *env) {
