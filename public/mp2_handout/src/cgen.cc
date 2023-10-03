@@ -675,7 +675,48 @@ operand let_class::code(CgenEnvironment *env) {
     std::cerr << "let" << std::endl;
 
   // TODO: add code here and replace `return operand()`
-  return operand();
+  // is_empty()
+  ValuePrinter vp(*env->cur_stream);
+  /*
+    Symbol identifier;
+    Symbol type_decl;
+    Expression init;
+    Expression body;
+
+    op_type id_type;                                                             
+    operand id_op;
+  
+  */
+
+  // first evaluate init
+  operand init_op = init->code(env);
+
+  // then check the variable ans store value
+  if (init_op.is_empty()) { // no ini
+    if (id_type.get_id() == INT32 && id_type.get_name() == "i32") {
+      int_value i32_0(0);
+      vp.store(*env->cur_stream, i32_0, id_op);
+    } else if (id_type.get_id() == INT1 && id_type.get_name() == "i1") {
+      bool_value i1_false(false, true);  
+      vp.store(*env->cur_stream, i1_false, id_op);
+    }
+  } else {  // ini
+    if (id_type.get_id() == INT32 && id_type.get_name() == "i32") {
+      vp.store(*env->cur_stream, init_op, id_op);
+    } else if (id_type.get_id() == INT1 && id_type.get_name() == "i1") {
+      vp.store(*env->cur_stream, init_op, id_op);
+    }
+  }
+
+  // add binding
+  env->add_binding(identifier, &id_op);
+
+  // then body
+  env->open_scope(); // first enter scope
+  operand let_res = body->code(env); // execute body
+  env->close_scope(); // leave scope
+
+  return let_res;
 }
 
 operand plus_class::code(CgenEnvironment *env) {
@@ -813,7 +854,13 @@ operand object_class::code(CgenEnvironment *env) {
     std::cerr << "Object" << std::endl;
 
   // TODO: add code here and replace `return operand()`
-  return operand();
+  // find
+  ValuePrinter vp(*env->cur_stream);
+  operand *op = env->find_in_scopes(name);
+  op_type tp_ = op->get_type().get_deref_type();
+  operand object_res = vp.load(tp_, *op);
+
+  return object_res;
 }
 
 operand no_expr_class::code(CgenEnvironment *env) {
@@ -821,6 +868,8 @@ operand no_expr_class::code(CgenEnvironment *env) {
     std::cerr << "No_expr" << std::endl;
 
   // TODO: add code here and replace `return operand()`
+
+  // then it is empty
   return operand();
 }
 
@@ -947,7 +996,6 @@ void assign_class::make_alloca(CgenEnvironment *env) {
 
   // TODO: add code here
   
-  
 }
 
 void cond_class::make_alloca(CgenEnvironment *env) {
@@ -969,6 +1017,12 @@ void block_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "block" << std::endl;
 
   // TODO: add code here
+  int i = 0;
+  for(i = body->first(); body->more(i); i = body->next(i)) {
+    auto expr_iter = body->nth(i);
+    expr_iter->make_alloca(env);
+  }
+
 }
 
 void let_class::make_alloca(CgenEnvironment *env) {
@@ -976,6 +1030,24 @@ void let_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "let" << std::endl;
 
   // TODO: add code here
+  init->make_alloca(env);
+
+  ValuePrinter vp(*env->cur_stream);
+  std::string type_name = type_decl->get_string();
+
+  if (type_name == "Int") {
+    op_type i32_type(INT32);
+    operand alloc_int = vp.alloca_mem(i32_type);
+    id_type = i32_type;
+    id_op = alloc_int;
+  } else if (type_name == "Bool") {
+    op_type i1_type(INT1);
+    operand alloc_bool = vp.alloca_mem(i1_type);
+    id_type = i1_type;
+    id_op = alloc_bool;
+  }
+
+  body->make_alloca(env);
 }
 
 void plus_class::make_alloca(CgenEnvironment *env) {

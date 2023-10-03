@@ -141,3 +141,7 @@ The function newloc() applied to a store gives us an unused location in that sto
 which maps c to lc but also contains all of the mappings of E for identifiers other than c. 
 Note that if c already has a mapping in E, the new environment E0 hides this old mapping. 
 We must also update the store to map the new location to avalue. In this case lc maps to the value 33
+
+once introduce a new variable, no matter it has already has a mapping in E or not, we need to
+1: alloca to get a new operand which store the allocated address
+2: hide previous mapping variable -> operand

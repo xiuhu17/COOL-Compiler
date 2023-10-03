@@ -155,7 +155,7 @@ public:
   // constructor.
   CgenEnvironment(std::ostream &stream, CgenNode *cur_class)
       : var_table(), cur_class(cur_class), block_count(0), tmp_count(0),
-        ok_count(0), cur_stream(&stream) {
+        ok_count(0), loop_count(0), true_count(0), false_count(0), end_count(0), cur_stream(&stream) {
     var_table.enterscope();
     /*********************************************************************
     // TODO: add code here
@@ -164,7 +164,13 @@ public:
 
   // fresh name generation functions
   std::string new_name() { return "tmp." + std::to_string(tmp_count++); }
+
   std::string new_ok_label() { return "ok." + std::to_string(ok_count++); }
+  std::string new_loop_label() { return "loop." + std::to_string(loop_count++); }
+  std::string new_true_label() { return "true." + std::to_string(true_count++); }
+  std::string new_false_label() { return "false." + std::to_string(false_count++); }
+  std::string new_end_label() { return "end." + std::to_string(end_count++); }
+
   std::string new_label(const std::string &prefix, bool increment) {
     std::string suffix = std::to_string(block_count);
     block_count += increment;
@@ -192,6 +198,7 @@ private:
   CgenNode *cur_class;
   int block_count, tmp_count, ok_count; // Keep counters for unique name
                                         // generation in the current method
+  int loop_count, true_count, false_count, end_count;
 
 public:
   std::ostream *cur_stream;
@@ -205,16 +212,3 @@ public:
 // dest_type, assuming it has already been checked to be compatible
 operand conform(operand src, op_type dest_type, CgenEnvironment *env);
 #endif
-
-
-/*
-@.str = internal constant [25 x i8] c"Main.main() returned %d\n"
-define i32 @main() {
-entry:
- %tmp.0 = call i32 @Main_main( )
- %tmp.1 = getelementptr [25 x i8], [25 x i8]* @.str, i32 0, i32 0
- %tmp.2 = call i32(i8*, ... ) @printf(i8* %tmp.1, i32 %tmp.0)
- ret i32 0
-}
-
-*/
