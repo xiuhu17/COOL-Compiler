@@ -125,9 +125,9 @@ make_alloca() is a separate function from code() because alloca instructions is 
 Hint: this means you should remember to call make_alloca() before calling code() when you generate a function. Your make_alloca() of top-level expressions should also call make_alloca() on its immediate children.
 Symbol Tables
 Look at cgen.h: CgenEnvironment (one per function / method) has a symbol table var_table for the local variables in the function. Meanwhile, CgenClassTable is a symbol table because
----------------------------------------------------------------
+-----------------------------------------------------------------
       class CgenClassTable : public cool::SymbolTable<CgenNode> { ... };
----------------------------------------------------------------
+------------------------------------------------------------------
 and it holds the globally defined symbols (classes + methods).
 
 In MP2 you most likely wont need to use the CgenClassTable symbol table, but you can access it indirectly through the current CgenEnvironment *env.

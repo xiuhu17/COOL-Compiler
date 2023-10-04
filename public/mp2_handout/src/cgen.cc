@@ -679,7 +679,26 @@ operand loop_class::code(CgenEnvironment *env) {
     std::cerr << "loop" << std::endl;
 
   // TODO: add code here and replace `return operand()`
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+
+  auto loop_label = env->new_loop_label();
+  auto true_label = env->new_true_label();
+  auto false_label = env->new_false_label();
+  
+  vp.branch_uncond(loop_label);
+  
+  vp.begin_block(loop_label);
+  auto pred_op = pred->code(env);
+  vp.branch_cond(*env->cur_stream, pred_op, true_label, false_label);
+
+  vp.begin_block(true_label);
+  body->code(env);
+  vp.branch_uncond(loop_label);
+
+  vp.begin_block(false_label);
+  
+  int_value i32_0(0);
+  return i32_0;
 }
 
 operand block_class::code(CgenEnvironment *env) {
@@ -1046,6 +1065,13 @@ void loop_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "loop" << std::endl;
 
   // TODO: add code here
+  ValuePrinter vp(*env->cur_stream);
+
+  op_type int_(INT32);
+  set_expr_type(env, int_);
+
+  pred->make_alloca(env);
+  body->make_alloca(env);
 }
 
 void block_class::make_alloca(CgenEnvironment *env) {

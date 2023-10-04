@@ -143,7 +143,7 @@ typedef Cases_class *Cases;
   operand id_op;
 #define typcase_EXTRAS                                                         \
   op_type alloca_type;                                                         \
-  operand alloca_op;
+  operand alloca_op;                                                
 // op_expr_tp inside Expression_EXTRAS is the op_type of entire Expression
 // cond_EXTRAS | let_EXTRAS | typcase_EXTRAS are for specific usage
 #endif /* COOL_TREE_HANDCODE_H */
