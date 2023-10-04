@@ -1,6 +1,7 @@
 class Main {
     main() : Int {
-       { while false loop 3 pool;
-        3;}
+        { 
+        let x : Int in while x < 3 loop x <- x + 1 pool;
+        }
     };
 };
