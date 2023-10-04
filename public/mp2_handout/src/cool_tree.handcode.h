@@ -144,6 +144,19 @@ typedef Cases_class *Cases;
 #define typcase_EXTRAS                                                         \
   op_type alloca_type;                                                         \
   operand alloca_op;                                                
-// op_expr_tp inside Expression_EXTRAS is the op_type of entire Expression
-// cond_EXTRAS | let_EXTRAS | typcase_EXTRAS are for specific usage
+// Expression_EXTRAS:   [op_expr_tp] is the op_type of entire Expression-subclass
+// cond_EXTRAS:         [result_type] is the op_type of newly allocated stack-allocation memory for entire {if .. then ... else ... fi}
+//                      [res_ptr] is the register which store the addr of newly allocated stack-allocation memory for entire {if .. then ... else ... fi}
+// let_EXTRAS:          [id_type] is the op_type of newly allocated stack-allocation memory for {identifier}
+//                      [id_op] is the register which store the addr of newly allocated stack-allocation memory for {identifier}
+// make_alloca: 1: allocated on-stack memory, and put the address into the register, and store into "cond_EXTRAS/let_EXTRAS"
+//              2: set the [type -> the entire Expression-subclass]
+//              3: recursivly invoke {call-make_alloca to all its Expression-subclass member}
+//              4: may use the [type <- the Expression-subclass-member] for allocation
+// code:        1: recursivly invoke {call-code to all its Expression-subclass member}
+//              2: use the {operand <- call-code to all its Expression-subclass-member} to get the operand which store the instruction-value
+//              3: use the returned-operand to "store" its value to "cond_EXTRAS/let_EXTRAS" in the [current scope] || addr ==> value || only at code-stage, we can get instruction-value
+//              4: bind [identifier] to [id_op] in the current scope || variable ==> addr || only at code-stage, we can constrol scope, and bind variable to addr to correct/current scope
+//              5: enter/exit scope to realize control scope in the code-stage || control-scope, control "variable ==> addr" in different scope
+/* also, we have another scope to control the variable ==> op_type which we need to maintain the scope in the make_alloca stage */
 #endif /* COOL_TREE_HANDCODE_H */

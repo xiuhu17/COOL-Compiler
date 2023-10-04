@@ -1256,6 +1256,8 @@ void no_expr_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "No_expr" << std::endl;
 
   // TODO: add code here
+  // type for no_expr_class is empty
+  set_expr_type(env, op_type());
 }
 
 void static_dispatch_class::make_alloca(CgenEnvironment *env) {
