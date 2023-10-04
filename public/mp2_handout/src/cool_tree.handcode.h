@@ -62,6 +62,9 @@ typedef Cases_class *Cases;
   virtual void dump_with_types(std::ostream &, int) = 0;                       \
   virtual void make_alloca(CgenEnvironment *) = 0;                             \
   virtual operand code(CgenEnvironment *) = 0;                                 \
+  virtual op_type get_expr_type(CgenEnvironment *) = 0;                        \
+  virtual void    set_expr_type(CgenEnvironment *, op_type) = 0;               \
+  op_type op_expr_tp;                                                          \
   Symbol type;                                                                 \
   Symbol get_type() { return type; }                                           \
   Expression set_type(Symbol s) {                                              \
@@ -122,10 +125,12 @@ typedef Cases_class *Cases;
                CgenEnvironment *env);                                          \
   void dump_with_types(std::ostream &, int);
 
-#define Expression_SHARED_EXTRAS                                               \
-  void make_alloca(CgenEnvironment *);                                         \
-  operand code(CgenEnvironment *);                                             \
-  void dump_with_types(std::ostream &, int);
+#define Expression_SHARED_EXTRAS                                                      \
+  void make_alloca(CgenEnvironment *);                                                \
+  operand code(CgenEnvironment *);                                                    \
+  void dump_with_types(std::ostream &, int);                                          \
+  op_type get_expr_type(CgenEnvironment *env) override {return op_expr_tp;}           \
+  void set_expr_type(CgenEnvironment *env, op_type tp) override {op_expr_tp = tp;}   
 
 #define no_expr_EXTRAS        /* ## */                                         \
   int no_code() { return 1; } /* ## */
@@ -139,12 +144,6 @@ typedef Cases_class *Cases;
 #define typcase_EXTRAS                                                         \
   op_type alloca_type;                                                         \
   operand alloca_op;
-#define loop_EXTRAS                                                            \
-  op_type result_type;                                                         \
-  operand res_ptr;
-#define assign_EXTRAS                                                          \
-  op_type result_type;                                                         \
-  operand res_ptr;
-
-
+// op_expr_tp inside Expression_EXTRAS is the op_type of entire Expression
+// cond_EXTRAS | let_EXTRAS | typcase_EXTRAS are for specific usage
 #endif /* COOL_TREE_HANDCODE_H */

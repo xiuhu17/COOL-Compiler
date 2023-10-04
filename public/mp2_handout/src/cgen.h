@@ -157,6 +157,7 @@ public:
       : var_table(), cur_class(cur_class), block_count(0), tmp_count(0),
         ok_count(0), loop_count(0), true_count(0), false_count(0), end_count(0), cur_stream(&stream) {
     var_table.enterscope();
+    var_tp_table.enterscope();
     /*********************************************************************
     // TODO: add code here
     *********************************************************************/
@@ -186,9 +187,18 @@ public:
   operand *find_in_scopes(Symbol name) {
     return var_table.find_in_scopes(name);
   }
+
+  op_type *var_tp_find_in_scopes(Symbol name) {
+    return var_tp_table.find_in_scopes(name);
+  }
   void add_binding(Symbol name, operand *op) { var_table.insert(name, op); }
   void open_scope() { var_table.enterscope(); }
   void close_scope() { var_table.exitscope(); }
+
+  void var_tp_add_binding(Symbol name, op_type *op) { var_tp_table.insert(name, op); }
+  void var_tp_open_scope() { var_tp_table.enterscope(); }
+  void var_tp_close_scope() { var_tp_table.exitscope(); }
+
   /*********************************************************************
   // TODO: Add more functions as necessary.
   *********************************************************************/
@@ -200,6 +210,8 @@ private:
                                         // generation in the current method
   int loop_count, true_count, false_count, end_count;
 
+  cool::SymbolTable<op_type>
+      var_tp_table;
 public:
   std::ostream *cur_stream;
 };

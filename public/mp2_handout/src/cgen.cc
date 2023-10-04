@@ -375,7 +375,7 @@ void CgenClassTable::code_main(){
   ValuePrinter vp(*ct_stream);
   op_type i32_type(INT32);
   op_arr_type i8_arr_type(INT8, 25);
-  const_value string_content(i8_arr_type, "Main_main() returned %d\x0A\x00", true);
+  const_value string_content(i8_arr_type, "Main.main() returned %d\x0A\x00", true);
   vp.init_constant(*ct_stream, "main.printout.str", string_content);
 
 
@@ -391,7 +391,7 @@ void CgenClassTable::code_main(){
 // Call Main_main(). This returns int for phase 1, Object for phase 2
   std::vector<op_type> Main_main_arg_types;
   std::vector<operand> Main_main_args;
-  operand ret_Main_main = vp.call(Main_main_arg_types, i32_type, "Main_main", true, Main_main_args);
+  operand ret_Main_main = vp.call(Main_main_arg_types, i32_type, "Main.main", true, Main_main_args);
 
 #ifdef MP3
 // MP3
@@ -544,7 +544,7 @@ void CgenNode::codeGenMainmain() {
   ValuePrinter vp(*ct_stream);
   op_type i32_type(INT32);
   std::vector<operand> Main_main_args;
-  vp.define(*ct_stream, i32_type, "Main_main", Main_main_args);
+  vp.define(*ct_stream, i32_type, "Main.main", Main_main_args);
 
   label Main_main_entry = "entry";
   vp.begin_block(Main_main_entry);
@@ -648,7 +648,30 @@ operand cond_class::code(CgenEnvironment *env) {
     std::cerr << "cond" << std::endl;
 
   // TODO: add code here and replace `return operand()`
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+
+  auto check_ = pred->code(env);
+
+  auto true_ = env->new_true_label();
+  auto false_ = env->new_false_label();
+  auto end_ = env->new_end_label();
+
+  vp.branch_cond(*env->cur_stream, check_, true_, false_);
+
+  vp.begin_block(true_);
+  auto then_ = then_exp->code(env);
+  vp.store(*env->cur_stream, then_, res_ptr);
+  vp.branch_uncond(end_);
+
+  vp.begin_block(false_);
+  auto else_ = else_exp->code(env);
+  vp.store(*env->cur_stream, else_, res_ptr);
+  vp.branch_uncond(end_);
+
+  vp.begin_block(end_);
+  auto cond_res = vp.load(result_type, res_ptr);
+
+  return cond_res;
 }
 
 operand loop_class::code(CgenEnvironment *env) {
@@ -676,6 +699,10 @@ operand block_class::code(CgenEnvironment *env) {
   return block_res;
 }
 
+// store value(which will get until code stage), bind variable(in current scope which only happens in code stage), control scope(which only happens in code stage)
+// 1: store the value into [let_EXTRAS which store the addr of corrosponding variable]
+// 2: bind variable with [let_EXTRAS which store the addr of corrosponding variable] in current scope
+// 3: enter scope and exit scope, control scope
 operand let_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "let" << std::endl;
@@ -687,7 +714,7 @@ operand let_class::code(CgenEnvironment *env) {
   // first evaluate init
   operand init_op = init->code(env);
 
-  // then check the variable ans store value
+  // store value
   if (init_op.is_empty()) { // no ini
     if (id_type.get_id() == INT32 && id_type.get_name() == "i32") {
       int_value i32_0(0);
@@ -992,13 +1019,26 @@ void assign_class::make_alloca(CgenEnvironment *env) {
 
   // TODO: add code here
   expr->make_alloca(env);
+  set_expr_type(env, expr->get_expr_type(env));
 }
 
 void cond_class::make_alloca(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "cond" << std::endl;
 
+  ValuePrinter vp(*env->cur_stream);
+
   // TODO: add code here
+  pred->make_alloca(env);
+  then_exp->make_alloca(env);
+  else_exp->make_alloca(env);
+
+  // for mp2.1 we assume then_exp and else_exp have same type
+  result_type = then_exp->get_expr_type(env);
+  set_expr_type(env, result_type);
+
+  // make alloca 
+  res_ptr = vp.alloca_mem(result_type);
 }
 
 void loop_class::make_alloca(CgenEnvironment *env) {
@@ -1014,13 +1054,20 @@ void block_class::make_alloca(CgenEnvironment *env) {
 
   // TODO: add code here
   int i = 0;
-  for(i = body->first(); body->more(i); i = body->next(i)) {
+  for(i = body->first(); body->more(i) && body->more(i+1); i = body->next(i)) {
     auto expr_iter = body->nth(i);
     expr_iter->make_alloca(env);
   }
 
+  auto expr_iter = body->nth(i);
+  expr_iter->make_alloca(env);
+
+  set_expr_type(env, expr_iter->get_expr_type(env));
 }
 
+// 1: create space on stack, and receive the [return addr which is inside a register]  
+// 2: store the [return addr which is inside a register] into let_EXTRAS
+// 3: let_EXTRAS is for [return addr which is inside a register] only
 void let_class::make_alloca(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "let" << std::endl;
@@ -1036,14 +1083,19 @@ void let_class::make_alloca(CgenEnvironment *env) {
     operand alloc_int = vp.alloca_mem(i32_type);
     id_type = i32_type;
     id_op = alloc_int;
+    env->var_tp_add_binding(identifier, &i32_type); 
   } else if (type_name == "Bool") {
     op_type i1_type(INT1);
     operand alloc_bool = vp.alloca_mem(i1_type);
     id_type = i1_type;
     id_op = alloc_bool;
+    env->var_tp_add_binding(identifier, &i1_type);
   }
 
+  env->var_tp_open_scope();
   body->make_alloca(env);
+  set_expr_type(env, body->get_expr_type(env));
+  env->var_tp_close_scope();
 }
 
 void plus_class::make_alloca(CgenEnvironment *env) {
@@ -1053,6 +1105,8 @@ void plus_class::make_alloca(CgenEnvironment *env) {
   // TODO: add code here
   e1->make_alloca(env);
   e2->make_alloca(env);
+
+  set_expr_type(env, e1->get_expr_type(env));
 }
 
 void sub_class::make_alloca(CgenEnvironment *env) {
@@ -1062,6 +1116,8 @@ void sub_class::make_alloca(CgenEnvironment *env) {
   // TODO: add code here
   e1->make_alloca(env);
   e2->make_alloca(env);
+
+  set_expr_type(env, e1->get_expr_type(env));
 }
 
 void mul_class::make_alloca(CgenEnvironment *env) {
@@ -1071,6 +1127,8 @@ void mul_class::make_alloca(CgenEnvironment *env) {
   // TODO: add code here
   e1->make_alloca(env);
   e2->make_alloca(env);
+
+  set_expr_type(env, e1->get_expr_type(env));
 }
 
 void divide_class::make_alloca(CgenEnvironment *env) {
@@ -1080,6 +1138,8 @@ void divide_class::make_alloca(CgenEnvironment *env) {
   // TODO: add code here
   e1->make_alloca(env);
   e2->make_alloca(env);
+
+  set_expr_type(env, e1->get_expr_type(env));
 }
 
 void neg_class::make_alloca(CgenEnvironment *env) {
@@ -1088,6 +1148,7 @@ void neg_class::make_alloca(CgenEnvironment *env) {
 
   // TODO: add code here
   e1->make_alloca(env);
+  set_expr_type(env, e1->get_expr_type(env));
 }
 
 void lt_class::make_alloca(CgenEnvironment *env) {
@@ -1097,6 +1158,9 @@ void lt_class::make_alloca(CgenEnvironment *env) {
   // TODO: add code here
   e1->make_alloca(env);
   e2->make_alloca(env);
+
+  op_type bool_(INT1);
+  set_expr_type(env, bool_);
 }
 
 void eq_class::make_alloca(CgenEnvironment *env) {
@@ -1106,6 +1170,9 @@ void eq_class::make_alloca(CgenEnvironment *env) {
   // TODO: add code here
   e1->make_alloca(env);
   e2->make_alloca(env);
+
+  op_type bool_(INT1);
+  set_expr_type(env, bool_);
 }
 
 void leq_class::make_alloca(CgenEnvironment *env) {
@@ -1115,6 +1182,9 @@ void leq_class::make_alloca(CgenEnvironment *env) {
   // TODO: add code here
   e1->make_alloca(env);
   e2->make_alloca(env);
+
+  op_type bool_(INT1);
+  set_expr_type(env, bool_);
 }
 
 void comp_class::make_alloca(CgenEnvironment *env) {
@@ -1123,6 +1193,7 @@ void comp_class::make_alloca(CgenEnvironment *env) {
 
   // TODO: add code here
   e1->make_alloca(env);
+  set_expr_type(env, e1->get_expr_type(env));
 }
 
 void int_const_class::make_alloca(CgenEnvironment *env) {
@@ -1130,6 +1201,9 @@ void int_const_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "Integer Constant" << std::endl;
 
   // TODO: add code here
+
+  op_type int_(INT32);
+  set_expr_type(env, int_);
 }
 
 void bool_const_class::make_alloca(CgenEnvironment *env) {
@@ -1137,6 +1211,9 @@ void bool_const_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "Boolean Constant" << std::endl;
 
   // TODO: add code here
+
+  op_type bool_(INT1);
+  set_expr_type(env, bool_);
 }
 
 void object_class::make_alloca(CgenEnvironment *env) {
@@ -1144,6 +1221,8 @@ void object_class::make_alloca(CgenEnvironment *env) {
     std::cerr << "Object" << std::endl;
 
   // TODO: add code here
+
+  set_expr_type(env, *env->var_tp_find_in_scopes(name));
 }
 
 void no_expr_class::make_alloca(CgenEnvironment *env) {
