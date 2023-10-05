@@ -1,5 +1,5 @@
 class Main {
     main() : Int {
-        if let x : Bool <- true in x then let x : Bool <- false, x : Int <- 3 in x <- 2 else let y : Bool <- false, y : Int <- 3 in y <- 7 fi
+        if not if let x : Bool <- true in x then let x : Bool <- false, x : Bool in x else let y : Bool <- false, y : Bool <- true in y fi then 3 else 5 fi
     };
 };
