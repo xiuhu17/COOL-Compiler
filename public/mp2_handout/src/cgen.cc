@@ -802,7 +802,22 @@ operand divide_class::code(CgenEnvironment *env) {
     std::cerr << "div" << std::endl;
 
   // TODO: add code here and replace `return operand()`
-  return operand();
+
+  ValuePrinter vp(*env->cur_stream);
+  operand numerator_ = e1->code(env);
+  operand demoninator_ = e2->code(env);
+  int_value zero(0);
+  operand test_zero = vp.icmp(EQ, demoninator_, zero);
+
+  label abort_true = "abort";
+  label ok_false = env->new_ok_label();
+
+  vp.branch_cond(*env->cur_stream, test_zero, abort_true, ok_false);
+
+  vp.begin_block(ok_false);
+  operand div_res = vp.div(numerator_, demoninator_);
+
+  return div_res;
 }
 
 operand neg_class::code(CgenEnvironment *env) {

@@ -153,10 +153,11 @@ typedef Cases_class *Cases;
 // let_EXTRAS:          [id_type] is the "op_type" of "newly allocated stack-allocation memory" for {identifier}
 //                      [id_op] is the "register/operand which store the addr" of "newly allocated stack-allocation memory" for {identifier}
 
-// make_alloca: 1A: use alloca
+// make_alloca: 1A: use alloca || set_up_part
 //              1B: "register/operand which store the addr" of "newly allocated stack-allocation memory" and "op_type" of "newly allocated stack-allocation memory" into cond_EXTRAS or let_EXTRAS; 
 //              1C: "op_type" of "op_type of entire Expression-subclass" into Expression_EXTRAS
 // code:        2A: return "operand/register which store the instruction-value" of "entire Expression-subclass"
+//              2B: load & store || set_up_part
 
 // bind & find
 
@@ -169,7 +170,7 @@ typedef Cases_class *Cases;
 //              6: find [identifier] to [op_type] inside {object_class} || variable ===> type
 //              7: when asking type for variable, we need to control scope of [identifier] to [op_type]
 
-// code:        1: recursivly invoke {invoke code to all its Expression-subclass member} || 2A_recur
+// code:        1: recursivly invoke {invoke code to all its Expression-subclass member} || 2A_recur 2B_recur
 //              2: use the {get "2A_recur" <- all its Expression-subclass-member}; use them for code 
 //              3: use the value from 2A_recur; do instruction and use a operand/register to store the instructioin value; return it : 2A
 //              4: use store instruction to store the value into "register/operand which store the addr" of "newly allocated stack-allocation memory", cond_EXTRAS-res_ptr or let_EXTRAS-id_op in {cond_Class} {let_Class} {assign_Class}; since we could only get the value until code-stage || addr ===> value
