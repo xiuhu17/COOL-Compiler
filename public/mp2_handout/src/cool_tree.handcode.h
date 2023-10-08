@@ -160,14 +160,15 @@ typedef Cases_class *Cases;
 //              2B: emit corrosponding IR code || set_up_part
 
 // we need to control scope, since same variable/identifier name may have different type or address(different address will store different value)
+// we need to put "enter/exit scope" or "control scope" at same level(both make_alloca or both code stage) with "find and bind".
 
 // make_alloca: 1: recursivly invoke {invoke make_alloca to all its Expression-subclass-member} ||  recursivly invoke "1A_recur 1B_recur 1C_recur"
 //              2: use the {get "1B_recur 1C_recur" <- all its Expression-subclass-member}; use them for alloca
 //              3: use value from 1B_recur and 1C_recur; allocate on-stack memory : 1A; store the newly allocated address and store newly_allocated op_type : 1B
 //              4: set the {type -> the entire Expression-subclass} : 1C
-//              5: bind [identifier] to [op_type] in [current var_tp_table scope] inside {let_class} || variable ===> type
-//              6: find [identifier] to [op_type] in [current var_tp_table scope] inside {object_class} || variable ===> type
-//              7: when asking type for variable, we need to control scope of [identifier] to [op_type]
+//              5: bind [identifier] to [id_type] in [current var_tp_table scope] inside {let_class} || variable ===> type
+//              6: find [identifier] to [id_type] in [current var_tp_table scope] inside {object_class} || variable ===> type
+//              7: when asking type for variable, we need to control scope of [identifier] to [id_type] using enter/eit
 
 // code:        1: recursivly invoke {invoke code to all its Expression-subclass member} || 2A_recur 2B_recur
 //              2: use the {get "2A_recur" <- all its Expression-subclass-member}; use them("register/operand representation") for later IR code-generation 

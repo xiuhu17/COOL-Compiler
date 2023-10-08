@@ -160,10 +160,11 @@ public:
   // generation for each method. You may need to add parameters to this
   // constructor.
   CgenEnvironment(CgenNode *cur_class)
-      : var_table(), cur_class(cur_class),
+      : var_table(), vat_tp_table(), cur_class(cur_class),
         class_table(*cur_class->get_classtable()), context(class_table.context),
         builder(class_table.builder), the_module(class_table.the_module) {
     var_table.enterscope();
+    vat_tp_table.enterscope();
     // TODO: add code here
   }
 
@@ -180,6 +181,12 @@ public:
   }
   void open_scope() { var_table.enterscope(); }
   void close_scope() { var_table.exitscope(); }
+
+  void vat_tp_add_binding(Symbol name, llvm::Type *tp_ptr) {
+    vat_tp_table.insert(name, tp_ptr);
+  }
+  void var_tp_open_scope() { vat_tp_table.enterscope(); }
+  void vat_tp_close_scope() { vat_tp_table.exitscope(); }
 
   // LLVM Utils:
   // Create a new llvm function in the current module
@@ -210,6 +217,7 @@ public:
 private:
   // mapping from variable names to memory locations
   cool::SymbolTable<llvm::Value> var_table;
+  cool::SymbolTable<llvm::Type> vat_tp_table;
   CgenNode *cur_class;
 
 public:

@@ -1,0 +1,12 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "/usr/include/llvm-15/",
+                "${workspaceFolder}/**"
+            ]
+        }
+    ],
+    "version": 4
+}
