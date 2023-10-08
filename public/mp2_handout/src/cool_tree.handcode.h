@@ -156,27 +156,29 @@ typedef Cases_class *Cases;
 // make_alloca: 1A: use alloca || set_up_part
 //              1B: "register/operand which store the addr" of "newly allocated stack-allocation memory" and "op_type" of "newly allocated stack-allocation memory" into cond_EXTRAS or let_EXTRAS; 
 //              1C: "op_type" of "op_type of entire Expression-subclass" into Expression_EXTRAS
-// code:        2A: return "operand/register which store the instruction-value" of "entire Expression-subclass"
-//              2B: load & store || set_up_part
+// code:        2A: return "operand/register" represents "entire Expression-subclass(operation/result)"; (we do not know the specific value of each register/operand, we will know it until run-time, but we can use "register/operand" represent "entire Expression-subclass(operation/result)", called "register/operand representation") 
+//              2B: emit corrosponding IR code || set_up_part
 
-// bind & find
+// we need to control scope, since same variable/identifier name may have different type or address(different address will store different value)
 
-// we need to control scope, since same variable name may have different type or address(different address will store different value)
 // make_alloca: 1: recursivly invoke {invoke make_alloca to all its Expression-subclass-member} ||  recursivly invoke "1A_recur 1B_recur 1C_recur"
 //              2: use the {get "1B_recur 1C_recur" <- all its Expression-subclass-member}; use them for alloca
 //              3: use value from 1B_recur and 1C_recur; allocate on-stack memory : 1A; store the newly allocated address and store newly_allocated op_type : 1B
 //              4: set the {type -> the entire Expression-subclass} : 1C
 //              5: bind [identifier] to [op_type] in [current var_tp_table scope] inside {let_class} || variable ===> type
-//              6: find [identifier] to [op_type] inside {object_class} || variable ===> type
+//              6: find [identifier] to [op_type] in [current var_tp_table scope] inside {object_class} || variable ===> type
 //              7: when asking type for variable, we need to control scope of [identifier] to [op_type]
 
 // code:        1: recursivly invoke {invoke code to all its Expression-subclass member} || 2A_recur 2B_recur
-//              2: use the {get "2A_recur" <- all its Expression-subclass-member}; use them for code 
-//              3: use the value from 2A_recur; do instruction and use a operand/register to store the instructioin value; return it : 2A
-//              4: use store instruction to store the value into "register/operand which store the addr" of "newly allocated stack-allocation memory", cond_EXTRAS-res_ptr or let_EXTRAS-id_op in {cond_Class} {let_Class} {assign_Class}; since we could only get the value until code-stage || addr ===> value
-//              5: bind [identifier] to [id_op] in the [current var_table scope] inside {let_class} || variable ==> addr 
+//              2: use the {get "2A_recur" <- all its Expression-subclass-member}; use them("register/operand representation") for later IR code-generation 
+//              3: use the value from 2A_recur; do IR Code-Generation ; use "register/operand" represent "entire Expression-subclass(operation/result)" which is "register/operand representation"; return it : 2A
+//              4: do store-IR Code-Generation using "register/operand which store the addr" of "newly allocated stack-allocation memory", cond_EXTRAS-res_ptr or let_EXTRAS-id_op in {cond_Class} {let_Class} {assign_Class}; since we could only get "register/operand representation" until code-stage || addr ~~~ value
+//              5: bind [identifier] to [id_op] in the [current var_table scope] inside {let_class} || variable ===> addr 
 //              6: find [identifier] to [id_op] in the [current var_table scope] inside {assign_class} & {object_class} || variable ===> addr
-//              7: use load instruction to store value into "register/operand which store the addr" of "newly allocated stack-allocation memory", cond_EXTRAS-res_ptr or let_EXTRAS-id_op in {cond_Class} {object_Class}
-//              7: enter/exit scope to realize control scope in the code-stage || control-scope, control "variable ==> addr" in different scope
-/* also, we have another scope to control the variable ==> op_type which we need to maintain the scope in the make_alloca stage */
+//              7: do load-IR Code-Generation using "register/operand which store the addr" of "newly allocated stack-allocation memory", cond_EXTRAS-res_ptr or let_EXTRAS-id_op in {cond_Class} {object_Class}
+//              7: enter/exit scope to realize control scope in the code-stage || control-scope, control "variable ===> addr" in different scope
+
+// type, addr are all stored inside let_Extras
+
 #endif /* COOL_TREE_HANDCODE_H */
+
