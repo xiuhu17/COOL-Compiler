@@ -359,20 +359,27 @@ void CgenClassTable::code_constants() {
 void CgenClassTable::code_main(){
 
   Type *i32 = Type::getInt32Ty(this->context),
-       *i8_ptr = Type::getInt8PtrTy(this->context),
-       *void_ = Type::getVoidTy(this->context);
+       *i8_ptr = Type::getInt8PtrTy(this->context);
 
   llvm::StringRef Main_main_str = "Main.main() returned %d\x0A\x00";
   auto Main_main_val = this->builder.CreateGlobalString(Main_main_str, "main.printout.str", 0, &the_module);
 
   auto main_func = create_llvm_function("main", i32, {}, false);
   auto main_entry_block = llvm::BasicBlock::Create(context, "entry", main_func); // function tie with block
-  builder.SetInsertPoint(&main_func->front());  // irbuilder tie with block
+  builder.SetInsertPoint(main_entry_block);  // irbuilder tie with block
   
   auto Main_main_tp = FunctionType::get(i32, {}, false);
-  auto callee = the_module.getOrInsertFunction("Main.main", Main_main_tp);
-  builder.CreateCall(callee);
+  auto Main_main_callee = the_module.getOrInsertFunction("Main.main", Main_main_tp);
+  auto Main_main_ret = builder.CreateCall(Main_main_callee);
+
+  auto Main_main_str_ptr_tp = ArrayType::get(Type::getInt8Ty(this->context), 25);
+  auto ele_ptr = this->builder.CreateConstGEP2_32(Main_main_str_ptr_tp, Main_main_val, 0, 0);
   
+  auto printf_tp = FunctionType::get(i32, {i8_ptr}, true);
+  auto printf_callee = the_module.getOrInsertFunction("printf", printf_tp);
+  builder.CreateCall(printf_callee, {ele_ptr, Main_main_ret});
+
+  builder.CreateRet(ConstantInt::get(Type::getInt32Ty(this->context), 0));
 #ifdef MP3
 // MP3
 #else
@@ -520,7 +527,7 @@ void CgenNode::codeGenMainmain() {
   // Generally what you need to do are:
   // -- setup or create the environment, env, for translating this method
   // -- invoke mainMethod->code(env) to translate the method
-  CgenEnvironment env(this);
+  CgenEnvironment env(this); // use same builder/context/module as CgenClassTable through this->get_classtable().context.builder.module
   mainMethod->code(&env);
 }
 
@@ -603,11 +610,21 @@ Function *method_class::code(CgenEnvironment *env) {
        *i8_ptr = Type::getInt8PtrTy(env->context),
        *void_ = Type::getVoidTy(env->context);
 
-  auto main_func = env->create_llvm_function("Main.main", i32, {}, false);
-  auto main_entry_block = llvm::BasicBlock::Create(env->context, "entry", main_func); // function tie with block
-  env->builder.SetInsertPoint(&main_func->front());  // irbuilder tie with block
+  auto Main_main_func = env->create_llvm_function("Main.main", i32, {}, false);
+  // set the initial block, then later can use env->new_bb_at_fend(); 
+  // since builder.GetInsertBlock()->getParent() require [->getParent()] as current parent
+  auto Main_main_entry_block = llvm::BasicBlock::Create(env->context, "entry", Main_main_func); // tie block with parent: Main_main_func
+  // since builder.GetInsertBlock()->getParent() require [.GetInsertBlock()] as current block
+  env->builder.SetInsertPoint(Main_main_entry_block);  // tie irbuilder with block : Main_main_entry_block
+  // builder.GetInsertBlock()->getParent() : Main_main_entry_block->getParent() : Main_main_func // tie new_block with parent : Main_main_func // still same parent : Main_main_func
+  // builder.SetInsertPoint(new_block) // tie irbuilder with new_block // different block : new_block
 
-  return main_func;
+  auto Main_main_ret = expr->code(env);
+  env->builder.CreateRet(ConstantInt::get(Type::getInt32Ty(env->context), 0));
+  //   env->builder.CreateRet(Main_main_ret);
+
+  env->get_or_insert_abort_block(Main_main_func);
+  return Main_main_func;
 }
 
 // Codegen for expressions. Note that each expression has a value.
@@ -617,7 +634,19 @@ Value *assign_class::code(CgenEnvironment *env) {
     std::cerr << "assign" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+
+  // recursive call; grab info
+  auto expr_val = expr->code(env);
+  auto expr_tp = expr->get_expr_tp(env);
+  auto [id_tp, id_addr_val] = env->find_in_scopes(name);
+
+  // emit code
+  env->builder.CreateStore(expr_val, id_addr_val);
+
+  // settup
+  set_expr_tp(env, expr_tp);
+
+  return expr_val;
 }
 
 Value *cond_class::code(CgenEnvironment *env) {
@@ -625,6 +654,19 @@ Value *cond_class::code(CgenEnvironment *env) {
     std::cerr << "cond" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
+
+  // recursive call; grab info
+  auto pred_val = pred->code(env);
+  auto then_val = then_exp->code(env);
+  auto else_val = else_exp->code(env);
+
+  auto pred_tp = pred->get_expr_tp(env);
+  auto then_tp = then_exp->get_expr_tp(env);
+  auto else_tp = else_exp->get_expr_tp(env);
+
+  // emit code
+  
+
   return nullptr;
 }
 

@@ -160,7 +160,7 @@ public:
   // generation for each method. You may need to add parameters to this
   // constructor.
   CgenEnvironment(CgenNode *cur_class)
-      : var_table(), vat_tp_table(), cur_class(cur_class),
+      : var_table(), var_tp_table(), cur_class(cur_class),
         class_table(*cur_class->get_classtable()), context(class_table.context), 
         builder(class_table.builder), the_module(class_table.the_module) {
     tmp_count = 0;
@@ -170,7 +170,7 @@ public:
     false_count = 0;
     end_count = 0;
     var_table.enterscope();
-    vat_tp_table.enterscope();
+    var_tp_table.enterscope();
 
     // TODO: add code here
   }
@@ -181,7 +181,9 @@ public:
   // Must return the CgenNode for a class given the symbol of its name
   CgenNode *type_to_class(Symbol t);
 
-  std::pair<llvm::Type *, llvm::Value *> find_in_scopes(Symbol name);
+  std::pair<llvm::Type *, llvm::Value *> find_in_scopes(Symbol name) {
+    return {var_tp_table.find_in_scopes(name), var_table.find_in_scopes(name)};
+  }
 
   void add_binding(Symbol name, llvm::Value *val_ptr) {
     var_table.insert(name, val_ptr);
@@ -190,10 +192,10 @@ public:
   void close_scope() { var_table.exitscope(); }
 
   void vat_tp_add_binding(Symbol name, llvm::Type *tp_ptr) {
-    vat_tp_table.insert(name, tp_ptr);
+    var_tp_table.insert(name, tp_ptr);
   }
-  void var_tp_open_scope() { vat_tp_table.enterscope(); }
-  void vat_tp_close_scope() { vat_tp_table.exitscope(); }
+  void var_tp_open_scope() { var_tp_table.enterscope(); }
+  void vat_tp_close_scope() { var_tp_table.exitscope(); }
 
   // LLVM Utils:
   // Create a new llvm function in the current module
@@ -233,7 +235,7 @@ public:
 private:
   // mapping from variable names to memory locations
   cool::SymbolTable<llvm::Value> var_table;
-  cool::SymbolTable<llvm::Type> vat_tp_table;
+  cool::SymbolTable<llvm::Type> var_tp_table;
   CgenNode *cur_class;
   int tmp_count, ok_count; 
   int loop_count, true_count, false_count, end_count;

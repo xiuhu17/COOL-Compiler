@@ -65,6 +65,9 @@ typedef Cases_class *Cases;
   }                                                                            \
   virtual int no_code() { return 0; } /* ## */                                 \
   void dump_type(std::ostream &, int);                                         \
+  virtual llvm::Type *get_expr_tp(CgenEnvironment *) = 0;                      \
+  virtual void set_expr_tp(CgenEnvironment *, llvm::Type*) = 0;               \
+  llvm::Type *expr_tp;                                                         \
   Expression_class() { type = (Symbol)NULL; }
 
 #define program_EXTRAS                                                         \
@@ -114,9 +117,19 @@ typedef Cases_class *Cases;
 
 #define Expression_SHARED_EXTRAS                                               \
   llvm::Value *code(CgenEnvironment *);                                        \
-  void dump_with_types(std::ostream &, int);
+  void dump_with_types(std::ostream &, int);                                   \
+  llvm::Type *get_expr_tp(CgenEnvironment *env) override {return expr_tp;}     \
+  void set_expr_tp(CgenEnvironment *env, llvm::Type* tp_) override {expr_tp = tp_;}           
 
 #define no_expr_EXTRAS        /* ## */                                         \
   int no_code() { return 1; } /* ## */
 
+#define let_EXTRAS                                                             \
+  llvm::Type  *if_type;                                                         \
+  llvm::Value *if_addr_val;
+#define cond_EXTRAS                                                            \
+  llvm::Type  *identifier_type;                                                \
+  llvm::Value *identifier_addr_val;
+
+// in mp2, assume if_type = expression_type
 #endif /* COOL_TREE_HANDCODE_H */
