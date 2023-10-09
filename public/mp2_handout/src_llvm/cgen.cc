@@ -695,7 +695,7 @@ Value *cond_class::code(CgenEnvironment *env) {
   env->builder.SetInsertPoint(end_block);
   auto cond_res = env->builder.CreateLoad(if_type, if_addr_val);
 
-  // set expr extra
+  // set expr_extra
   set_expr_tp(env, if_type);
 
   return cond_res;
@@ -706,7 +706,35 @@ Value *loop_class::code(CgenEnvironment *env) {
     std::cerr << "loop" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto loop_label = env->new_loop_label();
+  auto true_label = env->new_true_label();
+  auto false_label = env->new_false_label();
+
+  auto loop_block = env->new_bb_at_fend(loop_label);
+  auto true_block = env->new_bb_at_fend(true_label);
+  auto false_block = env->new_bb_at_fend(false_label);
+
+  // uncondition jump to loop
+  env->builder.CreateBr(loop_block);
+
+  // insert irbuilder
+  env->builder.SetInsertPoint(loop_block);
+  auto pred_ = pred->code(env);
+  env->builder.CreateCondBr(pred_, true_block, false_block);
+
+  // if true, then body
+  env->builder.SetInsertPoint(true_block);
+  body->code(env);
+  env->builder.CreateBr(loop_block);
+
+  // if false, then ...
+  env->builder.SetInsertPoint(false_block);
+
+  // set expr_extra
+  set_expr_tp(env, Type::getInt32Ty(env->context));
+  auto loop_res = ConstantInt::get(Type::getInt32Ty(env->context), 0);
+
+  return loop_res;
 }
 
 Value *block_class::code(CgenEnvironment *env) {
@@ -714,7 +742,19 @@ Value *block_class::code(CgenEnvironment *env) {
     std::cerr << "block" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  int i = 0;
+  for(i = body->first(); body->more(i) && body->more(i+1); i = body->next(i)) {
+    auto expr_iter = body->nth(i);
+    expr_iter->code(env);
+  }
+
+  auto expr_iter = body->nth(i);
+  auto block_res = expr_iter->code(env);
+  auto block_tp = expr_iter->get_expr_tp(env);
+
+  // set expr_extra
+  set_expr_tp(env, block_tp);
+  return block_res;
 }
 
 Value *let_class::code(CgenEnvironment *env) {
@@ -722,15 +762,56 @@ Value *let_class::code(CgenEnvironment *env) {
     std::cerr << "let" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto init_val = init->code(env);
+
+  auto i32_ = Type::getInt32Ty(env->context);
+  auto i1_ = Type::getInt1Ty(env->context);
+
+  auto type_name = type_decl->get_string();
+  if (type_name == "Int") {
+    identifier_type = i32_;
+    identifier_addr_val = env->insert_alloca_at_head(i32_);
+    if (init_val) {
+      env->builder.CreateStore(init_val, identifier_addr_val);
+    } else {
+      env->builder.CreateStore(ConstantInt::get(i32_, 0), identifier_addr_val);
+    }
+  } else if (type_name == "Bool") {
+    identifier_type = i1_;
+    identifier_addr_val = env->insert_alloca_at_head(i1_);
+    if (init_val) {
+      env->builder.CreateStore(init_val, identifier_addr_val);
+    } else {
+      env->builder.CreateStore(ConstantInt::get(i1_, false), identifier_addr_val);
+    }
+  }
+  env->var_tp_add_binding(identifier, identifier_type);
+  env->add_binding(identifier, identifier_addr_val);
+
+  env->var_tp_open_scope();
+  env->open_scope();
+
+  auto let_type_ = body->get_expr_tp(env);
+  auto let_res_ = body->code(env);
+  
+  env->var_tp_close_scope();
+  env->close_scope();
+
+  set_expr_tp(env, let_type_);
+  return let_res_;
 }
 
 Value *plus_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "plus" << std::endl;
 
-  // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto e1_ = e1->code(env);
+  auto e2_ = e2->code(env);
+
+  auto add_res = env->builder.CreateAdd(e1_, e2_);
+
+  set_expr_tp(env, e1->get_expr_tp(env));
+  return add_res;
 }
 
 Value *sub_class::code(CgenEnvironment *env) {
@@ -830,7 +911,12 @@ Value *object_class::code(CgenEnvironment *env) {
     std::cerr << "Object" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto [object_type, object_addr_val] = env->find_in_scopes(name);
+
+  auto object_res = env->builder.CreateLoad(object_type, object_addr_val);
+  set_expr_tp(env, object_type);
+
+  return object_res;
 }
 
 Value *no_expr_class::code(CgenEnvironment *env) {

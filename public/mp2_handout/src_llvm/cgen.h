@@ -191,11 +191,11 @@ public:
   void open_scope() { var_table.enterscope(); }
   void close_scope() { var_table.exitscope(); }
 
-  void vat_tp_add_binding(Symbol name, llvm::Type *tp_ptr) {
+  void var_tp_add_binding(Symbol name, llvm::Type *tp_ptr) {
     var_tp_table.insert(name, tp_ptr);
   }
   void var_tp_open_scope() { var_tp_table.enterscope(); }
-  void vat_tp_close_scope() { var_tp_table.exitscope(); }
+  void var_tp_close_scope() { var_tp_table.exitscope(); }
 
   // LLVM Utils:
   // Create a new llvm function in the current module
