@@ -620,8 +620,8 @@ Function *method_class::code(CgenEnvironment *env) {
   // builder.SetInsertPoint(new_block) // tie irbuilder with new_block // different block : new_block
 
   auto Main_main_ret = expr->code(env);
-  env->builder.CreateRet(ConstantInt::get(Type::getInt32Ty(env->context), 0));
-    // env->builder.CreateRet(Main_main_ret);
+  // env->builder.CreateRet(ConstantInt::get(Type::getInt32Ty(env->context), 0));
+  env->builder.CreateRet(Main_main_ret);
 
   env->get_or_insert_abort_block(Main_main_func);
   return Main_main_func;
@@ -657,7 +657,6 @@ Value *cond_class::code(CgenEnvironment *env) {
   auto true_label = env->new_true_label();
   auto false_label = env->new_false_label();
   auto end_label = env->new_end_label();
-  auto new_name = env->new_name();
 
   auto true_block = env->new_bb_at_fend(true_label);
   auto false_block = env->new_bb_at_fend(false_label);
@@ -671,28 +670,30 @@ Value *cond_class::code(CgenEnvironment *env) {
   auto then_val = then_exp->code(env);
   auto then_tp = then_exp->get_expr_tp(env);
   if_type = then_tp;
+  auto remain_true_block = env->builder.GetInsertBlock();
   
   // else branch
   env->builder.SetInsertPoint(false_block);
   auto else_val = else_exp->code(env);
   auto else_tp = else_exp->get_expr_tp(env);
   if_type = else_tp;
+  auto remain_false_block = env->builder.GetInsertBlock();
 
   if_addr_val = env->insert_alloca_at_head(if_type); // only once
 
   // then branch
-  env->builder.SetInsertPoint(true_block);
+  env->builder.SetInsertPoint(remain_true_block);
   env->builder.CreateStore(then_val, if_addr_val);
   env->builder.CreateBr(end_block);
 
   // else branch
-  env->builder.SetInsertPoint(false_block);
+  env->builder.SetInsertPoint(remain_false_block);
   env->builder.CreateStore(else_val, if_addr_val);
   env->builder.CreateBr(end_block);
 
   // end block
   env->builder.SetInsertPoint(end_block);
-  auto cond_res = env->builder.CreateLoad(if_type, if_addr_val, new_name);
+  auto cond_res = env->builder.CreateLoad(if_type, if_addr_val);
 
   // set expr extra
   set_expr_tp(env, if_type);
