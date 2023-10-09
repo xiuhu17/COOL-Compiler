@@ -621,7 +621,7 @@ Function *method_class::code(CgenEnvironment *env) {
 
   auto Main_main_ret = expr->code(env);
   env->builder.CreateRet(ConstantInt::get(Type::getInt32Ty(env->context), 0));
-  //   env->builder.CreateRet(Main_main_ret);
+    // env->builder.CreateRet(Main_main_ret);
 
   env->get_or_insert_abort_block(Main_main_func);
   return Main_main_func;
@@ -643,7 +643,7 @@ Value *assign_class::code(CgenEnvironment *env) {
   // emit code
   env->builder.CreateStore(expr_val, id_addr_val);
 
-  // settup
+  // settup expression_extra
   set_expr_tp(env, expr_tp);
 
   return expr_val;
@@ -654,20 +654,50 @@ Value *cond_class::code(CgenEnvironment *env) {
     std::cerr << "cond" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
+  auto true_label = env->new_true_label();
+  auto false_label = env->new_false_label();
+  auto end_label = env->new_end_label();
+  auto new_name = env->new_name();
 
-  // recursive call; grab info
+  auto true_block = env->new_bb_at_fend(true_label);
+  auto false_block = env->new_bb_at_fend(false_label);
+  auto end_block = env->new_bb_at_fend(end_label);
+
   auto pred_val = pred->code(env);
+  env->builder.CreateCondBr(pred_val, true_block, false_block);
+
+  // then branch
+  env->builder.SetInsertPoint(true_block);
   auto then_val = then_exp->code(env);
-  auto else_val = else_exp->code(env);
-
-  auto pred_tp = pred->get_expr_tp(env);
   auto then_tp = then_exp->get_expr_tp(env);
-  auto else_tp = else_exp->get_expr_tp(env);
-
-  // emit code
+  if_type = then_tp;
   
+  // else branch
+  env->builder.SetInsertPoint(false_block);
+  auto else_val = else_exp->code(env);
+  auto else_tp = else_exp->get_expr_tp(env);
+  if_type = else_tp;
 
-  return nullptr;
+  if_addr_val = env->insert_alloca_at_head(if_type); // only once
+
+  // then branch
+  env->builder.SetInsertPoint(true_block);
+  env->builder.CreateStore(then_val, if_addr_val);
+  env->builder.CreateBr(end_block);
+
+  // else branch
+  env->builder.SetInsertPoint(false_block);
+  env->builder.CreateStore(else_val, if_addr_val);
+  env->builder.CreateBr(end_block);
+
+  // end block
+  env->builder.SetInsertPoint(end_block);
+  auto cond_res = env->builder.CreateLoad(if_type, if_addr_val, new_name);
+
+  // set expr extra
+  set_expr_tp(env, if_type);
+
+  return cond_res;
 }
 
 Value *loop_class::code(CgenEnvironment *env) {
@@ -771,15 +801,27 @@ Value *int_const_class::code(CgenEnvironment *env) {
     std::cerr << "Integer Constant" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  std::string int_val = token->get_string();
+  const char *string_to_char = int_val.c_str();
+  int real_val = std::atoi(string_to_char);
+  int val_constraints = std::min(std::max(std::numeric_limits<int>::min(), real_val), std::numeric_limits<int>::max());
+
+  auto int_ret = ConstantInt::get(Type::getInt32Ty(env->context), val_constraints);
+  set_expr_tp(env, Type::getInt32Ty(env->context));
+  return int_ret;
 }
 
 Value *bool_const_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "Boolean Constant" << std::endl;
 
-  // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  set_expr_tp(env, Type::getInt1Ty(env->context));
+
+  if (val) {
+    return ConstantInt::get(Type::getInt1Ty(env->context), true);
+  } 
+  
+  return ConstantInt::get(Type::getInt1Ty(env->context), false);
 }
 
 Value *object_class::code(CgenEnvironment *env) {
