@@ -357,14 +357,22 @@ void CgenClassTable::code_constants() {
 // by generating the code to execute (new Main).main()
 //
 void CgenClassTable::code_main(){
-// TODO: add code here
 
-// Define a function main that has no parameters and returns an i32
+  Type *i32 = Type::getInt32Ty(this->context),
+       *i8_ptr = Type::getInt8PtrTy(this->context),
+       *void_ = Type::getVoidTy(this->context);
 
-// Define an entry basic block
+  llvm::StringRef Main_main_str = "Main.main() returned %d\x0A\x00";
+  auto Main_main_val = this->builder.CreateGlobalString(Main_main_str, "main.printout.str", 0, &the_module);
 
-// Call Main_main(). This returns int for phase 1, Object for phase 2
-
+  auto main_func = create_llvm_function("main", i32, {}, false);
+  auto main_entry_block = llvm::BasicBlock::Create(context, "entry", main_func); // function tie with block
+  builder.SetInsertPoint(&main_func->front());  // irbuilder tie with block
+  
+  auto Main_main_tp = FunctionType::get(i32, {}, false);
+  auto callee = the_module.getOrInsertFunction("Main.main", Main_main_tp);
+  builder.CreateCall(callee);
+  
 #ifdef MP3
 // MP3
 #else
@@ -512,6 +520,8 @@ void CgenNode::codeGenMainmain() {
   // Generally what you need to do are:
   // -- setup or create the environment, env, for translating this method
   // -- invoke mainMethod->code(env) to translate the method
+  CgenEnvironment env(this);
+  mainMethod->code(&env);
 }
 
 #endif
@@ -588,7 +598,16 @@ Function *method_class::code(CgenEnvironment *env) {
   }
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+
+  Type *i32 = Type::getInt32Ty(env->context),
+       *i8_ptr = Type::getInt8PtrTy(env->context),
+       *void_ = Type::getVoidTy(env->context);
+
+  auto main_func = env->create_llvm_function("Main.main", i32, {}, false);
+  auto main_entry_block = llvm::BasicBlock::Create(env->context, "entry", main_func); // function tie with block
+  env->builder.SetInsertPoint(&main_func->front());  // irbuilder tie with block
+
+  return main_func;
 }
 
 // Codegen for expressions. Note that each expression has a value.

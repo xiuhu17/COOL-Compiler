@@ -161,10 +161,17 @@ public:
   // constructor.
   CgenEnvironment(CgenNode *cur_class)
       : var_table(), vat_tp_table(), cur_class(cur_class),
-        class_table(*cur_class->get_classtable()), context(class_table.context),
+        class_table(*cur_class->get_classtable()), context(class_table.context), 
         builder(class_table.builder), the_module(class_table.the_module) {
+    tmp_count = 0;
+    ok_count = 0;
+    loop_count = 0;
+    true_count = 0;
+    false_count = 0;
+    end_count = 0;
     var_table.enterscope();
     vat_tp_table.enterscope();
+
     // TODO: add code here
   }
 
@@ -197,6 +204,8 @@ public:
     return class_table.create_llvm_function(funcName, retType, argTypes,
                                             isVarArgs);
   }
+
+
   // Insert a new BasicBlock at the end of the current function (the function
   // that builder is in)
   llvm::BasicBlock *new_bb_at_fend(const std::string &name) {
@@ -214,11 +223,20 @@ public:
 
   // TODO: Add more functions as necessary.
 
+  std::string new_name() { return "tmp." + std::to_string(tmp_count++); }
+  std::string new_ok_label() { return "ok." + std::to_string(ok_count++); }
+  std::string new_loop_label() { return "loop." + std::to_string(loop_count++); }
+  std::string new_true_label() { return "true." + std::to_string(true_count++); }
+  std::string new_false_label() { return "false." + std::to_string(false_count++); }
+  std::string new_end_label() { return "end." + std::to_string(end_count++); } 
+
 private:
   // mapping from variable names to memory locations
   cool::SymbolTable<llvm::Value> var_table;
   cool::SymbolTable<llvm::Type> vat_tp_table;
   CgenNode *cur_class;
+  int tmp_count, ok_count; 
+  int loop_count, true_count, false_count, end_count;
 
 public:
   CgenClassTable &class_table;
