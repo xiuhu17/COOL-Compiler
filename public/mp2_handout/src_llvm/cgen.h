@@ -232,6 +232,12 @@ public:
   std::string new_false_label() { return "false." + std::to_string(false_count++); }
   std::string new_end_label() { return "end." + std::to_string(end_count++); } 
 
+  llvm::BasicBlock *get_abrt() {
+    return abrt;
+  }
+  void set_abrt(llvm::BasicBlock *abrt_) {
+    abrt = abrt_;
+  }
 private:
   // mapping from variable names to memory locations
   cool::SymbolTable<llvm::Value> var_table;
@@ -239,6 +245,7 @@ private:
   CgenNode *cur_class;
   int tmp_count, ok_count; 
   int loop_count, true_count, false_count, end_count;
+  llvm::BasicBlock *abrt;
 
 public:
   CgenClassTable &class_table;

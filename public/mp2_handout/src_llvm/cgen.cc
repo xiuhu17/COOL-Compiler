@@ -619,11 +619,15 @@ Function *method_class::code(CgenEnvironment *env) {
   // builder.GetInsertBlock()->getParent() : Main_main_entry_block->getParent() : Main_main_func // tie new_block with parent : Main_main_func // still same parent : Main_main_func
   // builder.SetInsertPoint(new_block) // tie irbuilder with new_block // different block : new_block
 
+  auto abrt_ = env->get_or_insert_abort_block(Main_main_func);
+  env->set_abrt(abrt_);
+
   auto Main_main_ret = expr->code(env);
   // env->builder.CreateRet(ConstantInt::get(Type::getInt32Ty(env->context), 0));
   env->builder.CreateRet(Main_main_ret);
 
-  env->get_or_insert_abort_block(Main_main_func);
+
+
   return Main_main_func;
 }
 
@@ -819,7 +823,13 @@ Value *sub_class::code(CgenEnvironment *env) {
     std::cerr << "sub" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto e1_ = e1->code(env);
+  auto e2_ = e2->code(env);
+
+  auto sub_res = env->builder.CreateSub(e1_, e2_);
+
+  set_expr_tp(env, e1->get_expr_tp(env));
+  return sub_res;
 }
 
 Value *mul_class::code(CgenEnvironment *env) {
@@ -827,7 +837,13 @@ Value *mul_class::code(CgenEnvironment *env) {
     std::cerr << "mul" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto e1_ = e1->code(env);
+  auto e2_ = e2->code(env);
+
+  auto mul_res = env->builder.CreateMul(e1_, e2_);
+
+  set_expr_tp(env, e1->get_expr_tp(env));
+  return mul_res;
 }
 
 Value *divide_class::code(CgenEnvironment *env) {
@@ -835,7 +851,21 @@ Value *divide_class::code(CgenEnvironment *env) {
     std::cerr << "div" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto ok_label = env->new_ok_label();
+  auto numerator = e1->code(env);
+  auto denominator = e2->code(env);
+
+  auto abort_true = env->get_abrt();              // true, 0
+  auto ok_false = env->new_bb_at_fend(ok_label); // false, not 0
+
+  auto cond_ = env->builder.CreateCmp(llvm::CmpInst::ICMP_EQ, ConstantInt::get(Type::getInt32Ty(env->context), 0), denominator);
+  env->builder.CreateCondBr(cond_, abort_true, ok_false);
+
+  env->builder.SetInsertPoint(ok_false);
+  auto div_res = env->builder.CreateSDiv(numerator, denominator);
+
+  set_expr_tp(env, e1->get_expr_tp(env));
+  return div_res;
 }
 
 Value *neg_class::code(CgenEnvironment *env) {
@@ -843,7 +873,12 @@ Value *neg_class::code(CgenEnvironment *env) {
     std::cerr << "neg" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto e1_ = e1->code(env);
+
+  auto neg_res = env->builder.CreateNeg(e1_);
+
+  set_expr_tp(env, e1->get_expr_tp(env));
+  return neg_res;
 }
 
 Value *lt_class::code(CgenEnvironment *env) {
@@ -851,7 +886,13 @@ Value *lt_class::code(CgenEnvironment *env) {
     std::cerr << "lt" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto e1_ = e1->code(env);
+  auto e2_ = e2->code(env);
+
+  auto lt_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_SLT, e1_, e2_);
+
+  set_expr_tp(env, Type::getInt1Ty(env->context));
+  return lt_res;
 }
 
 Value *eq_class::code(CgenEnvironment *env) {
@@ -859,7 +900,13 @@ Value *eq_class::code(CgenEnvironment *env) {
     std::cerr << "eq" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto e1_ = e1->code(env);
+  auto e2_ = e2->code(env);
+
+  auto eq_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_EQ, e1_, e2_);
+
+  set_expr_tp(env, Type::getInt1Ty(env->context));
+  return eq_res;
 }
 
 Value *leq_class::code(CgenEnvironment *env) {
@@ -867,7 +914,13 @@ Value *leq_class::code(CgenEnvironment *env) {
     std::cerr << "leq" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto e1_ = e1->code(env);
+  auto e2_ = e2->code(env);
+
+  auto leq_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_SLE, e1_, e2_);
+
+  set_expr_tp(env, Type::getInt1Ty(env->context));
+  return leq_res;
 }
 
 Value *comp_class::code(CgenEnvironment *env) {
@@ -875,7 +928,12 @@ Value *comp_class::code(CgenEnvironment *env) {
     std::cerr << "complement" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+
+  auto e1_ = e1->code(env);
+  auto comp_res = env->builder.CreateXor(e1_, ConstantInt::get(Type::getInt1Ty(env->context), true));
+
+  set_expr_tp(env, e1->get_expr_tp(env));
+  return comp_res;
 }
 
 Value *int_const_class::code(CgenEnvironment *env) {
