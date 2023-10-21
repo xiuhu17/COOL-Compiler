@@ -1099,3 +1099,14 @@ Value *attr_class::code(CgenEnvironment *env) {
   return nullptr;
 #endif
 }
+
+#ifdef MP3
+// Retrieve the class tag from an object record.
+// src is the object we need the tag from.
+// src_class is the CgenNode for the *static* class of the expression.
+// You need to look up and return the class tag for it's dynamic value
+Value *get_class_tag(Value *src, CgenNode *src_cls, CgenEnvironment *env) {
+  // ADD CODE HERE (MP3 ONLY)
+  return 0;
+}
+#endif
