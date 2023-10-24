@@ -1,7 +1,7 @@
 LEXER = ../reference-binaries/lexer
 PARSER = ../reference-binaries/parser
 SEMANT = ../reference-binaries/semant
-CGENREF = ../reference-binaries/cgen-1
+CGENREF = ../reference-binaries/cgen-2
 CLANG = clang-15
 OPT = opt-15
 
