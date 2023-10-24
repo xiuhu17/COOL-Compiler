@@ -626,8 +626,6 @@ Function *method_class::code(CgenEnvironment *env) {
   // env->builder.CreateRet(ConstantInt::get(Type::getInt32Ty(env->context), 0));
   env->builder.CreateRet(Main_main_ret);
 
-
-
   return Main_main_func;
 }
 
@@ -682,7 +680,7 @@ Value *cond_class::code(CgenEnvironment *env) {
   auto else_tp = else_exp->get_expr_tp(env);
   if_type = else_tp;
   auto remain_false_block = env->builder.GetInsertBlock();
-
+  
   if_addr_val = env->insert_alloca_at_head(if_type); // only once
 
   // then branch
@@ -795,9 +793,9 @@ Value *let_class::code(CgenEnvironment *env) {
   env->var_tp_open_scope();
   env->open_scope();
 
-  auto let_type_ = body->get_expr_tp(env);
   auto let_res_ = body->code(env);
-  
+  auto let_type_ = body->get_expr_tp(env);
+
   env->var_tp_close_scope();
   env->close_scope();
 
