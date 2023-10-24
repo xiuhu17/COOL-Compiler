@@ -795,8 +795,8 @@ Value *let_class::code(CgenEnvironment *env) {
   env->var_tp_open_scope();
   env->open_scope();
 
-  auto let_type_ = body->get_expr_tp(env);
   auto let_res_ = body->code(env);
+  auto let_type_ = body->get_expr_tp(env);
   
   env->var_tp_close_scope();
   env->close_scope();
