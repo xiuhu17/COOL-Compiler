@@ -6,7 +6,7 @@ CLANG = clang-15
 OPT = opt-15
 
 debug = true
-mp3 = false
+mp3 = true
 proj_dir = ../src_llvm
 
 ifeq ($(debug),true)
