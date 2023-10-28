@@ -71,6 +71,9 @@ cgen-2:
 %.binref: %-o3.llref $(COOLRT)
 	$(CLANG) -g -x ir - -o $@ < $<
 
+%.verifyref: %.llref
+	$(OPT) -S -verify $<
+
 %.outref: %.binref
 	./$< > $@ || true
 

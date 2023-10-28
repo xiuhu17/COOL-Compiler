@@ -146,10 +146,6 @@ private:
   std::ostream *ct_stream;
 
   // TODO: Add more functions / fields here as necessary.
-  // std::unordered_map<>;
-  // llvm::LLVMContext context_store;
-  // llvm::IRBuilder<> builder_store;
-  // llvm::Module the_module_store;
 };
 
 // CgenEnvironment provides the environment for code generation of a method.
@@ -164,18 +160,10 @@ public:
   // generation for each method. You may need to add parameters to this
   // constructor.
   CgenEnvironment(CgenNode *cur_class)
-      : var_table(), var_tp_table(), cur_class(cur_class),
-        class_table(*cur_class->get_classtable()), context(class_table.context), 
+      : var_table(), cur_class(cur_class),
+        class_table(*cur_class->get_classtable()), context(class_table.context),
         builder(class_table.builder), the_module(class_table.the_module) {
-    tmp_count = 0;
-    ok_count = 0;
-    loop_count = 0;
-    true_count = 0;
-    false_count = 0;
-    end_count = 0;
     var_table.enterscope();
-    var_tp_table.enterscope();
-
     // TODO: add code here
   }
 
@@ -185,21 +173,13 @@ public:
   // Must return the CgenNode for a class given the symbol of its name
   CgenNode *type_to_class(Symbol t);
 
-  std::pair<llvm::Type *, llvm::Value *> find_in_scopes(Symbol name) {
-    return {var_tp_table.find_in_scopes(name), var_table.find_in_scopes(name)};
-  }
+  std::pair<llvm::Type *, llvm::Value *> find_in_scopes(Symbol name);
 
   void add_binding(Symbol name, llvm::Value *val_ptr) {
     var_table.insert(name, val_ptr);
   }
   void open_scope() { var_table.enterscope(); }
   void close_scope() { var_table.exitscope(); }
-
-  void var_tp_add_binding(Symbol name, llvm::Type *tp_ptr) {
-    var_tp_table.insert(name, tp_ptr);
-  }
-  void var_tp_open_scope() { var_tp_table.enterscope(); }
-  void var_tp_close_scope() { var_tp_table.exitscope(); }
 
   // LLVM Utils:
   // Create a new llvm function in the current module
@@ -210,8 +190,6 @@ public:
     return class_table.create_llvm_function(funcName, retType, argTypes,
                                             isVarArgs);
   }
-
-
   // Insert a new BasicBlock at the end of the current function (the function
   // that builder is in)
   llvm::BasicBlock *new_bb_at_fend(const std::string &name) {
@@ -229,27 +207,10 @@ public:
 
   // TODO: Add more functions as necessary.
 
-  std::string new_name() { return "tmp." + std::to_string(tmp_count++); }
-  std::string new_ok_label() { return "ok." + std::to_string(ok_count++); }
-  std::string new_loop_label() { return "loop." + std::to_string(loop_count++); }
-  std::string new_true_label() { return "true." + std::to_string(true_count++); }
-  std::string new_false_label() { return "false." + std::to_string(false_count++); }
-  std::string new_end_label() { return "end." + std::to_string(end_count++); } 
-
-  llvm::BasicBlock *get_abrt() {
-    return abrt;
-  }
-  void set_abrt(llvm::BasicBlock *abrt_) {
-    abrt = abrt_;
-  }
 private:
   // mapping from variable names to memory locations
   cool::SymbolTable<llvm::Value> var_table;
-  cool::SymbolTable<llvm::Type> var_tp_table;
   CgenNode *cur_class;
-  int tmp_count, ok_count; 
-  int loop_count, true_count, false_count, end_count;
-  llvm::BasicBlock *abrt;
 
 public:
   CgenClassTable &class_table;

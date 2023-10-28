@@ -1,6 +1,5 @@
 /*********************************************************************
  Intermediate code generator for COOL: SKELETON
-
  Read the comments carefully and add code to build an LLVM program
 *********************************************************************/
 
@@ -77,9 +76,7 @@ static void initialize_constants(void) {
 }
 
 /*********************************************************************
-
   CgenClassTable methods
-
 *********************************************************************/
 
 // CgenClassTable constructor orchestrates all code generation
@@ -358,32 +355,13 @@ void CgenClassTable::code_constants() {
 //
 void CgenClassTable::code_main(){
 // TODO: add code here
-  Type *i32 = Type::getInt32Ty(this->context),
-       *i8_ptr = Type::getInt8PtrTy(this->context);
-  
-  llvm::StringRef Main_main_str = "Main.main() returned %d\x0A\x00";
-  auto Main_main_val = this->builder.CreateGlobalString(Main_main_str, "main.printout.str", 0, &the_module);
 
 // Define a function main that has no parameters and returns an i32
-  auto main_func = create_llvm_function("main", i32, {}, false);
 
 // Define an entry basic block
-  auto main_entry_block = llvm::BasicBlock::Create(context, "entry", main_func); // function tie with block
-  builder.SetInsertPoint(main_entry_block);  // irbuilder tie with block
-  
+
 // Call Main_main(). This returns int for phase 1, Object for phase 2
-  auto Main_main_tp = FunctionType::get(i32, {}, false);
-  auto Main_main_callee = the_module.getOrInsertFunction("Main.main", Main_main_tp);
-  auto Main_main_ret = builder.CreateCall(Main_main_callee);
 
-  auto Main_main_str_ptr_tp = ArrayType::get(Type::getInt8Ty(this->context), 25);
-  auto ele_ptr = this->builder.CreateConstGEP2_32(Main_main_str_ptr_tp, Main_main_val, 0, 0);
-  
-  auto printf_tp = FunctionType::get(i32, {i8_ptr}, true);
-  auto printf_callee = the_module.getOrInsertFunction("printf", printf_tp);
-  builder.CreateCall(printf_callee, {ele_ptr, Main_main_ret});
-
-  builder.CreateRet(ConstantInt::get(Type::getInt32Ty(this->context), 0));
 #ifdef MP3
 // MP3
 #else
@@ -437,25 +415,18 @@ Function *CgenClassTable::create_llvm_function(const std::string &funcName,
 }
 
 /*********************************************************************
-
   StrTable / IntTable methods
-
  Coding string, int, and boolean constants
-
  Cool has three kinds of constants: strings, ints, and booleans.
  This section defines code generation for each type.
-
  All string constants are listed in the global "stringtable" and have
  type stringEntry. stringEntry methods are defined both for string
  constant definitions and references.
-
  All integer constants are listed in the global "inttable" and have
  type IntEntry. IntEntry methods are defined for Int constant references only.
-
  Since there are only two Bool values, there is no need for a table.
  The two booleans are represented by instances of the class BoolConst,
  which defines the definition and reference methods for Bools.
-
 *********************************************************************/
 
 // Create definitions for all String constants
@@ -473,9 +444,7 @@ void StringEntry::code_def(std::ostream &s, CgenClassTable *ct) {
 }
 
 /*********************************************************************
-
   CgenNode methods
-
 *********************************************************************/
 
 //
@@ -531,16 +500,12 @@ void CgenNode::codeGenMainmain() {
   // Generally what you need to do are:
   // -- setup or create the environment, env, for translating this method
   // -- invoke mainMethod->code(env) to translate the method
-  CgenEnvironment env(this); // use same builder/context/module as CgenClassTable through this->get_classtable().context.builder.module
-  mainMethod->code(&env);
 }
 
 #endif
 
 /*********************************************************************
-
   CgenEnvironment functions
-
 *********************************************************************/
 
 // Look up a CgenNode given a symbol
@@ -576,14 +541,11 @@ AllocaInst *CgenEnvironment::insert_alloca_at_head(Type *ty) {
 }
 
 /*********************************************************************
-
   APS class methods
-
     Fill in the following methods to produce code for the
     appropriate expression. You may add or remove parameters
     as you wish, but if you do, remember to change the parameters
     of the declarations in `cool-tree.handcode.h'.
-
 *********************************************************************/
 
 void program_class::cgen(const std::optional<std::string> &outfile) {
@@ -609,30 +571,7 @@ Function *method_class::code(CgenEnvironment *env) {
   }
 
   // TODO: add code here and replace `return nullptr`
-
-  Type *i32 = Type::getInt32Ty(env->context),
-       *i8_ptr = Type::getInt8PtrTy(env->context),
-       *void_ = Type::getVoidTy(env->context);
-
-  auto Main_main_func = env->create_llvm_function("Main.main", i32, {}, false);
-  // set the initial block, then later can use env->new_bb_at_fend(); 
-  // since builder.GetInsertBlock()->getParent() require [->getParent()] as current parent
-  auto Main_main_entry_block = llvm::BasicBlock::Create(env->context, "entry", Main_main_func); // tie block with parent: Main_main_func
-  // since builder.GetInsertBlock()->getParent() require [.GetInsertBlock()] as current block
-  env->builder.SetInsertPoint(Main_main_entry_block);  // tie irbuilder with block : Main_main_entry_block
-  // builder.GetInsertBlock()->getParent() : Main_main_entry_block->getParent() : Main_main_func // tie new_block with parent : Main_main_func // still same parent : Main_main_func
-  // builder.SetInsertPoint(new_block) // tie irbuilder with new_block // different block : new_block
-
-  auto abrt_ = env->get_or_insert_abort_block(Main_main_func);
-  env->set_abrt(abrt_);
-
-  auto Main_main_ret = expr->code(env);
-  // env->builder.CreateRet(ConstantInt::get(Type::getInt32Ty(env->context), 0));
-  env->builder.CreateRet(Main_main_ret);
-
-
-
-  return Main_main_func;
+  return nullptr;
 }
 
 // Codegen for expressions. Note that each expression has a value.
@@ -642,19 +581,7 @@ Value *assign_class::code(CgenEnvironment *env) {
     std::cerr << "assign" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-
-  // recursive call; grab info
-  auto expr_val = expr->code(env);
-  auto expr_tp = expr->get_expr_tp(env);
-  auto [id_tp, id_addr_val] = env->find_in_scopes(name);
-
-  // emit code
-  env->builder.CreateStore(expr_val, id_addr_val);
-
-  // settup expression_extra
-  set_expr_tp(env, expr_tp);
-
-  return expr_val;
+  return nullptr;
 }
 
 Value *cond_class::code(CgenEnvironment *env) {
@@ -662,51 +589,7 @@ Value *cond_class::code(CgenEnvironment *env) {
     std::cerr << "cond" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto true_label = env->new_true_label();
-  auto false_label = env->new_false_label();
-  auto end_label = env->new_end_label();
-
-  auto true_block = env->new_bb_at_fend(true_label);
-  auto false_block = env->new_bb_at_fend(false_label);
-  auto end_block = env->new_bb_at_fend(end_label);
-
-  auto pred_val = pred->code(env);
-  env->builder.CreateCondBr(pred_val, true_block, false_block);
-
-  // then branch
-  env->builder.SetInsertPoint(true_block);
-  auto then_val = then_exp->code(env);
-  auto then_tp = then_exp->get_expr_tp(env);
-  if_type = then_tp;
-  auto remain_true_block = env->builder.GetInsertBlock();
-  
-  // else branch
-  env->builder.SetInsertPoint(false_block);
-  auto else_val = else_exp->code(env);
-  auto else_tp = else_exp->get_expr_tp(env);
-  if_type = else_tp;
-  auto remain_false_block = env->builder.GetInsertBlock();
-
-  if_addr_val = env->insert_alloca_at_head(if_type); // only once
-
-  // then branch
-  env->builder.SetInsertPoint(remain_true_block);
-  env->builder.CreateStore(then_val, if_addr_val);
-  env->builder.CreateBr(end_block);
-
-  // else branch
-  env->builder.SetInsertPoint(remain_false_block);
-  env->builder.CreateStore(else_val, if_addr_val);
-  env->builder.CreateBr(end_block);
-
-  // end block
-  env->builder.SetInsertPoint(end_block);
-  auto cond_res = env->builder.CreateLoad(if_type, if_addr_val);
-
-  // set expr_extra
-  set_expr_tp(env, if_type);
-
-  return cond_res;
+  return nullptr;
 }
 
 Value *loop_class::code(CgenEnvironment *env) {
@@ -714,35 +597,7 @@ Value *loop_class::code(CgenEnvironment *env) {
     std::cerr << "loop" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto loop_label = env->new_loop_label();
-  auto true_label = env->new_true_label();
-  auto false_label = env->new_false_label();
-
-  auto loop_block = env->new_bb_at_fend(loop_label);
-  auto true_block = env->new_bb_at_fend(true_label);
-  auto false_block = env->new_bb_at_fend(false_label);
-
-  // uncondition jump to loop
-  env->builder.CreateBr(loop_block);
-
-  // insert irbuilder
-  env->builder.SetInsertPoint(loop_block);
-  auto pred_ = pred->code(env);
-  env->builder.CreateCondBr(pred_, true_block, false_block);
-
-  // if true, then body
-  env->builder.SetInsertPoint(true_block);
-  body->code(env);
-  env->builder.CreateBr(loop_block);
-
-  // if false, then ...
-  env->builder.SetInsertPoint(false_block);
-
-  // set expr_extra
-  set_expr_tp(env, Type::getInt32Ty(env->context));
-  auto loop_res = ConstantInt::get(Type::getInt32Ty(env->context), 0);
-
-  return loop_res;
+  return nullptr;
 }
 
 Value *block_class::code(CgenEnvironment *env) {
@@ -750,19 +605,7 @@ Value *block_class::code(CgenEnvironment *env) {
     std::cerr << "block" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  int i = 0;
-  for(i = body->first(); body->more(i) && body->more(i+1); i = body->next(i)) {
-    auto expr_iter = body->nth(i);
-    expr_iter->code(env);
-  }
-
-  auto expr_iter = body->nth(i);
-  auto block_res = expr_iter->code(env);
-  auto block_tp = expr_iter->get_expr_tp(env);
-
-  // set expr_extra
-  set_expr_tp(env, block_tp);
-  return block_res;
+  return nullptr;
 }
 
 Value *let_class::code(CgenEnvironment *env) {
@@ -770,56 +613,15 @@ Value *let_class::code(CgenEnvironment *env) {
     std::cerr << "let" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto init_val = init->code(env);
-
-  auto i32_ = Type::getInt32Ty(env->context);
-  auto i1_ = Type::getInt1Ty(env->context);
-
-  auto type_name = type_decl->get_string();
-  if (type_name == "Int") {
-    identifier_type = i32_;
-    identifier_addr_val = env->insert_alloca_at_head(i32_);
-    if (init_val) {
-      env->builder.CreateStore(init_val, identifier_addr_val);
-    } else {
-      env->builder.CreateStore(ConstantInt::get(i32_, 0), identifier_addr_val);
-    }
-  } else if (type_name == "Bool") {
-    identifier_type = i1_;
-    identifier_addr_val = env->insert_alloca_at_head(i1_);
-    if (init_val) {
-      env->builder.CreateStore(init_val, identifier_addr_val);
-    } else {
-      env->builder.CreateStore(ConstantInt::get(i1_, false), identifier_addr_val);
-    }
-  }
-  env->var_tp_add_binding(identifier, identifier_type);
-  env->add_binding(identifier, identifier_addr_val);
-
-  env->var_tp_open_scope();
-  env->open_scope();
-
-  auto let_res_ = body->code(env);
-  auto let_type_ = body->get_expr_tp(env);
-  
-  env->var_tp_close_scope();
-  env->close_scope();
-
-  set_expr_tp(env, let_type_);
-  return let_res_;
+  return nullptr;
 }
 
 Value *plus_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "plus" << std::endl;
 
-  auto e1_ = e1->code(env);
-  auto e2_ = e2->code(env);
-
-  auto add_res = env->builder.CreateAdd(e1_, e2_);
-
-  set_expr_tp(env, e1->get_expr_tp(env));
-  return add_res;
+  // TODO: add code here and replace `return nullptr`
+  return nullptr;
 }
 
 Value *sub_class::code(CgenEnvironment *env) {
@@ -827,13 +629,7 @@ Value *sub_class::code(CgenEnvironment *env) {
     std::cerr << "sub" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto e1_ = e1->code(env);
-  auto e2_ = e2->code(env);
-
-  auto sub_res = env->builder.CreateSub(e1_, e2_);
-
-  set_expr_tp(env, e1->get_expr_tp(env));
-  return sub_res;
+  return nullptr;
 }
 
 Value *mul_class::code(CgenEnvironment *env) {
@@ -841,13 +637,7 @@ Value *mul_class::code(CgenEnvironment *env) {
     std::cerr << "mul" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto e1_ = e1->code(env);
-  auto e2_ = e2->code(env);
-
-  auto mul_res = env->builder.CreateMul(e1_, e2_);
-
-  set_expr_tp(env, e1->get_expr_tp(env));
-  return mul_res;
+  return nullptr;
 }
 
 Value *divide_class::code(CgenEnvironment *env) {
@@ -855,21 +645,7 @@ Value *divide_class::code(CgenEnvironment *env) {
     std::cerr << "div" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto ok_label = env->new_ok_label();
-  auto numerator = e1->code(env);
-  auto denominator = e2->code(env);
-
-  auto abort_true = env->get_abrt();              // true, 0
-  auto ok_false = env->new_bb_at_fend(ok_label); // false, not 0
-
-  auto cond_ = env->builder.CreateCmp(llvm::CmpInst::ICMP_EQ, ConstantInt::get(Type::getInt32Ty(env->context), 0), denominator);
-  env->builder.CreateCondBr(cond_, abort_true, ok_false);
-
-  env->builder.SetInsertPoint(ok_false);
-  auto div_res = env->builder.CreateSDiv(numerator, denominator);
-
-  set_expr_tp(env, e1->get_expr_tp(env));
-  return div_res;
+  return nullptr;
 }
 
 Value *neg_class::code(CgenEnvironment *env) {
@@ -877,12 +653,7 @@ Value *neg_class::code(CgenEnvironment *env) {
     std::cerr << "neg" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto e1_ = e1->code(env);
-
-  auto neg_res = env->builder.CreateNeg(e1_);
-
-  set_expr_tp(env, e1->get_expr_tp(env));
-  return neg_res;
+  return nullptr;
 }
 
 Value *lt_class::code(CgenEnvironment *env) {
@@ -890,13 +661,7 @@ Value *lt_class::code(CgenEnvironment *env) {
     std::cerr << "lt" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto e1_ = e1->code(env);
-  auto e2_ = e2->code(env);
-
-  auto lt_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_SLT, e1_, e2_);
-
-  set_expr_tp(env, Type::getInt1Ty(env->context));
-  return lt_res;
+  return nullptr;
 }
 
 Value *eq_class::code(CgenEnvironment *env) {
@@ -904,13 +669,7 @@ Value *eq_class::code(CgenEnvironment *env) {
     std::cerr << "eq" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto e1_ = e1->code(env);
-  auto e2_ = e2->code(env);
-
-  auto eq_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_EQ, e1_, e2_);
-
-  set_expr_tp(env, Type::getInt1Ty(env->context));
-  return eq_res;
+  return nullptr;
 }
 
 Value *leq_class::code(CgenEnvironment *env) {
@@ -918,13 +677,7 @@ Value *leq_class::code(CgenEnvironment *env) {
     std::cerr << "leq" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto e1_ = e1->code(env);
-  auto e2_ = e2->code(env);
-
-  auto leq_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_SLE, e1_, e2_);
-
-  set_expr_tp(env, Type::getInt1Ty(env->context));
-  return leq_res;
+  return nullptr;
 }
 
 Value *comp_class::code(CgenEnvironment *env) {
@@ -932,12 +685,7 @@ Value *comp_class::code(CgenEnvironment *env) {
     std::cerr << "complement" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-
-  auto e1_ = e1->code(env);
-  auto comp_res = env->builder.CreateXor(e1_, ConstantInt::get(Type::getInt1Ty(env->context), true));
-
-  set_expr_tp(env, e1->get_expr_tp(env));
-  return comp_res;
+  return nullptr;
 }
 
 Value *int_const_class::code(CgenEnvironment *env) {
@@ -945,27 +693,15 @@ Value *int_const_class::code(CgenEnvironment *env) {
     std::cerr << "Integer Constant" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  std::string int_val = token->get_string();
-  const char *string_to_char = int_val.c_str();
-  int real_val = std::atoi(string_to_char);
-  int val_constraints = std::min(std::max(std::numeric_limits<int>::min(), real_val), std::numeric_limits<int>::max());
-
-  auto int_ret = ConstantInt::get(Type::getInt32Ty(env->context), val_constraints);
-  set_expr_tp(env, Type::getInt32Ty(env->context));
-  return int_ret;
+  return nullptr;
 }
 
 Value *bool_const_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "Boolean Constant" << std::endl;
 
-  set_expr_tp(env, Type::getInt1Ty(env->context));
-
-  if (val) {
-    return ConstantInt::get(Type::getInt1Ty(env->context), true);
-  } 
-  
-  return ConstantInt::get(Type::getInt1Ty(env->context), false);
+  // TODO: add code here and replace `return nullptr`
+  return nullptr;
 }
 
 Value *object_class::code(CgenEnvironment *env) {
@@ -973,12 +709,7 @@ Value *object_class::code(CgenEnvironment *env) {
     std::cerr << "Object" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto [object_type, object_addr_val] = env->find_in_scopes(name);
-
-  auto object_res = env->builder.CreateLoad(object_type, object_addr_val);
-  set_expr_tp(env, object_type);
-
-  return object_res;
+  return nullptr;
 }
 
 Value *no_expr_class::code(CgenEnvironment *env) {
@@ -1103,32 +834,3 @@ Value *attr_class::code(CgenEnvironment *env) {
   return nullptr;
 #endif
 }
-
-#ifdef MP3
-// TODO: implement these functions (MP3), and add more functions as necessary
-
-// Utitlity function
-// Generate any code necessary to convert from given Value* to
-// dest_type, assuming it has already been checked to be compatible
-
-// conform - If necessary, emit a bitcast or boxing/unboxing operations
-// to convert an object to a new type. This can assume the object
-// is known to be (dynamically) compatible with the target type.
-// It should only be called when this condition holds.
-// (It's needed by the supplied code for typecase)
-llvm::Value *conform(llvm::Value *src, llvm::Type *dest_type, CgenEnvironment *env) {
-
-  return NULL;
-}
-#endif
-
-#ifdef MP3
-// Retrieve the class tag from an object record.
-// src is the object we need the tag from.
-// src_class is the CgenNode for the *static* class of the expression.
-// You need to look up and return the class tag for it's dynamic value
-Value *get_class_tag(Value *src, CgenNode *src_cls, CgenEnvironment *env) {
-  // ADD CODE HERE (MP3 ONLY)
-  return 0;
-}
-#endif
