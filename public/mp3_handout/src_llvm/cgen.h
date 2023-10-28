@@ -119,6 +119,7 @@ public:
     return "_" + get_type_name() + "_vtable_prototype";
   }
   std::string get_init_function_name() { return get_type_name() + "_new"; }
+  std::string get_noninherited_function_name(std::string name_) {return get_type_name() + "." + name_;}
 #endif
 
   // TODO: Complete the implementations of following functions

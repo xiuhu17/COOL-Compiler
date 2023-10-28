@@ -9,8 +9,8 @@ class B {
             let x : Object <- new Object in x.type_name();
         }
     };
-    test1(aa : Bool, kk: Int) : Int {
-        0
+    test1(aa : Bool, kk: Int) : Bool {
+        false
     };
     test2(aa : Bool, kk: Int) : Int {
         0
@@ -22,20 +22,21 @@ class B {
 
 class C inherits B{
     d : Object;
-    s(aaa: Object) : Object {
-        0
+    test1(aa : Bool, kk: Int) : Object {
+        true
     };
 };
 
 class Main {
     c: C;
-    main() : Int {
+    main() : String {
         {   
             let x : Int in x <- 3;
-            let y : C in y <- new C;
-            let x : C in x <- c;
-            let x : C in x.test2(false, 0);
-            0;
+            let x : Int in x.type_name();
+            --let y : C in y <- new C;
+            --let x : C in x <- c;
+            --let x : C in x.test2(false, 0);
+            --0;
         } 
     };
 };

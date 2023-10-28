@@ -68,11 +68,11 @@ cgen-2:
 %-o3.llref: %.llref
 	$(OPT) -O3 -S $< -f -o $*-o3.llref
 
-%.binref: %-o3.llref $(COOLRT)
-	$(CLANG) -g -x ir - -o $@ < $<
+%-o3.o: %-o3.llref
+	$(CLANG) -c -x ir $< -o $@
 
-%.verifyref: %.llref
-	$(OPT) -S -verify $<
+%.binref: %-o3.o $(COOLRT)
+	$(CLANG) -g $^ -o $@
 
 %.outref: %.binref
 	./$< > $@ || true
