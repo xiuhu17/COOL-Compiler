@@ -252,7 +252,8 @@ void CgenClassTable::install_class(CgenNode *nd) {
     // and the symbol table.
     nds.push_back(nd);
     this->insert(name, nd);
-    Type_Lookup[name->get_string()] = llvm::StructType::create(context, name->get_string());
+    Type_Lookup[nd->get_type_name()] = llvm::StructType::create(context, nd->get_type_name());
+    Vtable_Type_Lookup[nd->get_vtable_type_name()] = llvm::StructType::create(context, nd->get_vtable_type_name());
   }
 }
 
@@ -294,6 +295,7 @@ void CgenClassTable::set_relations(CgenNode *nd) {
 void CgenClassTable::setup_external_functions() {
   Type *i32 = Type::getInt32Ty(this->context),
        *i8_ptr = Type::getInt8PtrTy(this->context),
+       *i1 = Type::getInt1Ty(this->context),
        *void_ = Type::getVoidTy(this->context);
   // setup function: external int strcmp(sbyte*, sbyte*)
   create_llvm_function("strcmp", i32, {i8_ptr, i8_ptr}, false);
@@ -306,6 +308,9 @@ void CgenClassTable::setup_external_functions() {
 
 #ifdef MP3
   // TODO: add code here
+  create_llvm_function("Int_init", void_, {llvm::PointerType::get(Type_Lookup["Int"], 0), i32}, false);
+
+  create_llvm_function("Bool_init", void_, {llvm::PointerType::get(Type_Lookup["Bool"], 0), i1}, false);
     
 #endif
 }
@@ -520,13 +525,42 @@ void CgenNode::layout_features() {
     clmethod_to_llmethod = *parent_clmethod_to_llmethod;
   }
 
-  // for overwrite
+  // for overwrite function, newly created function and attr
   for(int i = features->first(); features->more(i); i = features->next(i)) {
     auto feature_iter = features->nth(i);
     feature_iter->layout_feature(this);
   }
   
+  // setup for object type
+  auto curr_type_struct = class_table->Type_Lookup[get_type_name()];
+  auto curr_vtable_tp_ptr = llvm::PointerType::get(class_table->Vtable_Type_Lookup[get_vtable_type_name()], true);
+  std::vector<llvm::Type*> type_struct_setup = {curr_vtable_tp_ptr};
+  for (auto& iter: obj_tp) {
+    auto defined_class = iter.first;
+    auto defined_attr = iter.second;
+    auto defined_attr_tp = defined_attr->get_type_decl()->get_string();
+    if (defined_attr_tp == "Int" || defined_attr_tp == "int") {
+      type_struct_setup.push_back(Type::getInt32Ty(class_table->context));
+    } else if (defined_attr_tp == "Bool" || defined_attr_tp == "bool") {
+      type_struct_setup.push_back(Type::getInt1Ty(class_table->context));
+    } else if (defined_attr_tp == "sbyte*") {
+      type_struct_setup.push_back(llvm::PointerType::get(Type::getInt8Ty(class_table->context), 0));
+    } else if (defined_attr_tp == "SELF_TYPE") {
+      type_struct_setup.push_back(llvm::PointerType::get(class_table->Type_Lookup[get_type_name()], 0)); // current type
+    } else {
+      type_struct_setup.push_back(llvm::PointerType::get(class_table->Type_Lookup[defined_attr_tp], 0));
+    }
+  }
+  curr_type_struct->setBody(type_struct_setup);
+
+  // setup for vtable type
+  std::vector<llvm::Type*> vtable_type_struct_setup = {Type::getInt32Ty(class_table->context), 
+                                                        Type::getInt32Ty(class_table->context), 
+                                                        llvm::PointerType::get(Type::getInt8Ty(class_table->context), 0)};
   
+  //////
+  auto test = new GlobalVariable(class_table->the_module, curr_type_struct, true, GlobalVariable::ExternalLinkage, nullptr, "test");
+  //////
 }
 
 // Class codegen. This should performed after every class has been setup.
@@ -1120,10 +1154,13 @@ void method_class::layout_feature(CgenNode *cls) {
     auto get_type = cls->get_classtable()->Type_Lookup[curr_ll_func_ret_tp_str];
     curr_ll_func_ret_tp = llvm::PointerType::get(get_type, 0);
   }
+
   // par type with unboxing
   std::vector<llvm::Type*> curr_ll_func_par_tp_vec;
-  auto get_type = cls->get_classtable()->Type_Lookup[cls->get_type_name()];
+  // begin with SLEF_TYPE
+  auto get_type = cls->get_classtable()->Type_Lookup[cls->get_type_name()]; 
   curr_ll_func_par_tp_vec.push_back(llvm::PointerType::get(get_type, 0));
+  // then other par
   for(int i = formals->first(); formals->more(i); i = formals->next(i)) {
     auto formal_iter = formals->nth(i);
     llvm::Type* curr_ll_func_par_tp;

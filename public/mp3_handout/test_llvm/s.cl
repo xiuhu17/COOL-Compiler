@@ -6,6 +6,9 @@ class B {
             let x : Int <- 1 in x.type_name(); 
             let x : Int in x.type_name(); 
             let x : Object in 0; 
+            let x : IO in new IO;
+            --let x : Int in x.abort();
+            --let x : Int in abort();
             let x : Object <- new Object in x.type_name();
         }
     };
@@ -20,7 +23,7 @@ class B {
     };
     
 };
-
+----------------------------------------------------------
 class C inherits B{
     d : Object;
     test1(aa : Bool, kk: Int) : Bool {
@@ -35,7 +38,7 @@ class C inherits B{
 };
 
 class D inherits C{
-   
+       y : SELF_TYPE;
     test5(aa : Bool, kk: Int) : Bool {
         true
     };
@@ -50,7 +53,7 @@ class D inherits C{
 };
 
 class E inherits D{
-    y : SELF_TYPE;
+
     z : Int;
     test8(aa : Bool, kk: Int) : SELF_TYPE {
         self
@@ -58,6 +61,7 @@ class E inherits D{
 
 };
 
+----------------------------------------------------------
 
 class F inherits E{
     x : String;

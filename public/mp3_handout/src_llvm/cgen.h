@@ -85,6 +85,7 @@ public:
   llvm::IRBuilder<> builder;
   llvm::Module the_module;
   std::unordered_map<std::string, llvm::StructType*> Type_Lookup;
+  std::unordered_map<std::string, llvm::StructType*> Vtable_Type_Lookup;
 };
 
 // Each CgenNode corresponds to a Cool class. As such, it is responsible for
@@ -151,14 +152,14 @@ public:
     return parentnd->get_current_vtable_tp();
   }
   // access parent real function name in cl to the offsetin vtable
-  std::unordered_map<Symbol, int>* get_parent_clmethod_to_offset(){
+  std::unordered_map<std::string, int>* get_parent_clmethod_to_offset(){
     if (parentnd == NULL) {
       return NULL;
     }
     return parentnd->get_current_clmethod_to_offset();
   }
   // access parent real attr name in cl to the offsetin obj
-  std::unordered_map<Symbol, int>* get_parent_clattr_to_offset(){
+  std::unordered_map<std::string, int>* get_parent_clattr_to_offset(){
     if (parentnd == NULL) {
       return NULL;
     }
@@ -172,6 +173,19 @@ public:
     return parentnd->get_current_clmethod_to_llmethod();
   }
 
+  int Get_Clattr_Offset(std::string& attr_name) {
+    assert(clattr_to_offset[attr_name]);
+    return 1 + clattr_to_offset[attr_name];
+  }
+
+  int Get_Clmethod_Offset(std::string& method_name) {
+    if (method_name == "new") {
+      return 3;
+    } else {
+      assert(clmethod_to_offset[method_name]);
+      return 4 + clmethod_to_offset[method_name];
+    }
+  }
 
 #ifdef MP3
   std::string get_type_name() { return name->get_string(); }
@@ -218,13 +232,13 @@ private:
   std::ostream *ct_stream;
 
   // TODO: Add more functions / fields here as necessary
-  std::vector<std::pair<CgenNode*, attr_class*>> obj_tp;
+  std::vector<std::pair<CgenNode*, attr_class*>> obj_tp; // only for after vtable_pointer;
   std::vector<std::pair<CgenNode*, method_class*>> vtable_tp; // only for function after XXX_new; only overwrite or create new function change the type, it remains same until someone overwrite or create new function
   std::unordered_map<std::string, int> clmethod_to_llmethod; // only for function after XXX_new; only for those who overload clmethod or create new function do not need to bit cast
   
   // TODO:
-  std::unordered_map<Symbol, int> clattr_to_offset;
-  std::unordered_map<Symbol, int> clmethod_to_offset; // true name for cl file
+  std::unordered_map<std::string, int> clattr_to_offset; // cl attr name ---> offset
+  std::unordered_map<std::string, int> clmethod_to_offset; // cl method name ---> offset
 
   std::unordered_map<llvm::Function*, method_class*> Function_Body_Map;
   // llvm::LLVMContext context_store;
@@ -246,7 +260,7 @@ public:
   CgenEnvironment(CgenNode *cur_class)
       : var_table(), var_tp_table(), cur_class(cur_class),
         class_table(*cur_class->get_classtable()), context(class_table.context),
-        builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup) {
+        builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup), Vtable_Type_Lookup(class_table.Vtable_Type_Lookup) {
     tmp_count = 0;
     ok_count = 0;
     loop_count = 0;
@@ -339,6 +353,7 @@ public:
   llvm::IRBuilder<> &builder;
   llvm::Module &the_module;
   std::unordered_map<std::string, llvm::StructType*> &Type_Lookup;
+  std::unordered_map<std::string, llvm::StructType*> &Vtable_Type_Lookup;
 };
 
 #ifdef MP3
