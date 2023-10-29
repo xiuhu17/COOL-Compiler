@@ -278,6 +278,7 @@ void CgenClassTable::build_inheritance_tree() {
 //
 void CgenClassTable::set_relations(CgenNode *nd) {
   Symbol parent = nd->get_parent();
+  // std::cerr << nd->get_name()->get_string() << " parent is " << parent->get_string() << "\n";
   auto parent_node = this->find(parent);
   if (!parent_node) {
     throw std::runtime_error("Class " + nd->get_name()->get_string() +
@@ -304,6 +305,7 @@ void CgenClassTable::setup_external_functions() {
 
 #ifdef MP3
   // TODO: add code here
+    
 #endif
 }
 
@@ -503,6 +505,27 @@ void CgenNode::setup(int tag, int depth) {
 // and assigning each attribute a slot in the class structure.
 void CgenNode::layout_features() {
   // TODO: add code here
+  auto parent_obj_tp = get_parent_obj_tp();
+  auto parent_vtable_tp = get_parent_vtable_tp();
+  auto parent_clmethod_to_llmethod = get_parent_clmethod_to_llmethod();
+
+  if (parent_obj_tp) {
+    obj_tp = *parent_obj_tp;
+  }
+  if (parent_vtable_tp) {
+    vtable_tp = *parent_vtable_tp;
+  }
+  if (parent_clmethod_to_llmethod) {
+    clmethod_to_llmethod = *parent_clmethod_to_llmethod;
+  }
+
+  // for overwrite
+  for(int i = features->first(); features->more(i); i = features->next(i)) {
+    auto feature_iter = features->nth(i);
+    feature_iter->layout_feature(this);
+  }
+  
+  class_table->Type_Lookup[name->get_string()] = StructType::create(class_table->context, name->get_string());
 }
 
 // Class codegen. This should performed after every class has been setup.
@@ -1068,8 +1091,52 @@ void method_class::layout_feature(CgenNode *cls) {
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here
+  // std::cerr << cls->get_name()->get_string() << ": " << name->get_string() << '\n';
+  auto curr_cl_func_name = name->get_string();
+
+  if (cls->get_current_clmethod_to_llmethod()->find(curr_cl_func_name) != cls->get_current_clmethod_to_llmethod()->end()) { // overload
+    auto idx = (*cls->get_current_clmethod_to_llmethod())[curr_cl_func_name];
+    (*cls->get_current_vtable_tp())[idx] = {cls, this};
+  } else { // newly insert function
+    cls->get_current_vtable_tp()->push_back({cls, this});
+    (*cls->get_current_clmethod_to_llmethod())[curr_cl_func_name] = cls->get_current_vtable_tp()->size() - 1;
+  }
+
+  // get the ll function name
+  auto curr_ll_func_name = cls->get_function_name(curr_cl_func_name);
+
+  // ret type with unboxing
+  llvm::Type* curr_ll_func_ret_tp;
+  auto curr_ll_func_ret_tp_str = return_type->get_string();
+  if (curr_ll_func_ret_tp_str == "Int") {
+    curr_ll_func_ret_tp = Type::getInt32Ty(cls->get_classtable()->context);
+  } else if (curr_ll_func_ret_tp_str == "Bool") {
+    curr_ll_func_ret_tp = Type::getInt1Ty(cls->get_classtable()->context);
+  } else {
+    curr_ll_func_ret_tp = cls->get_classtable()->Type_Lookup[curr_ll_func_ret_tp_str];
+  }
+  // par type with unboxing
+  std::vector<llvm::Type*> curr_ll_func_par_tp_vec;
+  for(int i = formals->first(); formals->more(i); i = formals->next(i)) {
+    auto formal_iter = formals->nth(i);
+    llvm::Type* curr_ll_func_par_tp;
+    auto curr_ll_func_par_tp_str = formal_iter->get_type_decl()->get_string();
+    if (curr_ll_func_par_tp_str == "Int") {
+      curr_ll_func_par_tp = Type::getInt32Ty(cls->get_classtable()->context);
+    } else if (curr_ll_func_par_tp_str == "Bool") {
+      curr_ll_func_par_tp = Type::getInt1Ty(cls->get_classtable()->context);
+    } else {
+      curr_ll_func_par_tp = cls->get_classtable()->Type_Lookup[curr_ll_func_par_tp_str];
+    }
+    curr_ll_func_par_tp_vec.push_back(curr_ll_func_par_tp);
+  } 
+
+  auto created_ll_func = cls->create_llvm_function(curr_ll_func_name, curr_ll_func_ret_tp, curr_ll_func_par_tp_vec, false);
+  (*cls->get_current_Function_Body_Map())[created_ll_func] = this;
+
 #endif
 }
+
 
 // Handle one branch of a Cool case expression.
 // If the source tag is >= the branch tag
@@ -1092,6 +1159,7 @@ void attr_class::layout_feature(CgenNode *cls) {
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here
+  cls->get_current_obj_tp()->push_back({cls, this});
 #endif
 }
 

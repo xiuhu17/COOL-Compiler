@@ -46,6 +46,7 @@ private:
   void setup_external_functions();
   void setup_classes(CgenNode *c, int depth);
 
+
   // TODO: implement the following functions.
   // Setup each class in the table and prepare for code generation phase
   void setup();
@@ -68,6 +69,7 @@ public:
 private:
   // Class lists and current class tag
   std::vector<CgenNode *> nds, special_nds;
+
   int current_tag;
 
 public:
@@ -82,6 +84,7 @@ public:
   llvm::LLVMContext context;
   llvm::IRBuilder<> builder;
   llvm::Module the_module;
+  std::unordered_map<std::string, llvm::Type*> Type_Lookup;
 };
 
 // Each CgenNode corresponds to a Cool class. As such, it is responsible for
@@ -92,8 +95,8 @@ class CgenNode : public class__class {
 public:
   enum Basicness { Basic, NotBasic };
   CgenNode(Class_ c, Basicness bstatus, CgenClassTable *class_table)
-      : class__class((const class__class &)*c), parentnd(0), children(0),
-        basic_status(bstatus), class_table(class_table), tag(-1) {}
+      : class__class((const class__class &)*c), parentnd(0), children(0),  
+        basic_status(bstatus), class_table(class_table), tag(-1), obj_tp(0), vtable_tp(0), clmethod_to_llmethod(0), clattr_to_offset(0), clmethod_to_offset(0), Function_Body_Map(0) {}
 
   // Relationships with other nodes in the tree
   void set_parent(CgenNode *p) {
@@ -110,6 +113,66 @@ public:
   int get_tag() const { return tag; }
   CgenClassTable *get_classtable() { return class_table; }
 
+  // access current obj_tp and vtable_tp layout
+  auto get_current_obj_tp(){
+    return &obj_tp;
+  }
+  auto get_current_vtable_tp(){
+    return &vtable_tp;
+  }
+  // access current real function name in cl to the offsetin vtable
+  auto get_current_clmethod_to_offset() {
+    return &clmethod_to_offset;
+  }
+  // access current real attr name in cl to the offsetin obj
+  auto get_current_clattr_to_offset() {
+    return &clattr_to_offset;
+  }
+  // access current map
+  auto get_current_clmethod_to_llmethod() {
+    return &clmethod_to_llmethod;
+  }
+
+  auto get_current_Function_Body_Map() {
+    return &Function_Body_Map;
+  }
+
+  // access parent obj_tp and vtable_tp layout
+  std::vector<std::pair<CgenNode *, attr_class *>>* get_parent_obj_tp(){
+    if (parentnd == NULL) {
+      return NULL;
+    }
+    return parentnd->get_current_obj_tp();
+  }
+  std::vector<std::pair<CgenNode *, method_class *>>* get_parent_vtable_tp(){
+    if (parentnd == NULL) {
+      return NULL;
+    }
+    return parentnd->get_current_vtable_tp();
+  }
+  // access parent real function name in cl to the offsetin vtable
+  std::unordered_map<Symbol, int>* get_parent_clmethod_to_offset(){
+    if (parentnd == NULL) {
+      return NULL;
+    }
+    return parentnd->get_current_clmethod_to_offset();
+  }
+  // access parent real attr name in cl to the offsetin obj
+  std::unordered_map<Symbol, int>* get_parent_clattr_to_offset(){
+    if (parentnd == NULL) {
+      return NULL;
+    }
+    return parentnd->get_current_clattr_to_offset();
+  }
+
+  std::unordered_map<std::string, int>* get_parent_clmethod_to_llmethod() {
+    if (parentnd == NULL) {
+      return NULL;
+    }
+    return parentnd->get_current_clmethod_to_llmethod();
+  }
+
+
 #ifdef MP3
   std::string get_type_name() { return name->get_string(); }
   std::string get_vtable_type_name() {
@@ -119,7 +182,7 @@ public:
     return "_" + get_type_name() + "_vtable_prototype";
   }
   std::string get_init_function_name() { return get_type_name() + "_new"; }
-  std::string get_noninherited_function_name(std::string name_) {return get_type_name() + "." + name_;}
+  std::string get_function_name(std::string name_) {return get_type_name() + "_" + name_;}
 #endif
 
   // TODO: Complete the implementations of following functions
@@ -137,6 +200,14 @@ public:
 #endif
   void codeGenMainmain();
 
+  llvm::Function *create_llvm_function(const std::string &funcName,
+                                       llvm::Type *retType,
+                                       llvm::ArrayRef<llvm::Type *> argTypes,
+                                       bool isVarArgs) {
+    return class_table->create_llvm_function(funcName, retType, argTypes,
+                                            isVarArgs);
+  }
+
 private:
   CgenNode *parentnd;               // Parent of class
   std::vector<CgenNode *> children; // Children of class
@@ -146,8 +217,16 @@ private:
   int tag, max_child;
   std::ostream *ct_stream;
 
-  // TODO: Add more functions / fields here as necessary.
-  // std::unordered_map<>;
+  // TODO: Add more functions / fields here as necessary
+  std::vector<std::pair<CgenNode*, attr_class*>> obj_tp;
+  std::vector<std::pair<CgenNode*, method_class*>> vtable_tp; // only for function after XXX_new; only overwrite or create new function change the type, it remains same until someone overwrite or create new function
+  std::unordered_map<std::string, int> clmethod_to_llmethod; // only for function after XXX_new; only for those who overload clmethod or create new function do not need to bit cast
+  
+  // TODO:
+  std::unordered_map<Symbol, int> clattr_to_offset;
+  std::unordered_map<Symbol, int> clmethod_to_offset; // true name for cl file
+
+  std::unordered_map<llvm::Function*, method_class*> Function_Body_Map;
   // llvm::LLVMContext context_store;
   // llvm::IRBuilder<> builder_store;
   // llvm::Module the_module_store;
@@ -166,8 +245,8 @@ public:
   // constructor.
   CgenEnvironment(CgenNode *cur_class)
       : var_table(), var_tp_table(), cur_class(cur_class),
-        class_table(*cur_class->get_classtable()), context(class_table.context), 
-        builder(class_table.builder), the_module(class_table.the_module) {
+        class_table(*cur_class->get_classtable()), context(class_table.context),
+        builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup) {
     tmp_count = 0;
     ok_count = 0;
     loop_count = 0;
@@ -259,6 +338,7 @@ public:
   llvm::LLVMContext &context;
   llvm::IRBuilder<> &builder;
   llvm::Module &the_module;
+  std::unordered_map<std::string, llvm::Type*> &Type_Lookup;
 };
 
 #ifdef MP3

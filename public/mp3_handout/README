@@ -148,3 +148,8 @@ once introduce a new variable, no matter it has already has a mapping in E or no
 
 
 (All alloca instructions should be placed in the entry block of the function. This placement ensures that your allocation is guaranteed to happen exactly once in each function invocation),
+
+
+SELF_TYPE: the only use of SELF_TYPE is return type of methods
+            no need to support other expressions that have a static type of SELF_TYPE
+self: do not need to support self variable
