@@ -53,16 +53,21 @@ class E inherits D{
     y : SELF_TYPE;
     z : Int;
     test8(aa : Bool, kk: Int) : SELF_TYPE {
-        
-            self
-        
+        self
     };
 
 };
 
 
 class F inherits E{
+    x : String;
+    test9(aa : Bool, kk: Int, t : F) : SELF_TYPE {
+        self
+    };
 
+    test10(aa : Bool, kk: Int, t : F) : String {
+        x
+    };
 };
 
 class Main inherits IO{

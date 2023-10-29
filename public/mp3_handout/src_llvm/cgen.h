@@ -84,7 +84,7 @@ public:
   llvm::LLVMContext context;
   llvm::IRBuilder<> builder;
   llvm::Module the_module;
-  std::unordered_map<std::string, llvm::Type*> Type_Lookup;
+  std::unordered_map<std::string, llvm::StructType*> Type_Lookup;
 };
 
 // Each CgenNode corresponds to a Cool class. As such, it is responsible for
@@ -338,7 +338,7 @@ public:
   llvm::LLVMContext &context;
   llvm::IRBuilder<> &builder;
   llvm::Module &the_module;
-  std::unordered_map<std::string, llvm::Type*> &Type_Lookup;
+  std::unordered_map<std::string, llvm::StructType*> &Type_Lookup;
 };
 
 #ifdef MP3

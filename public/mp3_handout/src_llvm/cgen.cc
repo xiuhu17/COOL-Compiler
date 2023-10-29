@@ -252,6 +252,7 @@ void CgenClassTable::install_class(CgenNode *nd) {
     // and the symbol table.
     nds.push_back(nd);
     this->insert(name, nd);
+    Type_Lookup[name->get_string()] = llvm::StructType::create(context, name->get_string());
   }
 }
 
@@ -525,7 +526,7 @@ void CgenNode::layout_features() {
     feature_iter->layout_feature(this);
   }
   
-  class_table->Type_Lookup[name->get_string()] = StructType::create(class_table->context, name->get_string());
+  
 }
 
 // Class codegen. This should performed after every class has been setup.
@@ -1112,11 +1113,17 @@ void method_class::layout_feature(CgenNode *cls) {
     curr_ll_func_ret_tp = Type::getInt32Ty(cls->get_classtable()->context);
   } else if (curr_ll_func_ret_tp_str == "Bool") {
     curr_ll_func_ret_tp = Type::getInt1Ty(cls->get_classtable()->context);
+  } else if (curr_ll_func_ret_tp_str == "SELF_TYPE") {
+    auto get_type = cls->get_classtable()->Type_Lookup[cls->get_type_name()];
+    curr_ll_func_ret_tp = llvm::PointerType::get(get_type, 0);
   } else {
-    curr_ll_func_ret_tp = cls->get_classtable()->Type_Lookup[curr_ll_func_ret_tp_str];
+    auto get_type = cls->get_classtable()->Type_Lookup[curr_ll_func_ret_tp_str];
+    curr_ll_func_ret_tp = llvm::PointerType::get(get_type, 0);
   }
   // par type with unboxing
   std::vector<llvm::Type*> curr_ll_func_par_tp_vec;
+  auto get_type = cls->get_classtable()->Type_Lookup[cls->get_type_name()];
+  curr_ll_func_par_tp_vec.push_back(llvm::PointerType::get(get_type, 0));
   for(int i = formals->first(); formals->more(i); i = formals->next(i)) {
     auto formal_iter = formals->nth(i);
     llvm::Type* curr_ll_func_par_tp;
@@ -1125,12 +1132,17 @@ void method_class::layout_feature(CgenNode *cls) {
       curr_ll_func_par_tp = Type::getInt32Ty(cls->get_classtable()->context);
     } else if (curr_ll_func_par_tp_str == "Bool") {
       curr_ll_func_par_tp = Type::getInt1Ty(cls->get_classtable()->context);
+    } else if (curr_ll_func_par_tp_str == "SELF_TYPE") {
+      auto get_type = cls->get_classtable()->Type_Lookup[cls->get_type_name()];
+      curr_ll_func_par_tp = llvm::PointerType::get(get_type, 0);
     } else {
-      curr_ll_func_par_tp = cls->get_classtable()->Type_Lookup[curr_ll_func_par_tp_str];
+      auto get_type = cls->get_classtable()->Type_Lookup[curr_ll_func_par_tp_str];
+      curr_ll_func_par_tp = llvm::PointerType::get(get_type, 0);
     }
     curr_ll_func_par_tp_vec.push_back(curr_ll_func_par_tp);
   } 
 
+  assert(curr_ll_func_ret_tp);
   auto created_ll_func = cls->create_llvm_function(curr_ll_func_name, curr_ll_func_ret_tp, curr_ll_func_par_tp_vec, false);
   (*cls->get_current_Function_Body_Map())[created_ll_func] = this;
 
