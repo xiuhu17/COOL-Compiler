@@ -74,6 +74,11 @@ class F inherits E{
     };
 };
 
+
+class G inherits IO{
+
+};
+
 class Main inherits IO{
     c: C;
     main() : Int {

@@ -121,14 +121,6 @@ public:
   auto get_current_vtable_tp(){
     return &vtable_tp;
   }
-  // access current real function name in cl to the offsetin vtable
-  auto get_current_clmethod_to_offset() {
-    return &clmethod_to_offset;
-  }
-  // access current real attr name in cl to the offsetin obj
-  auto get_current_clattr_to_offset() {
-    return &clattr_to_offset;
-  }
   // access current map
   auto get_current_clmethod_to_llmethod() {
     return &clmethod_to_llmethod;
@@ -151,40 +143,12 @@ public:
     }
     return parentnd->get_current_vtable_tp();
   }
-  // access parent real function name in cl to the offsetin vtable
-  std::unordered_map<std::string, int>* get_parent_clmethod_to_offset(){
-    if (parentnd == NULL) {
-      return NULL;
-    }
-    return parentnd->get_current_clmethod_to_offset();
-  }
-  // access parent real attr name in cl to the offsetin obj
-  std::unordered_map<std::string, int>* get_parent_clattr_to_offset(){
-    if (parentnd == NULL) {
-      return NULL;
-    }
-    return parentnd->get_current_clattr_to_offset();
-  }
 
   std::unordered_map<std::string, int>* get_parent_clmethod_to_llmethod() {
     if (parentnd == NULL) {
       return NULL;
     }
     return parentnd->get_current_clmethod_to_llmethod();
-  }
-
-  int Get_Clattr_Offset(std::string& attr_name) {
-    assert(clattr_to_offset[attr_name]);
-    return 1 + clattr_to_offset[attr_name];
-  }
-
-  int Get_Clmethod_Offset(std::string& method_name) {
-    if (method_name == "new") {
-      return 3;
-    } else {
-      assert(clmethod_to_offset[method_name]);
-      return 4 + clmethod_to_offset[method_name];
-    }
   }
 
 #ifdef MP3
@@ -232,15 +196,16 @@ private:
   std::ostream *ct_stream;
 
   // TODO: Add more functions / fields here as necessary
+  // all these three are only for inheritance purpose
   std::vector<std::pair<CgenNode*, attr_class*>> obj_tp; // only for after vtable_pointer;
-  std::vector<std::pair<CgenNode*, method_class*>> vtable_tp; // only for function after XXX_new; only overwrite or create new function change the type, it remains same until someone overwrite or create new function
-  std::unordered_map<std::string, int> clmethod_to_llmethod; // only for function after XXX_new; only for those who overload clmethod or create new function do not need to bit cast
+  std::vector<std::pair<CgenNode*, method_class*>> vtable_tp; // only for after XXX_new; only overwrite or create new function change the type, it remains same until someone overwrite or create new function
+  std::unordered_map<std::string, int> clmethod_to_llmethod; // only for after XXX_new; only for those who overload clmethod or create new function do not need to bit cast
   
   // TODO:
   std::unordered_map<std::string, int> clattr_to_offset; // cl attr name ---> offset
   std::unordered_map<std::string, int> clmethod_to_offset; // cl method name ---> offset
 
-  std::unordered_map<llvm::Function*, method_class*> Function_Body_Map;
+  std::unordered_map<llvm::Function*, method_class*> Function_Body_Map; // if it is new function, the value == NULL
   // llvm::LLVMContext context_store;
   // llvm::IRBuilder<> builder_store;
   // llvm::Module the_module_store;
@@ -364,4 +329,49 @@ public:
 // dest_type, assuming it has already been checked to be compatible
 llvm::Value *conform(llvm::Value *src, llvm::Type *dest_type,
                      CgenEnvironment *env);
+
+
+llvm::FunctionType* functp_helper(CgenNode* cls, method_class* md) {
+  llvm::Type* curr_ll_func_ret_tp;
+  auto curr_ll_func_ret_tp_str = md->get_return_type()->get_string();
+  if (curr_ll_func_ret_tp_str == "Int") {
+    curr_ll_func_ret_tp = llvm::Type::getInt32Ty(cls->get_classtable()->context);
+  } else if (curr_ll_func_ret_tp_str == "Bool") {
+    curr_ll_func_ret_tp = llvm::Type::getInt1Ty(cls->get_classtable()->context);
+  } else if (curr_ll_func_ret_tp_str == "SELF_TYPE") {
+    auto get_type = cls->get_classtable()->Type_Lookup[cls->get_type_name()];
+    curr_ll_func_ret_tp = llvm::PointerType::get(get_type, 0);///////////////////////
+  } else {
+    auto get_type = cls->get_classtable()->Type_Lookup[curr_ll_func_ret_tp_str];
+    curr_ll_func_ret_tp = llvm::PointerType::get(get_type, 0);/////////////////////////
+  }
+
+  // par type with unboxing
+  std::vector<llvm::Type*> curr_ll_func_par_tp_vec;
+  // begin with SLEF_TYPE
+  auto get_type = cls->get_classtable()->Type_Lookup[cls->get_type_name()]; 
+  curr_ll_func_par_tp_vec.push_back(llvm::PointerType::get(get_type, 0));////////////////////////////////////
+  // then other par
+  auto formals = *(md->get_formals());
+  for(int i = formals->first(); formals->more(i); i = formals->next(i)) {
+    auto formal_iter = formals->nth(i);
+    llvm::Type* curr_ll_func_par_tp;
+    auto curr_ll_func_par_tp_str = formal_iter->get_type_decl()->get_string();
+    if (curr_ll_func_par_tp_str == "Int") {
+      curr_ll_func_par_tp = llvm::Type::getInt32Ty(cls->get_classtable()->context);
+    } else if (curr_ll_func_par_tp_str == "Bool") {
+      curr_ll_func_par_tp = llvm::Type::getInt1Ty(cls->get_classtable()->context);
+    } else if (curr_ll_func_par_tp_str == "SELF_TYPE") {
+      auto get_type = cls->get_classtable()->Type_Lookup[cls->get_type_name()];
+      curr_ll_func_par_tp = llvm::PointerType::get(get_type, 0); //////////////////////////
+    } else {
+      auto get_type = cls->get_classtable()->Type_Lookup[curr_ll_func_par_tp_str];
+      curr_ll_func_par_tp = llvm::PointerType::get(get_type, 0);////////////////////////////
+    }
+    curr_ll_func_par_tp_vec.push_back(curr_ll_func_par_tp);
+  } 
+
+  llvm::FunctionType* create_func_tp = llvm::FunctionType::get(curr_ll_func_ret_tp, curr_ll_func_par_tp_vec, false);
+  return create_func_tp;
+}
 #endif

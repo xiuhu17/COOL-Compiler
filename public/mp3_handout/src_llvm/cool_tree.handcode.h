@@ -87,6 +87,7 @@ typedef Cases_class *Cases;
 
 #define method_EXTRAS                                                          \
   virtual Symbol get_return_type() { return return_type; }                     \
+  Formals* get_formals() {return &formals; }                                   \
   llvm::Function *code(CgenEnvironment *) override;
 
 #define attr_EXTRAS                                                            \

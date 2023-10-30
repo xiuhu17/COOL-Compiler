@@ -531,10 +531,15 @@ void CgenNode::layout_features() {
     feature_iter->layout_feature(this);
   }
   
+  // create str
+  llvm::Constant* str = ConstantDataArray::getString(class_table->context, get_type_name());
+  llvm::GlobalVariable* global_str = new llvm::GlobalVariable(class_table->the_module, str->getType(), true, GlobalVariable::InternalLinkage, str, "str." + get_type_name());
+
   // setup for object type
   auto curr_type_struct = class_table->Type_Lookup[get_type_name()];
   auto curr_vtable_tp_ptr = llvm::PointerType::get(class_table->Vtable_Type_Lookup[get_vtable_type_name()], true);
   std::vector<llvm::Type*> type_struct_setup = {curr_vtable_tp_ptr};
+  int k = 1;
   for (auto& iter: obj_tp) {
     auto defined_class = iter.first;
     auto defined_attr = iter.second;
@@ -550,17 +555,48 @@ void CgenNode::layout_features() {
     } else {
       type_struct_setup.push_back(llvm::PointerType::get(class_table->Type_Lookup[defined_attr_tp], 0));
     }
+    // setup the mapping
+    clattr_to_offset[defined_attr->get_name()->get_string()] = k;
+    k += 1;
   }
   curr_type_struct->setBody(type_struct_setup);
 
   // setup for vtable type
+  auto curr_vtable_type_struct = class_table->Vtable_Type_Lookup[get_vtable_type_name()];
+  // setup the first three: i32 tag, i32 size, i8* name
   std::vector<llvm::Type*> vtable_type_struct_setup = {Type::getInt32Ty(class_table->context), 
                                                         Type::getInt32Ty(class_table->context), 
                                                         llvm::PointerType::get(Type::getInt8Ty(class_table->context), 0)};
-  
-  //////
-  auto test = new GlobalVariable(class_table->the_module, curr_type_struct, true, GlobalVariable::ExternalLinkage, nullptr, "test");
-  //////
+  // create xxx_new function
+  auto function_new_created = create_llvm_function(get_init_function_name(), llvm::PointerType::get(class_table->Type_Lookup[get_type_name()], 0), {}, false);//////////////////
+  // need to implement, insert into hash
+  Function_Body_Map[function_new_created] = NULL;
+  // xxx_new function pointer
+  vtable_type_struct_setup.push_back(llvm::PointerType::get(function_new_created->getFunctionType(), 0));/////////////////
+  // start the normal
+  k = 4;
+  for (auto& iter: vtable_tp) {
+    auto defined_class = iter.first;
+    auto defined_method = iter.second;
+    // define the current vtable_tp, so we need to use this as class, representing the current type
+    auto func_tp = functp_helper(this, defined_method);
+    vtable_type_struct_setup.push_back(llvm::PointerType::get(func_tp, 0));/////////////////////////
+    // setup mapping
+    clmethod_to_offset[defined_method->get_name()->get_string()] = k;
+    k += 1;
+  }
+  curr_vtable_type_struct->setBody(vtable_type_struct_setup);
+
+  // instantiate vtable
+  std::vector<llvm::Constant*> vtable_proto_vec;
+
+
+
+  // ConstantStruct::get();
+  // ConstantExpr::getBitCast();
+
+  auto tp = new GlobalVariable(class_table->the_module, curr_type_struct, true, GlobalVariable::ExternalLinkage, nullptr, get_type_name());
+  auto vtp = new GlobalVariable(class_table->the_module, curr_vtable_type_struct, true, GlobalVariable::ExternalLinkage, nullptr, get_type_name());
 }
 
 // Class codegen. This should performed after every class has been setup.
