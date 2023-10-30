@@ -616,7 +616,7 @@ void CgenNode::layout_features() {
     auto get_ll_func_name = defined_class->get_function_name(defined_method->get_name()->get_string());
     auto get_ll_func_ptr = class_table->llmethod_to_Funtion_Ptr[get_ll_func_name];
     auto current_type = functp_helper(this, defined_method);
-    auto func_after_cast = ConstantExpr::getBitCast(get_ll_func_ptr, current_type);
+    auto func_after_cast = ConstantExpr::getBitCast(get_ll_func_ptr, llvm::PointerType::get(current_type, 0));
     vtable_proto_vec.push_back(func_after_cast);
   }
 
