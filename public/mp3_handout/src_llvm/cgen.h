@@ -84,8 +84,10 @@ public:
   llvm::LLVMContext context;
   llvm::IRBuilder<> builder;
   llvm::Module the_module;
-  std::unordered_map<std::string, llvm::StructType*> Type_Lookup;
-  std::unordered_map<std::string, llvm::StructType*> Vtable_Type_Lookup;
+  std::unordered_map<std::string, llvm::StructType*> Type_Lookup; // my_struct ---> %my_struct
+  std::unordered_map<std::string, llvm::StructType*> Vtable_Type_Lookup; // my_struct ---> %my_struct_vtable
+  std::unordered_map<std::string, llvm::GlobalVariable*> Vtable_Proto_Lookup; // my_struct ---> vtable prototype
+  std::unordered_map<std::string, llvm::Function*> llmethod_to_Funtion_Ptr; // my_struct_my_func ---> function pointer
 };
 
 // Each CgenNode corresponds to a Cool class. As such, it is responsible for
@@ -97,7 +99,7 @@ public:
   enum Basicness { Basic, NotBasic };
   CgenNode(Class_ c, Basicness bstatus, CgenClassTable *class_table)
       : class__class((const class__class &)*c), parentnd(0), children(0),  
-        basic_status(bstatus), class_table(class_table), tag(-1), obj_tp(0), vtable_tp(0), clmethod_to_llmethod(0), clattr_to_offset(0), clmethod_to_offset(0), Function_Body_Map(0) {}
+        basic_status(bstatus), class_table(class_table), tag(-1), obj_tp(0), vtable_tp(0), clmethod_to_llmethod_idx(0), clattr_to_offset(0), clmethod_to_offset(0), Function_Body_Map(0) {}
 
   // Relationships with other nodes in the tree
   void set_parent(CgenNode *p) {
@@ -122,8 +124,8 @@ public:
     return &vtable_tp;
   }
   // access current map
-  auto get_current_clmethod_to_llmethod() {
-    return &clmethod_to_llmethod;
+  auto get_current_clmethod_to_llmethod_idx() {
+    return &clmethod_to_llmethod_idx;
   }
 
   auto get_current_Function_Body_Map() {
@@ -144,11 +146,11 @@ public:
     return parentnd->get_current_vtable_tp();
   }
 
-  std::unordered_map<std::string, int>* get_parent_clmethod_to_llmethod() {
+  std::unordered_map<std::string, int>* get_parent_clmethod_to_llmethod_idx() {
     if (parentnd == NULL) {
       return NULL;
     }
-    return parentnd->get_current_clmethod_to_llmethod();
+    return parentnd->get_current_clmethod_to_llmethod_idx();
   }
 
 #ifdef MP3
@@ -199,11 +201,12 @@ private:
   // all these three are only for inheritance purpose
   std::vector<std::pair<CgenNode*, attr_class*>> obj_tp; // only for after vtable_pointer;
   std::vector<std::pair<CgenNode*, method_class*>> vtable_tp; // only for after XXX_new; only overwrite or create new function change the type, it remains same until someone overwrite or create new function
-  std::unordered_map<std::string, int> clmethod_to_llmethod; // only for after XXX_new; only for those who overload clmethod or create new function do not need to bit cast
+  // use as cl_method_name ---> index_of_vtable_tp vector
+  std::unordered_map<std::string, int> clmethod_to_llmethod_idx; // only for after XXX_new; only for those who overload clmethod or create new function do not need to bit cast
   
   // TODO:
-  std::unordered_map<std::string, int> clattr_to_offset; // cl attr name ---> offset
-  std::unordered_map<std::string, int> clmethod_to_offset; // cl method name ---> offset
+  std::unordered_map<std::string, int> clattr_to_offset; // cl attr name ---> offset in obj{}
+  std::unordered_map<std::string, int> clmethod_to_offset; // cl method name ---> offset in vtable{} 
 
   std::unordered_map<llvm::Function*, method_class*> Function_Body_Map; // if it is new function, the value == NULL
   // llvm::LLVMContext context_store;

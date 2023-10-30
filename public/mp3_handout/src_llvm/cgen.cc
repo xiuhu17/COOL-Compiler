@@ -513,7 +513,7 @@ void CgenNode::layout_features() {
   // TODO: add code here
   auto parent_obj_tp = get_parent_obj_tp();
   auto parent_vtable_tp = get_parent_vtable_tp();
-  auto parent_clmethod_to_llmethod = get_parent_clmethod_to_llmethod();
+  auto parent_clmethod_to_llmethod_idx = get_parent_clmethod_to_llmethod_idx();
 
   if (parent_obj_tp) {
     obj_tp = *parent_obj_tp;
@@ -521,8 +521,8 @@ void CgenNode::layout_features() {
   if (parent_vtable_tp) {
     vtable_tp = *parent_vtable_tp;
   }
-  if (parent_clmethod_to_llmethod) {
-    clmethod_to_llmethod = *parent_clmethod_to_llmethod;
+  if (parent_clmethod_to_llmethod_idx) {
+    clmethod_to_llmethod_idx = *parent_clmethod_to_llmethod_idx;
   }
 
   // for overwrite function, newly created function and attr
@@ -551,9 +551,9 @@ void CgenNode::layout_features() {
     } else if (defined_attr_tp == "sbyte*") {
       type_struct_setup.push_back(llvm::PointerType::get(Type::getInt8Ty(class_table->context), 0));
     } else if (defined_attr_tp == "SELF_TYPE") {
-      type_struct_setup.push_back(llvm::PointerType::get(class_table->Type_Lookup[get_type_name()], 0)); // current type
+      type_struct_setup.push_back(llvm::PointerType::get(class_table->Type_Lookup[get_type_name()], 0)); // current type ////////////////////////////////
     } else {
-      type_struct_setup.push_back(llvm::PointerType::get(class_table->Type_Lookup[defined_attr_tp], 0));
+      type_struct_setup.push_back(llvm::PointerType::get(class_table->Type_Lookup[defined_attr_tp], 0));///////////////////////////////////
     }
     // setup the mapping
     clattr_to_offset[defined_attr->get_name()->get_string()] = k;
@@ -568,9 +568,13 @@ void CgenNode::layout_features() {
                                                         Type::getInt32Ty(class_table->context), 
                                                         llvm::PointerType::get(Type::getInt8Ty(class_table->context), 0)};
   // create xxx_new function
-  auto function_new_created = create_llvm_function(get_init_function_name(), llvm::PointerType::get(class_table->Type_Lookup[get_type_name()], 0), {}, false);//////////////////
+  auto function_new_created = create_llvm_function(get_init_function_name(), 
+                                                    llvm::PointerType::get(class_table->Type_Lookup[get_type_name()], 0), 
+                                                    {}, 
+                                                    false);//////////////////
   // need to implement, insert into hash
   Function_Body_Map[function_new_created] = NULL;
+  class_table->llmethod_to_Funtion_Ptr[get_init_function_name()] = function_new_created;
   // xxx_new function pointer
   vtable_type_struct_setup.push_back(llvm::PointerType::get(function_new_created->getFunctionType(), 0));/////////////////
   // start the normal
@@ -589,14 +593,37 @@ void CgenNode::layout_features() {
 
   // instantiate vtable
   std::vector<llvm::Constant*> vtable_proto_vec;
+  // class tag
+  vtable_proto_vec.push_back(ConstantInt::get(Type::getInt32Ty(class_table->context), tag));
+  // object size
+  auto get_elementptr_size = ConstantExpr::getGetElementPtr(class_table->Type_Lookup[get_type_name()],  // %My_Type
+                                                              ConstantPointerNull::get(llvm::PointerType::get(class_table->Type_Lookup[get_type_name()],0)), // %My_Type* NULL
+                                                              {ConstantInt::get(Type::getInt32Ty(class_table->context), 1)}); // i32 1 
+  auto ptr_to_int_size = ConstantExpr::getPtrToInt(get_elementptr_size, Type::getInt32Ty(class_table->context));
+  vtable_proto_vec.push_back(ptr_to_int_size);
+  // get Struct name
+  llvm::ArrayRef<llvm::Constant *> get_elementptr_name_ind = {ConstantInt::get(Type::getInt32Ty(class_table->context), 0), ConstantInt::get(Type::getInt32Ty(class_table->context), 0)};
+  auto get_elementptr_name = ConstantExpr::getGetElementPtr(str->getType(), // % [??? x i8]
+                                                            global_str, // @str.???
+                                                            get_elementptr_name_ind); // i32 0 i32 0
+  vtable_proto_vec.push_back(get_elementptr_name);
+  // insert new function pointer
+  vtable_proto_vec.push_back(function_new_created);
+  // iterate through vtable_tp
+  for (auto& iter: vtable_tp) {
+    auto defined_class = iter.first;
+    auto defined_method = iter.second;
+    auto get_ll_func_name = defined_class->get_function_name(defined_method->get_name()->get_string());
+    auto get_ll_func_ptr = class_table->llmethod_to_Funtion_Ptr[get_ll_func_name];
+    auto current_type = functp_helper(this, defined_method);
+    auto func_after_cast = ConstantExpr::getBitCast(get_ll_func_ptr, current_type);
+    vtable_proto_vec.push_back(func_after_cast);
+  }
 
+  auto vtable_prototype_constant = ConstantStruct::get(curr_vtable_type_struct, vtable_proto_vec);
+  auto vtable_prototype = new GlobalVariable(class_table->the_module, curr_vtable_type_struct, true, GlobalValue::ExternalLinkage, vtable_prototype_constant, get_vtable_name());
 
-
-  // ConstantStruct::get();
-  // ConstantExpr::getBitCast();
-
-  auto tp = new GlobalVariable(class_table->the_module, curr_type_struct, true, GlobalVariable::ExternalLinkage, nullptr, get_type_name());
-  auto vtp = new GlobalVariable(class_table->the_module, curr_vtable_type_struct, true, GlobalVariable::ExternalLinkage, nullptr, get_type_name());
+  class_table->Vtable_Proto_Lookup[get_vtable_name()] = vtable_prototype;
 }
 
 // Class codegen. This should performed after every class has been setup.
@@ -1165,12 +1192,12 @@ void method_class::layout_feature(CgenNode *cls) {
   // std::cerr << cls->get_name()->get_string() << ": " << name->get_string() << '\n';
   auto curr_cl_func_name = name->get_string();
 
-  if (cls->get_current_clmethod_to_llmethod()->find(curr_cl_func_name) != cls->get_current_clmethod_to_llmethod()->end()) { // overload
-    auto idx = (*cls->get_current_clmethod_to_llmethod())[curr_cl_func_name];
+  if (cls->get_current_clmethod_to_llmethod_idx()->find(curr_cl_func_name) != cls->get_current_clmethod_to_llmethod_idx()->end()) { // overload
+    auto idx = (*cls->get_current_clmethod_to_llmethod_idx())[curr_cl_func_name];
     (*cls->get_current_vtable_tp())[idx] = {cls, this};
   } else { // newly insert function
     cls->get_current_vtable_tp()->push_back({cls, this});
-    (*cls->get_current_clmethod_to_llmethod())[curr_cl_func_name] = cls->get_current_vtable_tp()->size() - 1;
+    (*cls->get_current_clmethod_to_llmethod_idx())[curr_cl_func_name] = cls->get_current_vtable_tp()->size() - 1;
   }
 
   // get the ll function name
@@ -1218,6 +1245,7 @@ void method_class::layout_feature(CgenNode *cls) {
   assert(curr_ll_func_ret_tp);
   auto created_ll_func = cls->create_llvm_function(curr_ll_func_name, curr_ll_func_ret_tp, curr_ll_func_par_tp_vec, false);
   (*cls->get_current_Function_Body_Map())[created_ll_func] = this;
+  cls->get_classtable()->llmethod_to_Funtion_Ptr[curr_ll_func_name] = created_ll_func;
 
 #endif
 }
