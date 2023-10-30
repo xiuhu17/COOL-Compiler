@@ -84,10 +84,10 @@ public:
   llvm::LLVMContext context;
   llvm::IRBuilder<> builder;
   llvm::Module the_module;
-  std::unordered_map<std::string, llvm::StructType*> Type_Lookup; // my_struct ---> %my_struct
-  std::unordered_map<std::string, llvm::StructType*> Vtable_Type_Lookup; // my_struct ---> %my_struct_vtable
-  std::unordered_map<std::string, llvm::GlobalVariable*> Vtable_Proto_Lookup; // my_struct ---> vtable prototype
-  std::unordered_map<std::string, llvm::Function*> llmethod_to_Funtion_Ptr; // my_struct_my_func ---> function pointer
+  std::unordered_map<std::string, llvm::StructType*> Type_Lookup; // My_Type ---> %My_Type
+  std::unordered_map<std::string, llvm::StructType*> Vtable_Type_Lookup; // My_Type_vtable ---> %_My_Type_vtable
+  std::unordered_map<std::string, llvm::GlobalVariable*> Vtable_Proto_Lookup; // My_Type_vtable_prototype ---> @_My_Type_vtable_prototype
+  std::unordered_map<std::string, llvm::Function*> llmethod_to_Funtion_Ptr; // My_Type_test1 ---> function pointer
 };
 
 // Each CgenNode corresponds to a Cool class. As such, it is responsible for

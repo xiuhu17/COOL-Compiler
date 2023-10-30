@@ -12,13 +12,13 @@ class B {
             let x : Object <- new Object in x.type_name();
         }
     };
-    test1(aa : Bool, kk: Int) : Bool {
-        false
+    test1(aa : Bool, kk: Int) : SELF_TYPE {
+        self
     };
     test2(aa : Bool, kk: Int) : Int {
         0
     };
-    test3(aa : Bool, kk: Int) : Int {
+    test3(aa : Bool, kk: Int, ee : B) : Int {
         test2(false, 0)
     };
     
@@ -26,10 +26,9 @@ class B {
 ----------------------------------------------------------
 class C inherits B{
     d : Object;
-    test1(aa : Bool, kk: Int) : Bool {
+    test1(aa : Bool, k: Int) : SELF_TYPE {
         {   
-            b <- 2;
-            true;
+            self;
         }
     };
     test4(aa : Bool, kk: Int) : Bool {
@@ -65,12 +64,45 @@ class E inherits D{
 
 class F inherits E{
     x : String;
+    w : E;
+    k : Int;
     test9(aa : Bool, kk: Int, t : F) : SELF_TYPE {
         self
     };
 
     test10(aa : Bool, kk: Int, t : F) : String {
         x
+    };
+
+    test11(aa : Bool, kk: Int, t : F) : Int {
+        {
+        --let x : Int in x.type_name();
+        --let x : Int <- 3 in x + 2;
+        --let x : Int in x + 2;
+        let x : Int <- 3 in x;
+        0;
+        }
+    };
+
+        test12(aa : Bool, kk: Int, t : F) : Int {
+        {
+        --let x : Int in x.type_name();
+        --let x : Int <- 3 in x + 2;
+        --let x : Int in x + 2;
+        --w.test5(false, 1);
+        --w.test6(false, 1);
+        --w.test7(false, 1);
+        let x : Int <- 3 in x.type_name();
+        0;
+        }
+    };
+
+    test13() : Int {
+        let b : B in w.test3(false, 1, b)
+    };
+
+    test14() : B {
+        self
     };
 };
 
