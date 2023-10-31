@@ -793,6 +793,9 @@ Value *cond_class::code(CgenEnvironment *env) {
     std::cerr << "cond" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
+  llvm::Type  *if_type;                                                
+  llvm::Value *if_addr_val;
+  
   auto true_label = env->new_true_label();
   auto false_label = env->new_false_label();
   auto end_label = env->new_end_label();
@@ -901,6 +904,9 @@ Value *let_class::code(CgenEnvironment *env) {
     std::cerr << "let" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
+  llvm::Type  *identifier_type;                                                         
+  llvm::Value *identifier_addr_val;
+
   auto init_val = init->code(env);
 
   auto i32_ = Type::getInt32Ty(env->context);
