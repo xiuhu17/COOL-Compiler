@@ -358,6 +358,8 @@ void CgenClassTable::code_classes(CgenNode *c) {
 void CgenClassTable::code_constants() {
 #ifdef MP3
   // TODO: add code here
+  std::ostream *empty_;
+  stringtable.code_string_table(*empty_, this);
 #endif
 }
 
@@ -476,7 +478,15 @@ void StrTable::code_string_table(std::ostream &s, CgenClassTable *ct) {
 // generate code to define a global string constant
 void StringEntry::code_def(std::ostream &s, CgenClassTable *ct) {
 #ifdef MP3
-  // TODO: add code here
+  // TODO: add code here 
+  Constant* cons_str = ConstantDataArray::getString(ct->context, str);
+  // @str.x = internal constant [14 x i8] c"<basic class>\00"
+  auto global_str = new GlobalVariable(ct->the_module, cons_str->getType(), true, GlobalValue::InternalLinkage, cons_str, "str." + std::to_string(index));
+  // @String.x = {}
+  auto constant_global_str_obj = ConstantStruct::get(ct->Type_Lookup["String"], {ct->Vtable_Proto_Lookup["_String_vtable_prototype"], global_str});
+  auto global_str_obj = new GlobalVariable(ct->the_module, ct->Type_Lookup["String"], true, GlobalValue::ExternalLinkage, constant_global_str_obj, "String." + std::to_string(index));
+  // setup mapping
+  ct->strEntry_to_GlobalStr[index] = global_str_obj;
 #endif
 }
 

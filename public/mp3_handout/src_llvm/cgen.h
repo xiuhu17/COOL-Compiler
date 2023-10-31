@@ -87,6 +87,7 @@ public:
   std::unordered_map<std::string, llvm::StructType*> Type_Lookup; // My_Type ---> %My_Type
   std::unordered_map<std::string, llvm::StructType*> Vtable_Type_Lookup; // My_Type_vtable ---> %_My_Type_vtable
   std::unordered_map<std::string, llvm::GlobalVariable*> Vtable_Proto_Lookup; // My_Type_vtable_prototype ---> @_My_Type_vtable_prototype
+  std::unordered_map<int, llvm::GlobalVariable*> strEntry_to_GlobalStr; // string entry's index ---> @String.index
   std::unordered_map<std::string, llvm::Function*> llmethod_to_Funtion_Ptr; // My_Type_test1 ---> function pointer
 };
 

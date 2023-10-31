@@ -111,6 +111,25 @@ class G inherits IO{
 
 };
 
+class AA {
+    a : Int;
+    test1() :Int{
+        if true then let x : Int in 3 + 2 else 3 fi
+    };
+};
+
+class BB inherits AA {
+    b : Int; 
+    c : Int <- 2; -- first store 0, then store 2
+    d : Int <- new Int;
+};
+
+class CC {
+    a : AA; -- first do default initilization, then do the initialization
+    b : BB <- let b : BB in b; -- first do default initilization, then do the initialization
+    c : Int <- if true then 2 else 3 fi;
+};
+
 class Main inherits IO{
     c: C;
     main() : Int {

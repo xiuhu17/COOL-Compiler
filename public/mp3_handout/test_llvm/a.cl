@@ -1,10 +1,14 @@
 -- Equality test
 
+class A{};
 class Main inherits IO
-{
+{ 
+  test1 : String <- "test";
+  test2 : A <- new A;
+  test3 : Main;
   func():Bool {2=5};
   main():Object {{ 
-	if func() then out_string("ok") else out_string("not ok") fi;
+	if isvoid test3 then out_string(test1) else out_string("fail") fi;
 	self; 
   }};
 };
