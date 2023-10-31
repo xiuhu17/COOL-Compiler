@@ -127,6 +127,7 @@ class BB inherits AA {
 class CC {
     a : AA; -- first do default initilization, then do the initialization
     b : BB <- let b : BB in b; -- first do default initilization, then do the initialization
+    bb : BB <- new BB;
     c : Int <- if true then 2 else 3 fi;
 };
 

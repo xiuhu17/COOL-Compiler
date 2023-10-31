@@ -298,19 +298,25 @@ void CgenClassTable::setup_external_functions() {
        *i1 = Type::getInt1Ty(this->context),
        *void_ = Type::getVoidTy(this->context);
   // setup function: external int strcmp(sbyte*, sbyte*)
-  create_llvm_function("strcmp", i32, {i8_ptr, i8_ptr}, false);
+  auto a = create_llvm_function("strcmp", i32, {i8_ptr, i8_ptr}, false);
+  llmethod_to_Funtion_Ptr["strcmp"] = a;
   // setup function: external int printf(sbyte*, ...)
-  create_llvm_function("printf", i32, {i8_ptr}, true);
+  auto b = create_llvm_function("printf", i32, {i8_ptr}, true);
+  llmethod_to_Funtion_Ptr["printf"] = b;
   // setup function: external void abort(void)
-  create_llvm_function("abort", void_, {}, false);
+  auto c = create_llvm_function("abort", void_, {}, false);
+  llmethod_to_Funtion_Ptr["abort"] = c;
   // setup function: external i8* malloc(i32)
-  create_llvm_function("malloc", i8_ptr, {i32}, false);
+  auto d = create_llvm_function("malloc", i8_ptr, {i32}, false);
+  llmethod_to_Funtion_Ptr["malloc"] = d;
 
 #ifdef MP3
   // TODO: add code here
-  create_llvm_function("Int_init", void_, {llvm::PointerType::get(Type_Lookup["Int"], 0), i32}, false);
+  auto e = create_llvm_function("Int_init", void_, {llvm::PointerType::get(Type_Lookup["Int"], 0), i32}, false);
+  llmethod_to_Funtion_Ptr["Int_init"] = e;
 
-  create_llvm_function("Bool_init", void_, {llvm::PointerType::get(Type_Lookup["Bool"], 0), i1}, false);
+  auto f = create_llvm_function("Bool_init", void_, {llvm::PointerType::get(Type_Lookup["Bool"], 0), i1}, false);
+  llmethod_to_Funtion_Ptr["Bool_init"] = f;
     
 #endif
 }
@@ -351,6 +357,7 @@ void CgenClassTable::code_module() {
 #ifdef MP3
 void CgenClassTable::code_classes(CgenNode *c) {
   // TODO: add code here
+  c->code_class();
 }
 #endif
 
@@ -636,6 +643,10 @@ void CgenNode::layout_features() {
   class_table->Vtable_Proto_Lookup[get_vtable_name()] = vtable_prototype;
 }
 
+void CgenNode::code_init_function(CgenEnvironment *env) {
+  // TODO: add code here
+}
+
 // Class codegen. This should performed after every class has been setup.
 // Generate code for each method of the class.
 void CgenNode::code_class() {
@@ -644,10 +655,7 @@ void CgenNode::code_class() {
     return;
   }
   // TODO: add code here
-}
-
-void CgenNode::code_init_function(CgenEnvironment *env) {
-  // TODO: add code here
+  for ()
 }
 
 #else
@@ -795,7 +803,7 @@ Value *cond_class::code(CgenEnvironment *env) {
   // TODO: add code here and replace `return nullptr`
   llvm::Type  *if_type;                                                
   llvm::Value *if_addr_val;
-  
+
   auto true_label = env->new_true_label();
   auto false_label = env->new_false_label();
   auto end_label = env->new_end_label();
@@ -930,11 +938,12 @@ Value *let_class::code(CgenEnvironment *env) {
       env->builder.CreateStore(ConstantInt::get(i1_, false), identifier_addr_val);
     }
   }
-  env->var_tp_add_binding(identifier, identifier_type);
-  env->add_binding(identifier, identifier_addr_val);
 
   env->var_tp_open_scope();
   env->open_scope();
+
+  env->var_tp_add_binding(identifier, identifier_type);
+  env->add_binding(identifier, identifier_addr_val);
 
   auto let_res_ = body->code(env);
   auto let_type_ = body->get_expr_tp(env);

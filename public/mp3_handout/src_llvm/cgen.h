@@ -307,8 +307,12 @@ public:
   }
 private:
   // mapping from variable names to memory locations
+  // need to map to <StructType, bool> bool indicates whether box/unbox
+  // TODO: 
   cool::SymbolTable<llvm::Value> var_table;
   cool::SymbolTable<llvm::Type> var_tp_table;
+  cool::SymbolTable<bool> var_tp_is_obj;
+
   CgenNode *cur_class;
   int tmp_count, ok_count; 
   int loop_count, true_count, false_count, end_count;
@@ -334,6 +338,34 @@ public:
 llvm::Value *conform(llvm::Value *src, llvm::Type *dest_type,
                      CgenEnvironment *env);
 
+
+// box i32 ---> Int 
+llvm::CallInst* BOX(CgenClassTable* clstb, llvm::Value *prim, CgenEnvironment *env) {
+  if (prim->getType()->isIntegerTy(32)) { // i32
+    auto int_new_type = clstb->llmethod_to_Funtion_Ptr["Int_new"];
+    auto int_new_callee = clstb->the_module.getOrInsertFunction("Int_new", int_new_type->getType());
+    auto int_new_allocated = clstb->builder.CreateCall(int_new_callee, {});
+
+    auto int_init_type = clstb->llmethod_to_Funtion_Ptr["Int_init"];
+    auto int_init_callee = clstb->the_module.getOrInsertFunction("Int_init", int_init_type->getType());
+    clstb->builder.CreateCall(int_init_callee, {int_new_allocated, prim});
+
+    return int_new_allocated;
+  } else if (prim->getType()->isIntegerTy(1)) { // i1
+    auto bool_new_type = clstb->llmethod_to_Funtion_Ptr["Bool_new"];
+    auto bool_new_callee = clstb->the_module.getOrInsertFunction("Bool_new", bool_new_type->getType());
+    auto bool_new_allocated = clstb->builder.CreateCall(bool_new_callee, {});
+
+    auto bool_init_type = clstb->llmethod_to_Funtion_Ptr["Bool_init"];
+    auto bool_init_callee = clstb->the_module.getOrInsertFunction("Bool_init", bool_init_type->getType());
+    clstb->builder.CreateCall(bool_init_callee, {bool_new_allocated, prim});
+
+    return bool_new_allocated;
+  } 
+    
+  assert(false);
+  return NULL;
+}
 
 llvm::FunctionType* functp_helper(CgenNode* cls, method_class* md) {
   llvm::Type* curr_ll_func_ret_tp;

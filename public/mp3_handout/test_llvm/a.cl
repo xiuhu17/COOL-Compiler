@@ -11,15 +11,11 @@ class Main inherits IO
   x : Int;
   func():Bool {2=5};
   main():Object {{ 
-		let x : A <- new B in out_string(x.type_name()); 
+		let x : A <- new B in out_string("test"); 
 	self; 
   }};
 
-  let2(): Object {
-    {
-      let x : Int in 2 +  x;
-    }
-  };
+
   let3(): Object {
     {
       let x : Int <- 0 in 2 +  x;
@@ -39,6 +35,18 @@ class Main inherits IO
     let5(): Int {
     {
       let x : Int <- 5, y : Object in y <- x;
+    }
+  };
+
+    let2(): Object {
+    {
+      let x : Int in 2 +  x;
+    }
+  };
+      let22(): Object {
+    {
+      let x : Int in 2 +  x;
+      self;
     }
   };
   let6() : Object {

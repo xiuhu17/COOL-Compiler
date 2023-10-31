@@ -979,7 +979,8 @@ Value *object_class::code(CgenEnvironment *env) {
 
   auto object_res = env->builder.CreateLoad(object_type, object_addr_val);
   set_expr_tp(env, object_type);
-
+  // llvm::Value* inter = object_res;
+  // std::cerr << "int: "<< inter->getType()->isIntegerTy(32) << " , bool: "<< inter->getType()->isIntegerTy(1) << '\n';
   return object_res;
 }
 
