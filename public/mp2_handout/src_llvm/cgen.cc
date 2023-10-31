@@ -699,7 +699,7 @@ Value *cond_class::code(CgenEnvironment *env) {
   // end block
   env->builder.SetInsertPoint(end_block);
   auto cond_res = env->builder.CreateLoad(if_type, if_addr_val);
-
+  std::cerr << cond_res->getType()->isIntegerTy(32) << '\n';
   // set expr_extra
   set_expr_tp(env, if_type);
 
@@ -793,11 +793,13 @@ Value *let_class::code(CgenEnvironment *env) {
       env->builder.CreateStore(ConstantInt::get(i1_, false), identifier_addr_val);
     }
   }
-  env->var_tp_add_binding(identifier, identifier_type);
-  env->add_binding(identifier, identifier_addr_val);
+
 
   env->var_tp_open_scope();
   env->open_scope();
+
+  env->var_tp_add_binding(identifier, identifier_type);
+  env->add_binding(identifier, identifier_addr_val);
 
   auto let_res_ = body->code(env);
   auto let_type_ = body->get_expr_tp(env);
