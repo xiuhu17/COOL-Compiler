@@ -699,7 +699,7 @@ Value *cond_class::code(CgenEnvironment *env) {
   // end block
   env->builder.SetInsertPoint(end_block);
   auto cond_res = env->builder.CreateLoad(if_type, if_addr_val);
-  std::cerr << cond_res->getType()->isIntegerTy(32) << '\n';
+
   // set expr_extra
   set_expr_tp(env, if_type);
 
