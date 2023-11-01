@@ -357,6 +357,7 @@ void CgenClassTable::code_module() {
 #ifdef MP3
 void CgenClassTable::code_classes(CgenNode *c) {
   // TODO: add code here
+  c->code_init_function();
   c->code_class();
   for (auto child : c->get_children()) {
     code_classes(child);
@@ -646,8 +647,10 @@ void CgenNode::layout_features() {
   class_table->Vtable_Proto_Lookup[get_vtable_name()] = vtable_prototype;
 }
 
-void CgenNode::code_init_function(CgenEnvironment *env) {
+void CgenNode::code_init_function() {
   // TODO: add code here
+  CgenEnvironment env(this);
+  // include inheritance
 }
 
 // Class codegen. This should performed after every class has been setup.

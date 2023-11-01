@@ -185,7 +185,8 @@ public:
   // Class codegen. You need to write the body of this function.
   void code_class();
   // Codegen for the init function of every class
-  void code_init_function(CgenEnvironment *env);
+  // void code_init_function(CgenEnvironment *env);
+  void code_init_function();
 #endif
   void codeGenMainmain();
 
@@ -405,8 +406,9 @@ auto Get_Attr_Addr(CgenEnvironment* env, CgenNode* curr_cls, llvm::Value* ptr, s
 
 // if indeed use attribute rather than local, para, then we need to get the type
 // %A, %B, %IO, %Int, SELF_TYPE = ..., ...
+// class ... {a : B; b : Int} 
 // for a : B, return %"B" 
-// for a : Int, return %"Int" 
+// for b : Int, return %"Int" 
 auto Get_Attr_Type(CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) {
   auto current_class_name = curr_cls->get_type_name();
   auto attr_offset = (*curr_cls->get_current_clattr_to_offset())[attr_name];
@@ -421,9 +423,13 @@ auto Get_Attr_Type(CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) 
 }
 
 // return i32 (%F*,i1,i32) ** 
-// [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr act as %tmp.47
+// [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr act as %tmp.47 || || func_class acts as %F
+// %tmp.50 = load %_F_vtable*, %_F_vtable** %tmp.49 
+// %tmp.51 = getelementptr %_F_vtable, %_F_vtable* %tmp.50, i32 0, i32 9  || ret acts as %tmp.51
+// %tmp.52 = load i32 (%F*,i1,i32) *, i32 (%F*,i1,i32) ** %tmp.51
+// %tmp.53 = call i32(%F*, i1, i32 ) %tmp.52( %F* %tmp.47, i1 false, i32 1 )
 auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr, std::string func_name) {
-  // [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr acts as %tmp.47 || class_name acts as %F
+  // [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr acts as %tmp.47 || func_class acts as %F
   auto class_for_func = env->Type_Lookup[func_class->get_type_name()];
   auto vtable_prototype_ptr = env->builder.CreateGEP(class_for_func, ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0)});
   
@@ -438,10 +444,15 @@ auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr,
   return func_ptr;
 }
 
-// current env, class curr_cls {}, .....
-// [let33(x : Int, y : B*): Int] ----> [i32 @Main.let33(%Main* %self, i32 %x, %B* %y)]
-// for x : i32, alloca(i32), bind to *i32 || need to store i32 -> *i32
-// for y : B*, alloca(B*), bind to **B || need to store *B -> **B
+
+ // current env, class curr_cls {}, .....
+ // [let33(x : Int, y : B*): Int] ----> [i32 @Main.let33(%Main* %self, i32 %x, %B* %y)]
+  // %tmp.102 = alloca %Main*
+	// %tmp.103 = alloca i32
+	// %tmp.104 = alloca %B*
+	// store %Main* %self, %Main** %tmp.102 || SELF_ADDR is %tmp.102
+	// store i32 %x, i32* %tmp.103 || bind x ----> %tmp.103 || type %Int(i32)
+	// store %B* %y, %B** %tmp.104 || bind y ----> %tmp.104 || type %B
 auto Create_Param(CgenEnvironment* env, llvm::Function* func_ptr, method_class* method_ptr) {
   auto formals = *(method_ptr->get_formals());
 

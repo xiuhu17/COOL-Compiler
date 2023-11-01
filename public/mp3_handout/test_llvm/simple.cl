@@ -10,9 +10,9 @@ class Main inherits IO{
     };
         mainn(a: Int) : Int {
         {   
-            --let x : Int in x <- 3;
-            --let x : Int in x.type_name();
-            c <- new Int;
+            let x : Int in x <- 3;
+            let x : Int in x.type_name();
+            -- c <- new Int;
             0;
         } 
     };
