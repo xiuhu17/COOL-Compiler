@@ -235,9 +235,9 @@ public:
   // generation for each method. You may need to add parameters to this
   // constructor.
   CgenEnvironment(CgenNode *cur_class)
-      : var_table(), var_tp_table(), cur_class(cur_class), var_addr_mp3(), var_type_mp3(), tp_box_mp3(),
+      : SELF_ADDR(0), var_table(), var_tp_table(), var_addr_mp3(), var_type_mp3(), cur_class(cur_class),
         class_table(*cur_class->get_classtable()), context(class_table.context),
-        builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup), Vtable_Type_Lookup(class_table.Vtable_Type_Lookup) {
+        builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup), Vtable_Type_Lookup(class_table.Vtable_Type_Lookup), Vtable_Proto_Lookup(class_table.Vtable_Proto_Lookup){
     tmp_count = 0;
     ok_count = 0;
     loop_count = 0;
@@ -248,7 +248,6 @@ public:
     var_tp_table.enterscope();
     var_addr_mp3.enterscope();
     var_type_mp3.enterscope();
-    tp_box_mp3.enterscope();
     // TODO: add code here
   }
 
@@ -258,31 +257,28 @@ public:
   // Must return the CgenNode for a class given the symbol of its name
   CgenNode *type_to_class(Symbol t);
 
-  std::pair<llvm::Type *, llvm::Value *> find_in_scopes(Symbol name) {
-    return {var_tp_table.find_in_scopes(name), var_table.find_in_scopes(name)};
-  }
 
-  auto find_var_addr_mp3(Symbol name) {
-    return var_addr_mp3.find_in_scopes(name);
-  }
-  std::pair<llvm::StructType*, bool *> find_var_type_mp3(Symbol name) {
-    return {var_type_mp3.find_in_scopes(name), tp_box_mp3.find_in_scopes(name)};
-  }
+  std::pair<llvm::Type *, llvm::Value *> find_in_scopes(Symbol name) { return {var_tp_table.find_in_scopes(name), var_table.find_in_scopes(name)}; }
 
-  void add_binding(Symbol name, llvm::Value *val_ptr) {
-    var_table.insert(name, val_ptr);
-  }
+  void add_binding(Symbol name, llvm::Value *val_ptr) { var_table.insert(name, val_ptr); }
   void open_scope() { var_table.enterscope(); }
   void close_scope() { var_table.exitscope(); }
 
-  void var_tp_add_binding(Symbol name, llvm::Type *tp_ptr) {
-    var_tp_table.insert(name, tp_ptr);
-  }
+  void var_tp_add_binding(Symbol name, llvm::Type *tp_ptr) { var_tp_table.insert(name, tp_ptr);}
   void var_tp_open_scope() { var_tp_table.enterscope(); }
   void var_tp_close_scope() { var_tp_table.exitscope(); }
 
-  void add_var_addr_mp3(Symbol name, llvm::Value *addr) {var_addr_mp3.insert(name, addr);}
-  void add_var_type_mp3(Symbol name, )
+
+llvm::Value* find_var_addr_mp3(Symbol name) { return var_addr_mp3.find_in_scopes(name); }
+void add_var_addr_mp3(Symbol name, llvm::Value* addr) { var_addr_mp3.insert(name, addr); }
+void open_var_addr_mp3() { var_addr_mp3.enterscope(); }
+void close_var_addr_mp3() { var_addr_mp3.exitscope(); }
+
+llvm::StructType* find_var_type_mp3(Symbol name) { return var_type_mp3.find_in_scopes(name); }
+void add_var_type_mp3(Symbol name, llvm::StructType* tp) { var_type_mp3.insert(name, tp); }
+void open_var_type_mp3() {var_type_mp3.enterscope(); }
+void close_var_type_mp3() {var_type_mp3.exitscope(); }
+
 
   // LLVM Utils:
   // Create a new llvm function in the current module
@@ -325,17 +321,16 @@ public:
   void set_abrt(llvm::BasicBlock *abrt_) {
     abrt = abrt_;
   }
+  llvm::Value* SELF_ADDR; // SELF_ADDR is **B which could store *B; load **B to get *B; *B could be used in [Get_Attr_Addr, Get_Func_Addr] function
 private:
   // mapping from variable names to memory locations
   // need to map to <StructType, bool> bool indicates whether box/unbox
   // TODO: 
   cool::SymbolTable<llvm::Value> var_table;
   cool::SymbolTable<llvm::Type> var_tp_table;
-  cool::SymbolTable<bool> var_tp_is_obj;
 
   cool::SymbolTable<llvm::Value> var_addr_mp3;
   cool::SymbolTable<llvm::StructType> var_type_mp3;
-  cool::SymbolTable<bool> tp_box_mp3;
 
   CgenNode *cur_class;
   int tmp_count, ok_count; 
@@ -351,6 +346,7 @@ public:
   llvm::Module &the_module;
   std::unordered_map<std::string, llvm::StructType*> &Type_Lookup;
   std::unordered_map<std::string, llvm::StructType*> &Vtable_Type_Lookup;
+  std::unordered_map<std::string, llvm::GlobalVariable*> &Vtable_Proto_Lookup;
 };
 
 #ifdef MP3
@@ -391,50 +387,89 @@ llvm::CallInst* BOX(CgenClassTable* clstb, llvm::Value *prim, CgenEnvironment *e
   return NULL;
 }
 
+// for a : B, return **B || store *B -> ** B
+// for a : Int, return *i32 || store i32 -> * i32
 // current env, class curr_cls {}, .....
 // curr_cls is always current class, because only current class can access the attribute
-// for a : B, return **B
-// for a : Int, return *i32
+// [%tmp.96 = load %Main*, %Main** %tmp.95] || CgenEnvironment::SELF_ADDR acts as %tmp.95
+// [%tmp.97 = getelementptr %Main, %Main* %tmp.96, i32 0, i32 4], [%tmp.98 = load %B*, %B** %tmp.97] || ptr acts as %tmp.96 || ret acts as %tmp.97
+// [%tmp.100 = getelementptr %Main, %Main* %tmp.99, i32 0, i32 5] [%tmp.101 = load i32, i32* %tmp.100] || ptr acts as %tmp.99 || ret acts as %tmp.100
 auto Get_Attr_Addr(CgenEnvironment* env, CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) {
   auto current_class_name = curr_cls->get_type_name();
   auto current_class_type = curr_cls->get_classtable()->Type_Lookup[current_class_name];
   auto attr_offset = (*curr_cls->get_current_clattr_to_offset())[attr_name];
 
-  return  env->builder.CreateGEP(current_class_type, ptr, {ConstantInt::get(Type::getInt32Ty(env->context), 0), ConstantInt::get(Type::getInt32Ty(env->context), attr_offset)});
+  return env->builder.CreateGEP(current_class_type, ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), attr_offset)});
 } 
 
 // if indeed use attribute rather than local, para, then we need to get the type
 // %A, %B, %IO, %Int, SELF_TYPE = ..., ...
-// for B, we need to store *B to ** B
-// for Int, we need to store i32 to *i32
+// for a : B, return %"B" 
+// for a : Int, return %"Int" 
 auto Get_Attr_Type(CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) {
   auto current_class_name = curr_cls->get_type_name();
   auto attr_offset = (*curr_cls->get_current_clattr_to_offset())[attr_name];
 
   auto type_str = (*curr_cls->get_current_obj_tp())[attr_offset].second->get_type_decl()->get_string();
+  auto struct_type = curr_cls->get_classtable()->Type_Lookup[type_str];
   if (type_str == "SELF_TYPE") {
-    type_str = current_class_name;
+    struct_type = curr_cls->get_classtable()->Type_Lookup[current_class_name];
   }
 
-  return type_str;
+  return struct_type;
 }
 
-auto Get_Func_Addr(CgenNode* cls, std::string func_name) {
+// return i32 (%F*,i1,i32) ** 
+// [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr act as %tmp.47
+auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr, std::string func_name) {
+  // [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr acts as %tmp.47 || class_name acts as %F
+  auto class_for_func = env->Type_Lookup[func_class->get_type_name()];
+  auto vtable_prototype_ptr = env->builder.CreateGEP(class_for_func, ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0)});
   
+  // %tmp.50 = load %_F_vtable*, %_F_vtable** %tmp.49 
+  auto vtable_type = env->Vtable_Type_Lookup[func_class->get_vtable_type_name()];
+  auto vtable_ptr = env->builder.CreateLoad(llvm::PointerType::get(vtable_type, 0), vtable_prototype_ptr);
+  
+  // %tmp.51 = getelementptr %_F_vtable, %_F_vtable* %tmp.50, i32 0, i32 9 
+  auto offset = (*func_class->get_current_clmethod_to_offset())[func_name];
+  auto func_ptr = env->builder.CreateGEP(vtable_type, vtable_ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), offset)});
+
+  return func_ptr;
 }
 
 // current env, class curr_cls {}, .....
-// [let33(x : Int, y : B): Int] ----> [i32 @Main.let33(%Main* %self, i32 %x, %B* %y)]
-auto Create_Para(CgenEnvironment* env, CgenNode* curr_cls, std::string decl_type, std::string para_name) {
-  // the type could be Int, SELF_TYPE, B
-  if (decl_type == "Int") {
+// [let33(x : Int, y : B*): Int] ----> [i32 @Main.let33(%Main* %self, i32 %x, %B* %y)]
+// for x : i32, alloca(i32), bind to *i32 || need to store i32 -> *i32
+// for y : B*, alloca(B*), bind to **B || need to store *B -> **B
+auto Create_Param(CgenEnvironment* env, llvm::Function* func_ptr, method_class* method_ptr) {
+  auto formals = *(method_ptr->get_formals());
 
-  } else if (decl_type == "Bool") {
+  int i = 0;
+  for (auto& arg: func_ptr->args()) {
+    if (i == 0) {
+      arg.setName("self");
+    } else {
+      arg.setName(formals->nth(i-1)->get_name()->get_string());
+    }
+    i += 1;
+  }
 
-  } else if (decl_type == "SELF_TYPE") {
-
-  } else {
-
+  auto func_entry_block = llvm::BasicBlock::Create(env->context, "entry", func_ptr);
+  env->builder.SetInsertPoint(func_entry_block);
+  auto func_abort_block = env->get_or_insert_abort_block(func_ptr);
+  env->set_abrt(func_abort_block);
+  
+  i = 0;
+  for (auto& arg: func_ptr->args()) {
+    auto alloca_addr = env->insert_alloca_at_head(arg.getType()); 
+    env->builder.CreateStore(&arg, alloca_addr);
+    if (i == 0) {
+      env->SELF_ADDR = alloca_addr;
+    } else {
+      env->add_var_addr_mp3(formals->nth(i-1)->get_name(), alloca_addr);
+      env->add_var_type_mp3(formals->nth(i-1)->get_name(), env->Type_Lookup[formals->nth(i-1)->get_type_decl()->get_string()]);
+    }
+    i += 1;
   }
 }
 

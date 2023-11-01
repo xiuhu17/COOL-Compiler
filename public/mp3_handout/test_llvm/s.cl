@@ -104,6 +104,9 @@ class F inherits E{
     test14() : B {
         self
     };
+    test15() : Int {
+        test2(false, 1)
+    };
 };
 
 

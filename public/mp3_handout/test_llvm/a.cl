@@ -10,6 +10,7 @@ class Main inherits IO
   test3 : Main;
   y : B;
   x : Int;
+  z : Int <- x + 2;
   func():Bool {2=5};
   main():Object {{ 
 		let x : A <- new B in out_string("test"); 
@@ -79,7 +80,7 @@ class Main inherits IO
   };
   let33(x : Int, y : B): Int {
     {
-      3;
+      x + 2;
     }
   };
 };
