@@ -651,6 +651,7 @@ void CgenNode::code_init_function() {
   // TODO: add code here
   CgenEnvironment env(this);
   // include inheritance
+  
 }
 
 // Class codegen. This should performed after every class has been setup.

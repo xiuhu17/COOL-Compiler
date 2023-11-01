@@ -84,3 +84,22 @@ class Main inherits IO
     }
   };
 };
+
+class C{
+  a : Int;
+  b : B;
+  c : SELF_TYPE;
+};
+
+class D inherits C{
+  d : Int;
+  e : B;
+  f : SELF_TYPE;
+};
+
+  --test1 : String <- "test";
+  --test2 : A <- new B;
+  --test3 : Main;
+  --y : B;
+  --x : Int;
+  --z : Int <- x + 2;

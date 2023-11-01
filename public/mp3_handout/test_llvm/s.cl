@@ -66,6 +66,7 @@ class F inherits E{
     x : String;
     w : E;
     k : Int;
+    p : B;
     test9(aa : Bool, kk: Int, t : F) : SELF_TYPE {
         self
     };
@@ -106,6 +107,10 @@ class F inherits E{
     };
     test15() : Int {
         test2(false, 1)
+    };
+
+    test16() : Int {
+        p.test2(false, 1)
     };
 };
 

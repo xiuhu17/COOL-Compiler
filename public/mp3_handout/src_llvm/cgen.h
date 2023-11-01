@@ -238,7 +238,8 @@ public:
   CgenEnvironment(CgenNode *cur_class)
       : FUNC_PTR(0), SELF_ADDR(0), var_table(), var_tp_table(), var_addr_mp3(), var_type_mp3(), cur_class(cur_class),
         class_table(*cur_class->get_classtable()), context(class_table.context),
-        builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup), Vtable_Type_Lookup(class_table.Vtable_Type_Lookup), Vtable_Proto_Lookup(class_table.Vtable_Proto_Lookup){
+        builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup), Vtable_Type_Lookup(class_table.Vtable_Type_Lookup), Vtable_Proto_Lookup(class_table.Vtable_Proto_Lookup),
+        strEntry_to_GlobalStr(class_table.strEntry_to_GlobalStr), llmethod_to_Funtion_Ptr(class_table.llmethod_to_Funtion_Ptr) {
     tmp_count = 0;
     ok_count = 0;
     loop_count = 0;
@@ -326,10 +327,13 @@ void close_var_type_mp3() {var_type_mp3.exitscope(); }
   // CgenEnv corropsoning function pointer
   llvm::Function* FUNC_PTR;
   // SELF_ADDR is **B which could store *B; load **B to get *B; *B could be used in [Get_Attr_Addr, Get_Func_Addr] function
-  // it is just a text, help for generating ll code(getelementptr); same as add, alloca, ...
+  // it is just a text, help for generating ll code(getelementptr); same as other instruction, for example, add, alloca, ...
+  // for current CgenEnv/method, for specific ll function body; for example, define i32 @F.test16(%F* %self) {...}
+  // ----------------------------------------------------------------------------------------
   // let33(x : Int, y : B*): Int] ----> [i32 @Main.let33(%Main* %self, i32 %x, %B* %y)
   // [%tmp.102 = alloca %Main*]
   // [store %Main* %self, %Main** %tmp.102] || SELF_ADDR is %tmp.102
+  // -----------------------------------------------------------------------------------------
   llvm::Value* SELF_ADDR; 
 private:
   // mapping from variable names to memory locations
@@ -356,6 +360,8 @@ public:
   std::unordered_map<std::string, llvm::StructType*> &Type_Lookup;
   std::unordered_map<std::string, llvm::StructType*> &Vtable_Type_Lookup;
   std::unordered_map<std::string, llvm::GlobalVariable*> &Vtable_Proto_Lookup;
+  std::unordered_map<int, llvm::GlobalVariable*> &strEntry_to_GlobalStr; 
+  std::unordered_map<std::string, llvm::Function*> &llmethod_to_Funtion_Ptr;
 };
 
 #ifdef MP3
@@ -369,25 +375,32 @@ llvm::Value *conform(llvm::Value *src, llvm::Type *dest_type,
 
 
 // box i32 ---> Int 
-llvm::CallInst* BOX(CgenClassTable* clstb, llvm::Value *prim, CgenEnvironment *env) {
+//	%tmp.3 = load i32, i32* %tmp.2      || prim is %tmp.3
+//	%tmp.5 = call %Int* @Int_new(  )    || ret is %tmp.5
+//	call void(%Int*, i32 ) @Int_init( %Int* %tmp.5, i32 %tmp.3 ) || prim is %tmp.3 || ret is %tmp.5
+//  %tmp.6 = getelementptr %Int, %Int* %tmp.5, i32 0, i32 0
+//	%tmp.7 = load %_Int_vtable*, %_Int_vtable** %tmp.6
+llvm::CallInst* BOX(CgenEnvironment *env, llvm::Value *prim) {
   if (prim->getType()->isIntegerTy(32)) { // i32
-    auto int_new_type = clstb->llmethod_to_Funtion_Ptr["Int_new"];
-    auto int_new_callee = clstb->the_module.getOrInsertFunction("Int_new", int_new_type->getType());
-    auto int_new_allocated = clstb->builder.CreateCall(int_new_callee, {});
+    //	%tmp.5 = call %Int* @Int_new(  )
+    auto int_new_type = env->llmethod_to_Funtion_Ptr["Int_new"];
+    auto int_new_callee = env->the_module.getOrInsertFunction("Int_new", int_new_type->getType());
+    auto int_new_allocated = env->builder.CreateCall(int_new_callee, {});
 
-    auto int_init_type = clstb->llmethod_to_Funtion_Ptr["Int_init"];
-    auto int_init_callee = clstb->the_module.getOrInsertFunction("Int_init", int_init_type->getType());
-    clstb->builder.CreateCall(int_init_callee, {int_new_allocated, prim});
+    //	call void(%Int*, i32 ) @Int_init( %Int* %tmp.5, i32 %tmp.3 )
+    auto int_init_type = env->llmethod_to_Funtion_Ptr["Int_init"];
+    auto int_init_callee = env->the_module.getOrInsertFunction("Int_init", int_init_type->getType());
+    env->builder.CreateCall(int_init_callee, {int_new_allocated, prim});
 
     return int_new_allocated;
   } else if (prim->getType()->isIntegerTy(1)) { // i1
-    auto bool_new_type = clstb->llmethod_to_Funtion_Ptr["Bool_new"];
-    auto bool_new_callee = clstb->the_module.getOrInsertFunction("Bool_new", bool_new_type->getType());
-    auto bool_new_allocated = clstb->builder.CreateCall(bool_new_callee, {});
+    auto bool_new_type = env->llmethod_to_Funtion_Ptr["Bool_new"];
+    auto bool_new_callee = env->the_module.getOrInsertFunction("Bool_new", bool_new_type->getType());
+    auto bool_new_allocated = env->builder.CreateCall(bool_new_callee, {});
 
-    auto bool_init_type = clstb->llmethod_to_Funtion_Ptr["Bool_init"];
-    auto bool_init_callee = clstb->the_module.getOrInsertFunction("Bool_init", bool_init_type->getType());
-    clstb->builder.CreateCall(bool_init_callee, {bool_new_allocated, prim});
+    auto bool_init_type = env->llmethod_to_Funtion_Ptr["Bool_init"];
+    auto bool_init_callee = env->the_module.getOrInsertFunction("Bool_init", bool_init_type->getType());
+    env->builder.CreateCall(bool_init_callee, {bool_new_allocated, prim});
 
     return bool_new_allocated;
   } 
@@ -400,10 +413,12 @@ llvm::CallInst* BOX(CgenClassTable* clstb, llvm::Value *prim, CgenEnvironment *e
 // for a : Int, return *i32 || store i32 -> * i32
 // current env, class curr_cls {}, .....
 // curr_cls is always current class, because only current class can access the attribute
+// let11(): Int ------->  define i32 @Main.let11(%Main* %self)
 // [%tmp.95 = alloca %Main*] [store %Main* %self, %Main** %tmp.95] [%tmp.96 = load %Main*, %Main** %tmp.95] || CgenEnvironment::SELF_ADDR acts as %tmp.95
 // [%tmp.97 = getelementptr %Main, %Main* %tmp.96, i32 0, i32 4], [%tmp.98 = load %B*, %B** %tmp.97] || ptr acts as %tmp.96 || ret acts as %tmp.97
 // [%tmp.100 = getelementptr %Main, %Main* %tmp.99, i32 0, i32 5] [%tmp.101 = load i32, i32* %tmp.100] || ptr acts as %tmp.99 || ret acts as %tmp.100
 auto Get_Attr_Addr(CgenEnvironment* env, CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) {
+  // [%tmp.97 = getelementptr %Main, %Main* %tmp.96, i32 0, i32 4]
   auto current_class_name = curr_cls->get_type_name();
   auto current_class_type = curr_cls->get_classtable()->Type_Lookup[current_class_name];
   auto attr_offset = (*curr_cls->get_current_clattr_to_offset())[attr_name];
@@ -435,6 +450,11 @@ auto Get_Attr_Type(CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) 
 // [%tmp.51 = getelementptr %_F_vtable, %_F_vtable* %tmp.50, i32 0, i32 9] || ret acts as %tmp.51
 // [%tmp.52 = load i32 (%F*,i1,i32) *, i32 (%F*,i1,i32) ** %tmp.51]
 // [%tmp.53 = call i32(%F*, i1, i32 ) %tmp.52( %F* %tmp.47, i1 false, i32 1 )]
+//	%tmp.59 = getelementptr %B, %B* %tmp.57, i32 0, i32 0
+//	%tmp.60 = load %_B_vtable*, %_B_vtable** %tmp.59
+//	%tmp.61 = getelementptr %_B_vtable, %_B_vtable* %tmp.60, i32 0, i32 9
+//	%tmp.62 = load i32 (%B*,i1,i32) *, i32 (%B*,i1,i32) ** %tmp.61
+//	%tmp.63 = call i32(%B*, i1, i32 ) %tmp.62( %B* %tmp.57, i1 false, i32 1 )
 auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr, std::string func_name) {
   // [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr acts as %tmp.47 || func_class acts as %F
   auto class_for_func = env->Type_Lookup[func_class->get_type_name()];
@@ -453,7 +473,7 @@ auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr,
 
 
 // current env, class curr_cls {}, .....
-// let33(x : Int, y : B*): Int] ----> [i32 @Main.let33(%Main* %self, i32 %x, %B* %y)
+// let33(x : Int, y : B*): Int ----> i32 @Main.let33(%Main* %self, i32 %x, %B* %y)
 // [%tmp.102 = alloca %Main*]
 // [%tmp.103 = alloca i32]
 // [%tmp.104 = alloca %B*]

@@ -8,10 +8,10 @@ class Main inherits IO{
             0;
         } 
     };
-        mainn(a: Int) : Int {
+        mainn(a: Int, b: Main, c: Int, d : Int) : Int {
         {   
-            let x : Int in x <- 3;
-            let x : Int in x.type_name();
+            --let x : Int in x <- 3;
+            --let x : Int in x.type_name();
             -- c <- new Int;
             0;
         } 
