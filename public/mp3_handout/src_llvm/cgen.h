@@ -322,8 +322,15 @@ void close_var_type_mp3() {var_type_mp3.exitscope(); }
   void set_abrt(llvm::BasicBlock *abrt_) {
     abrt = abrt_;
   }
+
+  // CgenEnv corropsoning function pointer
   llvm::Function* FUNC_PTR;
-  llvm::Value* SELF_ADDR; // SELF_ADDR is **B which could store *B; load **B to get *B; *B could be used in [Get_Attr_Addr, Get_Func_Addr] function
+  // SELF_ADDR is **B which could store *B; load **B to get *B; *B could be used in [Get_Attr_Addr, Get_Func_Addr] function
+  // it is just a text, help for generating ll code(getelementptr); same as add, alloca, ...
+  // let33(x : Int, y : B*): Int] ----> [i32 @Main.let33(%Main* %self, i32 %x, %B* %y)
+  // [%tmp.102 = alloca %Main*]
+  // [store %Main* %self, %Main** %tmp.102] || SELF_ADDR is %tmp.102
+  llvm::Value* SELF_ADDR; 
 private:
   // mapping from variable names to memory locations
   // need to map to <StructType, bool> bool indicates whether box/unbox
@@ -393,7 +400,7 @@ llvm::CallInst* BOX(CgenClassTable* clstb, llvm::Value *prim, CgenEnvironment *e
 // for a : Int, return *i32 || store i32 -> * i32
 // current env, class curr_cls {}, .....
 // curr_cls is always current class, because only current class can access the attribute
-// [%tmp.96 = load %Main*, %Main** %tmp.95] || CgenEnvironment::SELF_ADDR acts as %tmp.95
+// [%tmp.95 = alloca %Main*] [store %Main* %self, %Main** %tmp.95] [%tmp.96 = load %Main*, %Main** %tmp.95] || CgenEnvironment::SELF_ADDR acts as %tmp.95
 // [%tmp.97 = getelementptr %Main, %Main* %tmp.96, i32 0, i32 4], [%tmp.98 = load %B*, %B** %tmp.97] || ptr acts as %tmp.96 || ret acts as %tmp.97
 // [%tmp.100 = getelementptr %Main, %Main* %tmp.99, i32 0, i32 5] [%tmp.101 = load i32, i32* %tmp.100] || ptr acts as %tmp.99 || ret acts as %tmp.100
 auto Get_Attr_Addr(CgenEnvironment* env, CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) {
@@ -424,10 +431,10 @@ auto Get_Attr_Type(CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) 
 
 // return i32 (%F*,i1,i32) ** 
 // [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr act as %tmp.47 || || func_class acts as %F
-// %tmp.50 = load %_F_vtable*, %_F_vtable** %tmp.49 
-// %tmp.51 = getelementptr %_F_vtable, %_F_vtable* %tmp.50, i32 0, i32 9  || ret acts as %tmp.51
-// %tmp.52 = load i32 (%F*,i1,i32) *, i32 (%F*,i1,i32) ** %tmp.51
-// %tmp.53 = call i32(%F*, i1, i32 ) %tmp.52( %F* %tmp.47, i1 false, i32 1 )
+// [%tmp.50 = load %_F_vtable*, %_F_vtable** %tmp.49] 
+// [%tmp.51 = getelementptr %_F_vtable, %_F_vtable* %tmp.50, i32 0, i32 9] || ret acts as %tmp.51
+// [%tmp.52 = load i32 (%F*,i1,i32) *, i32 (%F*,i1,i32) ** %tmp.51]
+// [%tmp.53 = call i32(%F*, i1, i32 ) %tmp.52( %F* %tmp.47, i1 false, i32 1 )]
 auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr, std::string func_name) {
   // [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr acts as %tmp.47 || func_class acts as %F
   auto class_for_func = env->Type_Lookup[func_class->get_type_name()];
@@ -445,14 +452,14 @@ auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr,
 }
 
 
- // current env, class curr_cls {}, .....
- // [let33(x : Int, y : B*): Int] ----> [i32 @Main.let33(%Main* %self, i32 %x, %B* %y)]
-  // %tmp.102 = alloca %Main*
-	// %tmp.103 = alloca i32
-	// %tmp.104 = alloca %B*
-	// store %Main* %self, %Main** %tmp.102 || SELF_ADDR is %tmp.102
-	// store i32 %x, i32* %tmp.103 || bind x ----> %tmp.103 || type %Int(i32)
-	// store %B* %y, %B** %tmp.104 || bind y ----> %tmp.104 || type %B
+// current env, class curr_cls {}, .....
+// let33(x : Int, y : B*): Int] ----> [i32 @Main.let33(%Main* %self, i32 %x, %B* %y)
+// [%tmp.102 = alloca %Main*]
+// [%tmp.103 = alloca i32]
+// [%tmp.104 = alloca %B*]
+// [store %Main* %self, %Main** %tmp.102] || SELF_ADDR is %tmp.102
+// [store i32 %x, i32* %tmp.103] || bind x ----> %tmp.103 || type %Int(i32)
+// [store %B* %y, %B** %tmp.104] || bind y ----> %tmp.104 || type %B
 auto Create_Param(CgenEnvironment* env, llvm::Function* func_ptr, method_class* method_ptr) {
   auto formals = *(method_ptr->get_formals());
 
