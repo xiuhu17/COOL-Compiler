@@ -235,7 +235,7 @@ public:
   // generation for each method. You may need to add parameters to this
   // constructor.
   CgenEnvironment(CgenNode *cur_class)
-      : SELF_ADDR(0), var_table(), var_tp_table(), var_addr_mp3(), var_type_mp3(), cur_class(cur_class),
+      : FUNC_PTR(0), SELF_ADDR(0), var_table(), var_tp_table(), var_addr_mp3(), var_type_mp3(), cur_class(cur_class),
         class_table(*cur_class->get_classtable()), context(class_table.context),
         builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup), Vtable_Type_Lookup(class_table.Vtable_Type_Lookup), Vtable_Proto_Lookup(class_table.Vtable_Proto_Lookup){
     tmp_count = 0;
@@ -321,6 +321,7 @@ void close_var_type_mp3() {var_type_mp3.exitscope(); }
   void set_abrt(llvm::BasicBlock *abrt_) {
     abrt = abrt_;
   }
+  llvm::Function* FUNC_PTR;
   llvm::Value* SELF_ADDR; // SELF_ADDR is **B which could store *B; load **B to get *B; *B could be used in [Get_Attr_Addr, Get_Func_Addr] function
 private:
   // mapping from variable names to memory locations
