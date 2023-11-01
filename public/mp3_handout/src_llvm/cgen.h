@@ -236,7 +236,7 @@ public:
   // generation for each method. You may need to add parameters to this
   // constructor.
   CgenEnvironment(CgenNode *cur_class)
-      : FUNC_PTR(0), SELF_ADDR(0), var_table(), var_tp_table(), var_addr_mp3(), var_type_mp3(), cur_class(cur_class),
+      : FUNC_PTR(0), SELF_ADDR(0), cur_class(cur_class), var_table(), var_tp_table(), var_addr_mp3(), var_type_mp3(), 
         class_table(*cur_class->get_classtable()), context(class_table.context),
         builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup), Vtable_Type_Lookup(class_table.Vtable_Type_Lookup), Vtable_Proto_Lookup(class_table.Vtable_Proto_Lookup),
         strEntry_to_GlobalStr(class_table.strEntry_to_GlobalStr), llmethod_to_Funtion_Ptr(class_table.llmethod_to_Funtion_Ptr) {
@@ -336,6 +336,8 @@ void close_var_type_mp3() {var_type_mp3.exitscope(); }
   // -----------------------------------------------------------------------------------------
   llvm::Value* SELF_ADDR; 
 private:
+  CgenNode *cur_class;
+
   // mapping from variable names to memory locations
   // need to map to <StructType, bool> bool indicates whether box/unbox
   cool::SymbolTable<llvm::Value> var_table;
@@ -346,7 +348,7 @@ private:
   cool::SymbolTable<llvm::Value> var_addr_mp3;
   cool::SymbolTable<llvm::StructType> var_type_mp3;
 
-  CgenNode *cur_class;
+  
   int tmp_count, ok_count; 
   int loop_count, true_count, false_count, end_count;
   llvm::BasicBlock *abrt;
@@ -385,22 +387,22 @@ llvm::CallInst* BOX(CgenEnvironment *env, llvm::Value *prim) {
   if (prim->getType()->isIntegerTy(32)) { // i32
     //	%tmp.5 = call %Int* @Int_new(  )
     auto int_new_type = env->llmethod_to_Funtion_Ptr["Int_new"];
-    auto int_new_callee = env->the_module.getOrInsertFunction("Int_new", int_new_type->getType());
+    auto int_new_callee = env->the_module.getOrInsertFunction("Int_new", int_new_type->getFunctionType());
     auto int_new_allocated = env->builder.CreateCall(int_new_callee, {});
 
     //	call void(%Int*, i32 ) @Int_init( %Int* %tmp.5, i32 %tmp.3 )
     auto int_init_type = env->llmethod_to_Funtion_Ptr["Int_init"];
-    auto int_init_callee = env->the_module.getOrInsertFunction("Int_init", int_init_type->getType());
+    auto int_init_callee = env->the_module.getOrInsertFunction("Int_init", int_init_type->getFunctionType());
     env->builder.CreateCall(int_init_callee, {int_new_allocated, prim});
 
     return int_new_allocated;
   } else if (prim->getType()->isIntegerTy(1)) { // i1
     auto bool_new_type = env->llmethod_to_Funtion_Ptr["Bool_new"];
-    auto bool_new_callee = env->the_module.getOrInsertFunction("Bool_new", bool_new_type->getType());
+    auto bool_new_callee = env->the_module.getOrInsertFunction("Bool_new", bool_new_type->getFunctionType());
     auto bool_new_allocated = env->builder.CreateCall(bool_new_callee, {});
 
     auto bool_init_type = env->llmethod_to_Funtion_Ptr["Bool_init"];
-    auto bool_init_callee = env->the_module.getOrInsertFunction("Bool_init", bool_init_type->getType());
+    auto bool_init_callee = env->the_module.getOrInsertFunction("Bool_init", bool_init_type->getFunctionType());
     env->builder.CreateCall(bool_init_callee, {bool_new_allocated, prim});
 
     return bool_new_allocated;
@@ -434,7 +436,7 @@ auto Get_Attr_Addr(CgenEnvironment* env, CgenNode* curr_cls, llvm::Value* ptr, s
 // for b : Int, return %"Int" 
 auto Get_Attr_Type(CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) {
   auto current_class_name = curr_cls->get_type_name();
-  auto attr_offset = (*curr_cls->get_current_clattr_to_offset())[attr_name];
+  auto attr_offset = (*curr_cls->get_current_clattr_to_offset())[attr_name] - 1; assert(attr_offset >= 0);
 
   auto type_str = (*curr_cls->get_current_obj_tp())[attr_offset].second->get_type_decl()->get_string();
   auto struct_type = curr_cls->get_classtable()->Type_Lookup[type_str];
@@ -456,7 +458,7 @@ auto Get_Attr_Type(CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) 
 // %tmp.61 = getelementptr %_C_vtable, %_C_vtable* %tmp.60, i32 0, i32 9 || ret acts as %tmp.61
 // %tmp.62 = load i32 (%C*,i1,i32) *, i32 (%C*,i1,i32) ** %tmp.61
 // %tmp.63 = call i32(%C*, i1, i32 ) %tmp.62( %C* %tmp.57, i1 false, i32 1 )
-auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr, std::string func_name) {
+auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr, std::string clfunc_name) {
   // [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr acts as %tmp.47 || func_class acts as %F
   auto class_for_func = env->Type_Lookup[func_class->get_type_name()];
   auto vtable_prototype_ptr = env->builder.CreateGEP(class_for_func, ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0)});
@@ -466,20 +468,23 @@ auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr,
   auto vtable_ptr = env->builder.CreateLoad(llvm::PointerType::get(vtable_type, 0), vtable_prototype_ptr);
   
   // %tmp.51 = getelementptr %_F_vtable, %_F_vtable* %tmp.50, i32 0, i32 9 
-  auto func_offset = (*func_class->get_current_clmethod_to_offset())[func_name];
+  auto func_offset = (*func_class->get_current_clmethod_to_offset())[clfunc_name];
   auto func_ptr = env->builder.CreateGEP(vtable_type, vtable_ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), func_offset)});
 
   return func_ptr;
 }
+// return the type of Function Pointer, for load purpose, for i32 (%F*,i1,i32) ** %tmp.51 
+// [%tmp.52 = load i32 (%F*,i1,i32) *, i32 (%F*,i1,i32) ** %tmp.51] 
+// .getType(): "i32 (%F*,i1,i32) *" || .getFunctionType(): "i32 (%F*,i1,i32)" || .getName().str(): get_func_ll_name
+auto Get_Func_Ptr(CgenEnvironment* env, CgenNode* func_class, std::string clfunc_name) {
+  auto func_offset = (*func_class->get_current_clmethod_to_offset())[clfunc_name] - 4; assert(func_offset >= 0);
 
-// [%tmp.52 = load i32 (%F*,i1,i32) *, i32 (%F*,i1,i32) ** %tmp.51] || ret i32 (%F*,i1,i32) *
-auto Get_Func_Type(CgenEnvironment* env, CgenNode* func_class, std::string func_name) {
-  auto func_offset = (*func_class->get_current_clmethod_to_offset())[func_name];
   auto [defined_class, defined_method] = (*func_class->get_current_vtable_tp())[func_offset];
   auto get_func_ll_name = defined_class->get_function_name(defined_method->get_name()->get_string());
   auto function_ptr = env->llmethod_to_Funtion_Ptr[get_func_ll_name];
 
-  return function_ptr->getType();
+  assert(function_ptr);
+  return function_ptr;
 }
 
 // current env, class curr_cls {}, .....

@@ -649,10 +649,15 @@ void CgenNode::layout_features() {
 
 void CgenNode::code_init_function() {
   // TODO: add code here
+  if (basic()) {
+    return;
+  }
+
   CgenEnvironment env(this);
 
   // basic settup
   auto new_func_pointer = env.llmethod_to_Funtion_Ptr[get_init_function_name()];
+  env.FUNC_PTR = new_func_pointer;
   auto func_entry_block = llvm::BasicBlock::Create(env.context, "entry", new_func_pointer);
   env.builder.SetInsertPoint(func_entry_block);
   auto func_abort_block = env.get_or_insert_abort_block(new_func_pointer);
@@ -668,10 +673,18 @@ void CgenNode::code_init_function() {
     %malloc.null = icmp eq %Main* %tmp.111, null
     br i1 %malloc.null, label %abort, label %okay
   */
-  auto allocated_curr_class_ptr
-  
+  auto curr_type = env.Type_Lookup[get_type_name()];
+  auto allocated_curr_class_ptr = env.insert_alloca_at_head(llvm::PointerType::get(curr_type, 0)); // %Main*
+  auto vtable_type = env.Vtable_Type_Lookup[get_vtable_type_name()]; // %_Main_vtable
+  auto vtable_proto = env.Vtable_Proto_Lookup[get_vtable_name()]; // @_Main_vtable_prototype
+  auto grab_size_ptr = env.builder.CreateGEP(vtable_type, vtable_proto, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env.context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env.context), 1)}); // i32 0, i32 1
+  auto grab_size = env.builder.CreateLoad(llvm::Type::getInt32Ty(env.context), grab_size_ptr); // load i32
+  auto malloc_func_callee = env.the_module.getOrInsertFunction("malloc", env.llmethod_to_Funtion_Ptr["malloc"]->getFunctionType());
+  auto malloc_alloc = env.builder.CreateCall(malloc_func_callee, {grab_size}); // call i8*(i32 ) @malloc( i32 %tmp.109 )
+  /* compare */
 
   // include inheritance
+  
 }
 
 // Class codegen. This should performed after every class has been setup.

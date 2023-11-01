@@ -110,7 +110,12 @@ class F inherits E{
     };
 
     test16() : Int {
-        p.test2(false, 1)
+        {
+            p.test2(false, 1);
+            new C;
+            new D;
+            0;
+        }
     };
 };
 
