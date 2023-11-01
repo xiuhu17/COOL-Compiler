@@ -650,8 +650,28 @@ void CgenNode::layout_features() {
 void CgenNode::code_init_function() {
   // TODO: add code here
   CgenEnvironment env(this);
-  // include inheritance
+
+  // basic settup
+  auto new_func_pointer = env.llmethod_to_Funtion_Ptr[get_init_function_name()];
+  auto func_entry_block = llvm::BasicBlock::Create(env.context, "entry", new_func_pointer);
+  env.builder.SetInsertPoint(func_entry_block);
+  auto func_abort_block = env.get_or_insert_abort_block(new_func_pointer);
+  env.set_abrt(func_abort_block);
+
+  /*
+  setup entry block
+  	%tmp.107 = alloca %Main*
+    %tmp.108 = getelementptr %_Main_vtable, %_Main_vtable* @_Main_vtable_prototype, i32 0, i32 1
+    %tmp.109 = load i32, i32* %tmp.108
+    %tmp.110 = call i8*(i32 ) @malloc( i32 %tmp.109 )
+    %tmp.111 = bitcast i8* %tmp.110 to %Main*
+    %malloc.null = icmp eq %Main* %tmp.111, null
+    br i1 %malloc.null, label %abort, label %okay
+  */
+  auto allocated_curr_class_ptr
   
+
+  // include inheritance
 }
 
 // Class codegen. This should performed after every class has been setup.

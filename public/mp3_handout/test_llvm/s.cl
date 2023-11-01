@@ -66,7 +66,7 @@ class F inherits E{
     x : String;
     w : E;
     k : Int;
-    p : B;
+    p : C;
     test9(aa : Bool, kk: Int, t : F) : SELF_TYPE {
         self
     };

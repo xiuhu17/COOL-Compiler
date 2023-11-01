@@ -338,10 +338,11 @@ void close_var_type_mp3() {var_type_mp3.exitscope(); }
 private:
   // mapping from variable names to memory locations
   // need to map to <StructType, bool> bool indicates whether box/unbox
-  // TODO: 
   cool::SymbolTable<llvm::Value> var_table;
   cool::SymbolTable<llvm::Type> var_tp_table;
 
+  // only parameter and local are stored inside the mapping
+  // attribute need to be get from getelementptr
   cool::SymbolTable<llvm::Value> var_addr_mp3;
   cool::SymbolTable<llvm::StructType> var_type_mp3;
 
@@ -450,11 +451,11 @@ auto Get_Attr_Type(CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) 
 // [%tmp.51 = getelementptr %_F_vtable, %_F_vtable* %tmp.50, i32 0, i32 9] || ret acts as %tmp.51
 // [%tmp.52 = load i32 (%F*,i1,i32) *, i32 (%F*,i1,i32) ** %tmp.51]
 // [%tmp.53 = call i32(%F*, i1, i32 ) %tmp.52( %F* %tmp.47, i1 false, i32 1 )]
-//	%tmp.59 = getelementptr %B, %B* %tmp.57, i32 0, i32 0
-//	%tmp.60 = load %_B_vtable*, %_B_vtable** %tmp.59
-//	%tmp.61 = getelementptr %_B_vtable, %_B_vtable* %tmp.60, i32 0, i32 9
-//	%tmp.62 = load i32 (%B*,i1,i32) *, i32 (%B*,i1,i32) ** %tmp.61
-//	%tmp.63 = call i32(%B*, i1, i32 ) %tmp.62( %B* %tmp.57, i1 false, i32 1 )
+// %tmp.59 = getelementptr %C, %C* %tmp.57, i32 0, i32 0   || ptr act as %tmp.57 || || func_class acts as %C
+// %tmp.60 = load %_C_vtable*, %_C_vtable** %tmp.59
+// %tmp.61 = getelementptr %_C_vtable, %_C_vtable* %tmp.60, i32 0, i32 9 || ret acts as %tmp.61
+// %tmp.62 = load i32 (%C*,i1,i32) *, i32 (%C*,i1,i32) ** %tmp.61
+// %tmp.63 = call i32(%C*, i1, i32 ) %tmp.62( %C* %tmp.57, i1 false, i32 1 )
 auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr, std::string func_name) {
   // [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr acts as %tmp.47 || func_class acts as %F
   auto class_for_func = env->Type_Lookup[func_class->get_type_name()];
@@ -465,12 +466,21 @@ auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr,
   auto vtable_ptr = env->builder.CreateLoad(llvm::PointerType::get(vtable_type, 0), vtable_prototype_ptr);
   
   // %tmp.51 = getelementptr %_F_vtable, %_F_vtable* %tmp.50, i32 0, i32 9 
-  auto offset = (*func_class->get_current_clmethod_to_offset())[func_name];
-  auto func_ptr = env->builder.CreateGEP(vtable_type, vtable_ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), offset)});
+  auto func_offset = (*func_class->get_current_clmethod_to_offset())[func_name];
+  auto func_ptr = env->builder.CreateGEP(vtable_type, vtable_ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), func_offset)});
 
   return func_ptr;
 }
 
+// [%tmp.52 = load i32 (%F*,i1,i32) *, i32 (%F*,i1,i32) ** %tmp.51] || ret i32 (%F*,i1,i32) *
+auto Get_Func_Type(CgenEnvironment* env, CgenNode* func_class, std::string func_name) {
+  auto func_offset = (*func_class->get_current_clmethod_to_offset())[func_name];
+  auto [defined_class, defined_method] = (*func_class->get_current_vtable_tp())[func_offset];
+  auto get_func_ll_name = defined_class->get_function_name(defined_method->get_name()->get_string());
+  auto function_ptr = env->llmethod_to_Funtion_Ptr[get_func_ll_name];
+
+  return function_ptr->getType();
+}
 
 // current env, class curr_cls {}, .....
 // let33(x : Int, y : B*): Int ----> i32 @Main.let33(%Main* %self, i32 %x, %B* %y)
