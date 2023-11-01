@@ -655,7 +655,25 @@ void CgenNode::code_class() {
     return;
   }
   // TODO: add code here
-  for ()
+
+  for (auto& [FunctionPointer_, method_]: Function_Body_Map) {
+    CgenEnvironment env(this);
+    method_->code(&env);
+    // setup scope for class attribute and parameter
+    auto curr_class_pointer = ;
+
+    // auto Main_main_func = env->create_llvm_function("Main.main", i32, {}, false);
+    // // set the initial block, then later can use env->new_bb_at_fend(); 
+    // // since builder.GetInsertBlock()->getParent() require [->getParent()] as current parent
+    // auto Main_main_entry_block = llvm::BasicBlock::Create(env->context, "entry", Main_main_func); // tie block with parent: Main_main_func
+    // // since builder.GetInsertBlock()->getParent() require [.GetInsertBlock()] as current block
+    // env->builder.SetInsertPoint(Main_main_entry_block);  // tie irbuilder with block : Main_main_entry_block
+    // // builder.GetInsertBlock()->getParent() : Main_main_entry_block->getParent() : Main_main_func // tie new_block with parent : Main_main_func // still same parent : Main_main_func
+    // // builder.SetInsertPoint(new_block) // tie irbuilder with new_block // different block : new_block
+
+    // auto abrt_ = env->get_or_insert_abort_block(Main_main_func);
+    // env->set_abrt(abrt_);
+  }
 }
 
 #else
@@ -768,8 +786,6 @@ Function *method_class::code(CgenEnvironment *env) {
   auto Main_main_ret = expr->code(env);
   // env->builder.CreateRet(ConstantInt::get(Type::getInt32Ty(env->context), 0));
   env->builder.CreateRet(Main_main_ret);
-
-
 
   return Main_main_func;
 }

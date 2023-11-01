@@ -133,6 +133,14 @@ public:
     return &Function_Body_Map;
   }
 
+  auto get_current_clattr_to_offset() {
+    return &clattr_to_offset;
+  }
+
+  auto get_current_clmethod_to_offset() {
+    return &clmethod_to_offset;
+  }
+
   // access parent obj_tp and vtable_tp layout
   std::vector<std::pair<CgenNode *, attr_class *>>* get_parent_obj_tp(){
     if (parentnd == NULL) {
@@ -227,7 +235,7 @@ public:
   // generation for each method. You may need to add parameters to this
   // constructor.
   CgenEnvironment(CgenNode *cur_class)
-      : var_table(), var_tp_table(), cur_class(cur_class),
+      : var_table(), var_tp_table(), cur_class(cur_class), var_addr_mp3(), var_type_mp3(), tp_box_mp3(),
         class_table(*cur_class->get_classtable()), context(class_table.context),
         builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup), Vtable_Type_Lookup(class_table.Vtable_Type_Lookup) {
     tmp_count = 0;
@@ -238,7 +246,9 @@ public:
     end_count = 0;
     var_table.enterscope();
     var_tp_table.enterscope();
-
+    var_addr_mp3.enterscope();
+    var_type_mp3.enterscope();
+    tp_box_mp3.enterscope();
     // TODO: add code here
   }
 
@@ -252,6 +262,13 @@ public:
     return {var_tp_table.find_in_scopes(name), var_table.find_in_scopes(name)};
   }
 
+  auto find_var_addr_mp3(Symbol name) {
+    return var_addr_mp3.find_in_scopes(name);
+  }
+  std::pair<llvm::StructType*, bool *> find_var_type_mp3(Symbol name) {
+    return {var_type_mp3.find_in_scopes(name), tp_box_mp3.find_in_scopes(name)};
+  }
+
   void add_binding(Symbol name, llvm::Value *val_ptr) {
     var_table.insert(name, val_ptr);
   }
@@ -263,6 +280,9 @@ public:
   }
   void var_tp_open_scope() { var_tp_table.enterscope(); }
   void var_tp_close_scope() { var_tp_table.exitscope(); }
+
+  void add_var_addr_mp3(Symbol name, llvm::Value *addr) {var_addr_mp3.insert(name, addr);}
+  void add_var_type_mp3(Symbol name, )
 
   // LLVM Utils:
   // Create a new llvm function in the current module
@@ -312,6 +332,10 @@ private:
   cool::SymbolTable<llvm::Value> var_table;
   cool::SymbolTable<llvm::Type> var_tp_table;
   cool::SymbolTable<bool> var_tp_is_obj;
+
+  cool::SymbolTable<llvm::Value> var_addr_mp3;
+  cool::SymbolTable<llvm::StructType> var_type_mp3;
+  cool::SymbolTable<bool> tp_box_mp3;
 
   CgenNode *cur_class;
   int tmp_count, ok_count; 
@@ -365,6 +389,53 @@ llvm::CallInst* BOX(CgenClassTable* clstb, llvm::Value *prim, CgenEnvironment *e
     
   assert(false);
   return NULL;
+}
+
+// current env, class curr_cls {}, .....
+// curr_cls is always current class, because only current class can access the attribute
+// for a : B, return **B
+// for a : Int, return *i32
+auto Get_Attr_Addr(CgenEnvironment* env, CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) {
+  auto current_class_name = curr_cls->get_type_name();
+  auto current_class_type = curr_cls->get_classtable()->Type_Lookup[current_class_name];
+  auto attr_offset = (*curr_cls->get_current_clattr_to_offset())[attr_name];
+
+  return  env->builder.CreateGEP(current_class_type, ptr, {ConstantInt::get(Type::getInt32Ty(env->context), 0), ConstantInt::get(Type::getInt32Ty(env->context), attr_offset)});
+} 
+
+// if indeed use attribute rather than local, para, then we need to get the type
+// %A, %B, %IO, %Int, SELF_TYPE = ..., ...
+// for B, we need to store *B to ** B
+// for Int, we need to store i32 to *i32
+auto Get_Attr_Type(CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) {
+  auto current_class_name = curr_cls->get_type_name();
+  auto attr_offset = (*curr_cls->get_current_clattr_to_offset())[attr_name];
+
+  auto type_str = (*curr_cls->get_current_obj_tp())[attr_offset].second->get_type_decl()->get_string();
+  if (type_str == "SELF_TYPE") {
+    type_str = current_class_name;
+  }
+
+  return type_str;
+}
+
+auto Get_Func_Addr(CgenNode* cls, std::string func_name) {
+  
+}
+
+// current env, class curr_cls {}, .....
+// [let33(x : Int, y : B): Int] ----> [i32 @Main.let33(%Main* %self, i32 %x, %B* %y)]
+auto Create_Para(CgenEnvironment* env, CgenNode* curr_cls, std::string decl_type, std::string para_name) {
+  // the type could be Int, SELF_TYPE, B
+  if (decl_type == "Int") {
+
+  } else if (decl_type == "Bool") {
+
+  } else if (decl_type == "SELF_TYPE") {
+
+  } else {
+
+  }
 }
 
 llvm::FunctionType* functp_helper(CgenNode* cls, method_class* md) {

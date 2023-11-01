@@ -4,10 +4,11 @@ class A{};
 Class B inherits A{};
 
 class Main inherits IO
-{ 
+{     
   test1 : String <- "test";
   test2 : A <- new B;
   test3 : Main;
+  y : B;
   x : Int;
   func():Bool {2=5};
   main():Object {{ 
@@ -68,6 +69,17 @@ class Main inherits IO
     {
       let x : Int, y : Object in y <- x;
       self;
+    }
+  };
+  let11(): Int {
+    { 
+      y;
+      x;
+    }
+  };
+  let33(x : Int, y : B): Int {
+    {
+      3;
     }
   };
 };
