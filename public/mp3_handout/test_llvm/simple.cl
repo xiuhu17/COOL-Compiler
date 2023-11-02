@@ -56,10 +56,10 @@ class  D inherits C{
         x + 2
     };
 };
-*)
+
 class F {
-    test1():Object{
-        0
+    test1():F{
+        self
     };
     test2():Object{
         new Int
@@ -77,7 +77,7 @@ class F {
         let x : Int in x.copy()
     };
 };
-
+*)
 
 
 -- llvm::Function* test; test.getType(); test.getFunctionType(); test.getname(); 

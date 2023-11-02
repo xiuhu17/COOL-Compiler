@@ -13,8 +13,7 @@ class Main inherits IO
   z : Int <- x + 2;
   func():Bool {2=5};
   main():Object {{ 
-		let x : A <- new B in out_string("test"); 
-	self; 
+		let x : A <- new B in out_string("test");  
   }};
 
 

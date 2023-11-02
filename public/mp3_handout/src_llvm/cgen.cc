@@ -253,6 +253,7 @@ void CgenClassTable::install_class(CgenNode *nd) {
     nds.push_back(nd);
     this->insert(name, nd);
     Type_Lookup[nd->get_type_name()] = llvm::StructType::create(context, nd->get_type_name());
+    Name_to_Node[nd->get_type_name()] = nd;
     Vtable_Type_Lookup[nd->get_vtable_type_name()] = llvm::StructType::create(context, nd->get_vtable_type_name());
   }
 }
@@ -376,23 +377,44 @@ void CgenClassTable::code_constants() {
 
 // Create LLVM entry point. This function will initiate our Cool program
 // by generating the code to execute (new Main).main()
-//
+// define i32 @main() {
+// entry:
+// %main.obj = call %Main*() @Main_new( )
+// %main.retval = call i32(%Main*) @Main.main( %Main* %main.obj )
+// ret i32 0
+// }
 void CgenClassTable::code_main(){
 // TODO: add code here
+#ifdef MP3
+// MP3
+
+llvm::Type* i32 = Type::getInt32Ty(this->context);
+auto main_func = create_llvm_function("main", i32, {}, false);
+auto main_entry_block = llvm::BasicBlock::Create(context, "entry", main_func);
+builder.SetInsertPoint(main_entry_block);
+auto Main_new = llmethod_to_Funtion_Ptr["Main_new"];
+auto Main_new_Callee = the_module.getOrInsertFunction("Main_new", Main_new->getFunctionType());
+auto main_obj = builder.CreateCall(Main_new_Callee);
+auto Main_main = llmethod_to_Funtion_Ptr["Main_main"];
+auto Main_main_Callee = the_module.getOrInsertFunction("Main_main", Main_main->getFunctionType());
+auto main_retval = builder.CreateCall(Main_main_Callee, main_obj);
+builder.CreateRet(ConstantInt::get(i32, 0));
+
+#else
   Type *i32 = Type::getInt32Ty(this->context),
        *i8_ptr = Type::getInt8PtrTy(this->context);
   
   llvm::StringRef Main_main_str = "Main.main() returned %d\x0A\x00";
   auto Main_main_val = this->builder.CreateGlobalString(Main_main_str, "main.printout.str", 0, &the_module);
 
-// Define a function main that has no parameters and returns an i32
+  // Define a function main that has no parameters and returns an i32
   auto main_func = create_llvm_function("main", i32, {}, false);
 
-// Define an entry basic block
+  // Define an entry basic block
   auto main_entry_block = llvm::BasicBlock::Create(context, "entry", main_func); // function tie with block
   builder.SetInsertPoint(main_entry_block);  // irbuilder tie with block
   
-// Call Main_main(). This returns int for phase 1, Object for phase 2
+  // Call Main_main(). This returns int for phase 1, Object for phase 2
   auto Main_main_tp = FunctionType::get(i32, {}, false);
   auto Main_main_callee = the_module.getOrInsertFunction("Main.main", Main_main_tp);
   auto Main_main_ret = builder.CreateCall(Main_main_callee);
@@ -405,17 +427,6 @@ void CgenClassTable::code_main(){
   builder.CreateCall(printf_callee, {ele_ptr, Main_main_ret});
 
   builder.CreateRet(ConstantInt::get(Type::getInt32Ty(this->context), 0));
-#ifdef MP3
-// MP3
-#else
-// MP2
-// Get the address of the string "Main_main() returned %d\n" using
-// getelementptr
-
-// Call printf with the string address of "Main_main() returned %d\n"
-// and the return value of Main_main() as its arguments
-
-// Insert return 0
 #endif
 }
 
@@ -717,6 +728,7 @@ void CgenNode::code_init_function() {
     }
   }
 
+  // TODO: handle the second pass-----------------------------------------------------------------------------------------------------------------
   // loop over the true expr
   // for (auto& [defined_class, defined_attr]: obj_tp) {
   //
@@ -832,6 +844,8 @@ Function *method_class::code(CgenEnvironment *env) {
   }
 
   auto Main_main_ret = expr->code(env);
+
+  // TODO: handle the return; and return type -----------------------------------------------------------------------------------------------------------------
   env->builder.CreateRet(Main_main_ret);
 
   return env->FUNC_PTR;

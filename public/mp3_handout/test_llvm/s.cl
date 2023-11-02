@@ -15,11 +15,14 @@ class B {
     test1(aa : Bool, kk: Int) : SELF_TYPE {
         self
     };
-    test2(aa : Bool, kk: Int) : Int {
-        0
+    test2() : SELF_TYPE {
+        {
+            0;
+            self;
+        }
     };
     test3(aa : Bool, kk: Int, ee : B) : Int {
-        test2(false, 0)
+        {test2(); 0;}
     };
     
 };
@@ -105,18 +108,25 @@ class F inherits E{
     test14() : B {
         self
     };
+    ----------------------------------------------------------------------
     test15() : Int {
-        test2(false, 1)
+        {test2(); 0;}
     };
 
     test16() : Int {
         {
-            p.test2(false, 1);
-            new C;
-            new D;
+            p.test2();
             0;
         }
     };
+
+    test17() : Int {
+        {
+            p@B.test2();
+            0;
+        }
+    };
+    ----------------------------------------------------------------------
 };
 
 
@@ -153,7 +163,7 @@ class Main inherits IO{
             c <- new C;
             --let y : C in y <- new C;
             --let x : C in x <- c;
-            --let x : C in x.test2(false, 0);
+            --let x : C in x.test2();
             0;
         } 
     };

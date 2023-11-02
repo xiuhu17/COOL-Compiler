@@ -89,6 +89,7 @@ public:
   std::unordered_map<std::string, llvm::GlobalVariable*> Vtable_Proto_Lookup; // My_Type_vtable_prototype ---> @_My_Type_vtable_prototype
   std::unordered_map<int, llvm::GlobalVariable*> strEntry_to_GlobalStr; // string entry's index ---> @String.index
   std::unordered_map<std::string, llvm::Function*> llmethod_to_Funtion_Ptr; // My_Type_test1 ---> function pointer
+  std::unordered_map<std::string, CgenNode*> Name_to_Node;  // StructType to Node
 };
 
 // Each CgenNode corresponds to a Cool class. As such, it is responsible for
@@ -239,7 +240,7 @@ public:
       : FUNC_PTR(0), SELF_ADDR(0), cur_class(cur_class), var_table(), var_tp_table(),
         class_table(*cur_class->get_classtable()), context(class_table.context),
         builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup), Vtable_Type_Lookup(class_table.Vtable_Type_Lookup), Vtable_Proto_Lookup(class_table.Vtable_Proto_Lookup),
-        strEntry_to_GlobalStr(class_table.strEntry_to_GlobalStr), llmethod_to_Funtion_Ptr(class_table.llmethod_to_Funtion_Ptr) {
+        strEntry_to_GlobalStr(class_table.strEntry_to_GlobalStr), llmethod_to_Funtion_Ptr(class_table.llmethod_to_Funtion_Ptr), Name_to_Node(class_table.Name_to_Node) {
     tmp_count = 0;
     ok_count = 0;
     loop_count = 0;
@@ -345,6 +346,7 @@ public:
   std::unordered_map<std::string, llvm::GlobalVariable*> &Vtable_Proto_Lookup;
   std::unordered_map<int, llvm::GlobalVariable*> &strEntry_to_GlobalStr; 
   std::unordered_map<std::string, llvm::Function*> &llmethod_to_Funtion_Ptr;
+  std::unordered_map<std::string, CgenNode*> &Name_to_Node;
 };
 
 #ifdef MP3
@@ -492,14 +494,13 @@ llvm::Value* Conform(CgenEnvironment* env, llvm::Type* decl_tp, llvm::Type* expr
   }
 }
 
-// for a : B, return **B || store *B -> ** B
-// for a : Int, return *i32 || store i32 -> * i32
-// current env, class curr_cls {}, .....
 // curr_cls is always current class, because only current class can access the attribute
-// let11(): Int ------->  define i32 @Main.let11(%Main* %self)
+// class Main { x : Int; y : B; };  || curr_cls is "Main"
 // [%tmp.95 = alloca %Main*] [store %Main* %self, %Main** %tmp.95] [%tmp.96 = load %Main*, %Main** %tmp.95] || CgenEnvironment::SELF_ADDR acts as %tmp.95
 // [%tmp.97 = getelementptr %Main, %Main* %tmp.96, i32 0, i32 4], [%tmp.98 = load %B*, %B** %tmp.97] || ptr acts as %tmp.96 || ret acts as %tmp.97
 // [%tmp.100 = getelementptr %Main, %Main* %tmp.99, i32 0, i32 5] [%tmp.101 = load i32, i32* %tmp.100] || ptr acts as %tmp.99 || ret acts as %tmp.100
+// ----------------------------------------------------------------
+// [%tmp.98 = load %B*, %B** %tmp.97] || Other may need to check whether %tmp.98 is NULL or not
 auto Get_Attr_Addr(CgenEnvironment* env, CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) {
   // [%tmp.97 = getelementptr %Main, %Main* %tmp.96, i32 0, i32 4]
   auto current_class_name = curr_cls->get_type_name();
@@ -508,9 +509,10 @@ auto Get_Attr_Addr(CgenEnvironment* env, CgenNode* curr_cls, llvm::Value* ptr, s
 
   return env->builder.CreateGEP(current_class_type, ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), attr_offset)});
 } 
-// class ... {a : B; b : Int} 
-// for a : B, return "%B" 
+// class C {a : B; b : Int}  || curr_cls is C
+// for a : B, return "%B"    
 // for b : Int, return "i32"
+// SELF_TYPE base on the used class
 auto Get_Attr_Type(CgenEnvironment* env, CgenNode* curr_cls, std::string attr_name) {
   auto current_class_name = curr_cls->get_type_name();
   auto attr_offset = (*curr_cls->get_current_clattr_to_offset())[attr_name] - 1; assert(attr_offset >= 0);
@@ -531,19 +533,41 @@ auto Get_Attr_Type(CgenEnvironment* env, CgenNode* curr_cls, std::string attr_na
   return res;
 }
 
-// return i32 (%F*,i1,i32) ** 
-// [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr act as %tmp.47 || || func_class acts as %F
-// [%tmp.50 = load %_F_vtable*, %_F_vtable** %tmp.49] 
-// [%tmp.51 = getelementptr %_F_vtable, %_F_vtable* %tmp.50, i32 0, i32 9] || ret acts as %tmp.51
-// [%tmp.52 = load i32 (%F*,i1,i32) *, i32 (%F*,i1,i32) ** %tmp.51]
-// [%tmp.53 = call i32(%F*, i1, i32 ) %tmp.52( %F* %tmp.47, i1 false, i32 1 )]
+// class B { test2(): SELF_TYPE{} }  || class C inherits B{} || class F inherits ... {p : C}
+// class F { test15() : Int { { test2(); 0; } }; };  ------------> "%F"
+// class F { test15() : Int { { p.test2(); 0; } }; };  ------------> "%C"
+// for a : B, return "%B" 
+// for b : Int, return "i32"
+// SELF_TYPE: base on curr_cls
+auto Get_Decl_Type(CgenEnvironment* env, CgenNode* curr_cls, std::string type_name) {
+  llvm::Type* res;
+  if (type_name == "Int") {
+    res = llvm::Type::getInt32Ty(env->context);
+  } else if (type_name == "Bool") {
+    res = llvm::Type::getInt1Ty(env->context);
+  } else if (type_name == "SELF_TYPE") {
+    res = curr_cls->get_classtable()->Type_Lookup[curr_cls->get_type_name()];
+  } else {
+    res = curr_cls->get_classtable()->Type_Lookup[type_name];
+  }
+  return res;
+}
+
+// class B { test2(): SELF_TYPE{} }  || class C inherits B{} || class F inherits ... {p : C}
 // ---------------------------------------------------------------------------------------------------------------------
-// class C inherits B{} || class B {test2()} || p : C || p.test2(false, 1);
-// %tmp.59 = getelementptr %C, %C* %tmp.57, i32 0, i32 0   || ptr act as %tmp.57 || || func_class acts as %C
+// class F { test15() : Int { { test2(); 0; } }; };  ------------> "%F*"
+// %tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0  || ptr is %tmp.47 || func_class is "%F"
+// %tmp.50 = load %_F_vtable*, %_F_vtable** %tmp.49
+// %tmp.51 = getelementptr %_F_vtable, %_F_vtable* %tmp.50, i32 0, i32 9 || ret_val is %tmp.51
+// %tmp.52 = load %F* (%F*) *, %F* (%F*) ** %tmp.51
+// %tmp.53 = call %F*(%F* ) %tmp.52( %F* %tmp.47 )
+// ---------------------------------------------------------------------------------------------------------------------
+// class F { test15() : Int { { p.test2(); 0; } }; };  ------------> "%C*"
+// %tmp.59 = getelementptr %C, %C* %tmp.57, i32 0, i32 0  || ptr is %tmp.57 || func_class is "%C"
 // %tmp.60 = load %_C_vtable*, %_C_vtable** %tmp.59
-// %tmp.61 = getelementptr %_C_vtable, %_C_vtable* %tmp.60, i32 0, i32 9 || ret acts as %tmp.61
-// %tmp.62 = load i32 (%C*,i1,i32) *, i32 (%C*,i1,i32) ** %tmp.61
-// %tmp.63 = call i32(%C*, i1, i32 ) %tmp.62( %C* %tmp.57, i1 false, i32 1 )
+// %tmp.61 = getelementptr %_C_vtable, %_C_vtable* %tmp.60, i32 0, i32 9 || ret_val is %tmp.61
+// %tmp.62 = load %C* (%C*) *, %C* (%C*) ** %tmp.61
+// %tmp.63 = call %C*(%C* ) %tmp.62( %C* %tmp.57 )
 auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr, std::string clfunc_name) {
   // [%tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0] || ptr acts as %tmp.47 || func_class acts as %F
   auto class_for_func = env->Type_Lookup[func_class->get_type_name()];
@@ -559,9 +583,45 @@ auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr,
 
   return func_ptr;
 }
-// [%tmp.52 = load i32 (%F*,i1,i32) *, i32 (%F*,i1,i32) ** %tmp.51] 
-// .getType(): "i32 (%F*,i1,i32) *" || .getFunctionType(): "i32 (%F*,i1,i32)" || .getName().str(): get_func_ll_name
+// class B { test2(): SELF_TYPE{} }  || class C inherits B{} || class F inherits ... {p : C}
+// ---------------------------------------------------------------------------------------------------------------------
+// class F { test15() : Int { { test2(); 0; } }; };  ------------> "%F*"
+// %tmp.49 = getelementptr %F, %F* %tmp.47, i32 0, i32 0  || func_class is "%F"
+// class F { test15() : Int { { p.test2(); 0; } }; };  ------------> "%C*"
+// %tmp.59 = getelementptr %C, %C* %tmp.57, i32 0, i32 0  || func_class is "%C"
+// ret_val is function pointer
 auto Get_Func_Ptr(CgenEnvironment* env, CgenNode* func_class, std::string clfunc_name) {
+  auto func_offset = (*func_class->get_current_clmethod_to_offset())[clfunc_name] - 4; assert(func_offset >= 0);
+
+  auto [defined_class, defined_method] = (*func_class->get_current_vtable_tp())[func_offset];
+  auto get_func_ll_name = defined_class->get_function_name(defined_method->get_name()->get_string());
+  auto function_ptr = env->llmethod_to_Funtion_Ptr[get_func_ll_name];
+
+  assert(function_ptr);
+  return function_ptr;
+}
+
+// class B { test2(): SELF_TYPE{} }  || class C inherits B{} || class F inherits ... {p : C}
+// ---------------------------------------------------------------------------------------------------------------------
+// class F { test15() : Int { { p@B.test2(); 0; } }; };  ------------> "%B*"
+// %tmp.69 = getelementptr %_B_vtable, %_B_vtable* @_B_vtable_prototype, i32 0, i32 9 || func_class is "%B"
+// %tmp.70 = load %B* (%B*) *, %B* (%B*) ** %tmp.69 || ret_val is %tmp.69
+// %tmp.71 = bitcast %C* %tmp.67 to %B*
+// %tmp.72 = call %B*(%B* ) %tmp.70( %B* %tmp.71 )
+// %tmp.73 = bitcast %B* %tmp.72 to %C*
+auto Get_Func_Addr_Static(CgenEnvironment* env, CgenNode* func_class, std::string clfunc_name) {
+  // %tmp.69 = getelementptr %_B_vtable, %_B_vtable* @_B_vtable_prototype, i32 0, i32 9
+  auto vtable_type = env->Vtable_Type_Lookup[func_class->get_vtable_type_name()];
+  auto vtable_proto = env->Vtable_Proto_Lookup[func_class->get_vtable_name()];
+  auto func_offset = (*func_class->get_current_clmethod_to_offset())[clfunc_name];
+  auto ret_val = env->builder.CreateGEP(vtable_type, vtable_proto, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), func_offset)});
+  return ret_val;
+}
+// class B { test2(): SELF_TYPE{} }  || class C inherits B{} || class F inherits ... {p : C}
+// ---------------------------------------------------------------------------------------------------------------------
+// class F { test15() : Int { { p@B.test2(); 0; } }; };  ------------> "%B*"
+// %tmp.69 = getelementptr %_B_vtable, %_B_vtable* @_B_vtable_prototype, i32 0, i32 9 || func_class is "%B"
+auto Get_Func_Ptr_Static(CgenEnvironment* env, CgenNode* func_class, std::string clfunc_name) {
   auto func_offset = (*func_class->get_current_clmethod_to_offset())[clfunc_name] - 4; assert(func_offset >= 0);
 
   auto [defined_class, defined_method] = (*func_class->get_current_vtable_tp())[func_offset];
