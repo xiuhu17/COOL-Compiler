@@ -375,9 +375,25 @@ llvm::Value *conform(llvm::Value *src, llvm::Type *dest_type,
 auto Conform(CgenEnvironment* env, llvm::Value* exp_val, llvm::Type* exp_tp, llvm::Type* decl_tp) {
 
 }
+// %tmp.34 = call %Int* @Int_new(  )
+// %tmp.36 = getelementptr %Int, %Int* %tmp.34, i32 0, i32 1  || ptr is %tmp.34 || ptr_type is %Int
+// %tmp.35 = load i32, i32* %tmp.36 || ret is %tmp.35
+// store i32 %tmp.35, i32* %tmp.33
+auto UBBOX(CgenEnvironment *env, llvm::Value* ptr, llvm::StructType* ptr_type) {
+  if (ptr_type->getName() == "Int") {
+    // %tmp.36 = getelementptr %Int, %Int* %tmp.34, i32 0, i32 1 
+    auto get_ddr = env->builder.CreateGEP(ptr_type, ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 1)});
+    // %tmp.35 = load i32, i32* %tmp.36
+    auto get_val = env->builder.CreateLoad(llvm::Type::getInt32Ty(env->context), get_ddr);
+    return get_val;
+  } else if (ptr_type->getName() == "Bool") {
 
+  } else {
+    assert(false);
+  }
+}
 // box i32 ---> Int 
-//	%tmp.3 = load i32, i32* %tmp.2      || prim is %tmp.3
+//	%tmp.3 = load i32, i32* %tmp.2      
 //	%tmp.5 = call %Int* @Int_new(  )    || ret is %tmp.5
 //	call void(%Int*, i32 ) @Int_init( %Int* %tmp.5, i32 %tmp.3 ) || prim is %tmp.3 || ret is %tmp.5
 //  %tmp.6 = getelementptr %Int, %Int* %tmp.5, i32 0, i32 0
@@ -428,8 +444,8 @@ auto Get_Attr_Addr(CgenEnvironment* env, CgenNode* curr_cls, llvm::Value* ptr, s
   return env->builder.CreateGEP(current_class_type, ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), attr_offset)});
 } 
 // class ... {a : B; b : Int} 
-// for a : B, return %"B" 
-// for b : Int, return i32
+// for a : B, return "%B" 
+// for b : Int, return "i32"
 auto Get_Attr_Type(CgenEnvironment* env, CgenNode* curr_cls, std::string attr_name) {
   auto current_class_name = curr_cls->get_type_name();
   auto attr_offset = (*curr_cls->get_current_clattr_to_offset())[attr_name] - 1; assert(attr_offset >= 0);
