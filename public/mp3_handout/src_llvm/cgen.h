@@ -357,40 +357,36 @@ llvm::Value *conform(llvm::Value *src, llvm::Type *dest_type,
                      CgenEnvironment *env);
 
 
-// class D inherits C{} || class Int inherits Object{}
-// ------------------------------------------------------------
-// d : C <- new D;
-// %tmp.16 = getelementptr %D, %D* %tmp.4, i32 0, i32 4
-// %tmp.17 = call %D* @D_new(  )
-// %tmp.18 = bitcast %D* %tmp.17 to %C*
-// store %C* %tmp.18, %C** %tmp.16
-// ------------------------------------------------------------
-// e : Object <- 1;
-// %tmp.19 = getelementptr %D, %D* %tmp.4, i32 0, i32 5
-// %tmp.21 = call %Int* @Int_new(  )
-// call void(%Int*, i32 ) @Int_init( %Int* %tmp.21, i32 1 )
-// %tmp.22 = bitcast %Int* %tmp.21 to %Object*
-// store %Object* %tmp.22, %Object** %tmp.19
-// ------------------------------------------------------------
-auto Conform(CgenEnvironment* env, llvm::Value* exp_val, llvm::Type* exp_tp, llvm::Type* decl_tp) {
 
-}
+// g : Int <- new Int;
+// %tmp.33 = getelementptr %D, %D* %tmp.9, i32 0, i32 7
 // %tmp.34 = call %Int* @Int_new(  )
-// %tmp.36 = getelementptr %Int, %Int* %tmp.34, i32 0, i32 1  || ptr is %tmp.34 || ptr_type is %Int
+// %tmp.36 = getelementptr %Int, %Int* %tmp.34, i32 0, i32 1  || ptr is %tmp.34 || ptr_type is "%Int"
 // %tmp.35 = load i32, i32* %tmp.36 || ret is %tmp.35
 // store i32 %tmp.35, i32* %tmp.33
-auto UBBOX(CgenEnvironment *env, llvm::Value* ptr, llvm::StructType* ptr_type) {
-  if (ptr_type->getName() == "Int") {
+// ---------------------------------------------------------------------------
+// %tmp.44 = getelementptr %D, %D* %tmp.9, i32 0, i32 10
+// %tmp.45 = call %Bool* @Bool_new(  )
+// %tmp.47 = getelementptr %Bool, %Bool* %tmp.45, i32 0, i32 1
+// %tmp.46 = load i1, i1* %tmp.47
+// store i1 %tmp.46, i1* %tmp.44
+// ---------------------------------------------------------------------------
+auto UNBOX(CgenEnvironment *env, llvm::Type* ptr_type, llvm::Value* ptr) {
+  assert(ptr_type->isStructTy());
+  llvm::StructType* ptr_struct_type = llvm::cast<llvm::StructType>(ptr_type);
+  if (ptr_struct_type->getName() == "Int") {
     // %tmp.36 = getelementptr %Int, %Int* %tmp.34, i32 0, i32 1 
-    auto get_ddr = env->builder.CreateGEP(ptr_type, ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 1)});
+    auto get_addr = env->builder.CreateGEP(ptr_struct_type, ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 1)});
     // %tmp.35 = load i32, i32* %tmp.36
-    auto get_val = env->builder.CreateLoad(llvm::Type::getInt32Ty(env->context), get_ddr);
+    auto get_val = env->builder.CreateLoad(llvm::Type::getInt32Ty(env->context), get_addr);
     return get_val;
-  } else if (ptr_type->getName() == "Bool") {
-
-  } else {
-    assert(false);
-  }
+  } else if (ptr_struct_type->getName() == "Bool") {
+    auto get_addr = env->builder.CreateGEP(ptr_struct_type, ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 1)});
+    auto get_val = env->builder.CreateLoad(llvm::Type::getInt1Ty(env->context), get_addr);
+    return get_val;
+  } 
+    
+  assert(false);
 }
 // box i32 ---> Int 
 //	%tmp.3 = load i32, i32* %tmp.2      
@@ -425,6 +421,75 @@ llvm::CallInst* BOX(CgenEnvironment *env, llvm::Value *prim) {
     
   assert(false);
   return NULL;
+}
+
+// class D inherits C{} || class Int inherits Object{}
+// ------------------------------------------------------------
+// d : C <- new D; || decl_tp is "%C" || expr_tp is "%D"
+// %tmp.24 = getelementptr %D, %D* %tmp.9, i32 0, i32 4 
+// %tmp.25 = call %D* @D_new(  )        || expr_val is %tmp.25 
+// %tmp.26 = bitcast %D* %tmp.25 to %C* || ret_val is %tmp.26
+// store %C* %tmp.26, %C** %tmp.24
+// ------------------------------------------------------------
+// e : Object <- 1;   || decl_tp is "%Object" || expr_tp is "i32"
+// %tmp.27 = getelementptr %D, %D* %tmp.9, i32 0, i32 5
+// %tmp.29 = call %Int* @Int_new(  )  
+// call void(%Int*, i32 ) @Int_init( %Int* %tmp.29, i32 1 )  || expr_val is i32 1
+// %tmp.30 = bitcast %Int* %tmp.29 to %Object* || ret_val is %tmp.30
+// store %Object* %tmp.30, %Object** %tmp.27
+// ------------------------------------------------------------
+// g : Int <- new Int; || decl_tp is "i32" || expr_tp is "%Int"
+// %tmp.31 = getelementptr %D, %D* %tmp.9, i32 0, i32 6
+// %tmp.32 = call %Int* @Int_new(  )  || expr_val is %tmp.32
+// %tmp.34 = getelementptr %Int, %Int* %tmp.32, i32 0, i32 1
+// %tmp.33 = load i32, i32* %tmp.34 || ret_val is %tmp.33
+// store i32 %tmp.33, i32* %tmp.31
+// ------------------------------------------------------------
+// f : Object <- new Int; || decl_tp is "%Object" || expr_tp is "%Int"
+// %tmp.35 = getelementptr %D, %D* %tmp.9, i32 0, i32 7
+// %tmp.36 = call %Int* @Int_new(  )  || expr_val is %tmp.36
+// %tmp.37 = bitcast %Int* %tmp.36 to %Object* || ret_val is %tmp.37
+// store %Object* %tmp.37, %Object** %tmp.35
+// ------------------------------------------------------------
+// x : Int <- 2; || decl_tp is "i32" || expr_tp is "i32"
+// %tmp.38 = getelementptr %D, %D* %tmp.9, i32 0, i32 8
+// store i32 2, i32* %tmp.38 || expr_val is i32 2 || ret_val is i32 2
+// ------------------------------------------------------------
+// decl_tp could also be dest_tp
+llvm::Value* Conform(CgenEnvironment* env, llvm::Type* decl_tp, llvm::Type* expr_tp, llvm::Value* expr_val) {
+  if (decl_tp->isStructTy() && expr_tp->isStructTy()) { // only need bitcast
+    llvm::StructType* decl_tp_struct = llvm::cast<llvm::StructType>(decl_tp);
+    auto ret_val = env->builder.CreateBitCast(expr_val, llvm::PointerType::get(decl_tp_struct, 0));
+    return ret_val;
+  } else if ((!decl_tp->isStructTy()) && expr_tp->isStructTy()) { // need to unbox
+    llvm::StructType* expr_tp_struct = llvm::cast<llvm::StructType>(expr_tp);
+    if (decl_tp->isIntegerTy(32)) {
+      auto ret_val = UNBOX(env, expr_tp_struct, expr_val);
+      return ret_val;
+    } else if (decl_tp->isIntegerTy(1)) {
+      auto ret_val = UNBOX(env, expr_tp_struct, expr_val);
+      return ret_val;
+    } else {
+      assert(false);
+    }
+  } else if (decl_tp->isStructTy() && (!expr_tp->isStructTy())) { // need to box
+    llvm::StructType* decl_tp_struct = llvm::cast<llvm::StructType>(decl_tp);
+    if (expr_tp->isIntegerTy(32)) {
+      auto ret_before_cast = BOX(env, expr_val);
+      auto ret_val = env->builder.CreateBitCast(ret_before_cast, llvm::PointerType::get(decl_tp_struct, 0));
+      return ret_val;
+    } else if (expr_tp->isIntegerTy(1)) {
+      auto ret_before_cast = BOX(env, expr_val);
+      auto ret_val = env->builder.CreateBitCast(ret_before_cast, llvm::PointerType::get(decl_tp_struct, 0));
+      return ret_val;
+    } else {
+      assert(false);
+    }
+  } else if ((!decl_tp->isStructTy()) && (!expr_tp->isStructTy())) { // no need
+    return expr_val;
+  } else { 
+    assert(false);
+  }
 }
 
 // for a : B, return **B || store *B -> ** B

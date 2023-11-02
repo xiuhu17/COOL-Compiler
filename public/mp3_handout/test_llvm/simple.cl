@@ -27,7 +27,7 @@ class C{
   b : B;
   c : SELF_TYPE;
 };
-(*
+
 class D inherits C{
     d : C;
     e : SELF_TYPE;
@@ -40,23 +40,24 @@ class E inherits D {
     j : E;
     k : SELF_TYPE;
 };
-*)
 
+(*
 class  D inherits C{
     d : C <- new D;
     e : Object <- 1; -- Object <- i32
-    f : Object <- new Int; -- Object <- Object
     g : Int <- new Int; -- i32 <- Int 
-
-    x : Int;
+    f : Object <- new Int; -- Object <- Object
+    x : Int <- 2;
     y : Int <- x + 2;
+
+    gg: Bool <- new Bool;
 
     test(): Int{
         x + 2
     };
 };
-
-class E {
+*)
+class F {
     test1():Object{
         0
     };

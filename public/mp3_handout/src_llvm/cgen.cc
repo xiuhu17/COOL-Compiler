@@ -719,7 +719,7 @@ void CgenNode::code_init_function() {
 
   // loop over the true expr
   // for (auto& [defined_class, defined_attr]: obj_tp) {
-    
+  //
   // }
   
 }
