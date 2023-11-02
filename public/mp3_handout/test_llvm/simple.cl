@@ -17,3 +17,21 @@ class Main inherits IO{
         } 
     };
 };
+
+class B{
+    z : B;
+    y : SELF_TYPE;
+};
+class C{
+  a : Int;
+  b : B;
+  c : SELF_TYPE;
+};
+
+class D inherits C{
+  d : Int;
+  e : B;
+  k : C;
+  f : SELF_TYPE;
+  j : Bool;
+};

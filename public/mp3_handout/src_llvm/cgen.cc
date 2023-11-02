@@ -558,7 +558,7 @@ void CgenNode::layout_features() {
 
   // setup for object type
   auto curr_type_struct = class_table->Type_Lookup[get_type_name()];
-  auto curr_vtable_tp_ptr = llvm::PointerType::get(class_table->Vtable_Type_Lookup[get_vtable_type_name()], true);
+  auto curr_vtable_tp_ptr = llvm::PointerType::get(class_table->Vtable_Type_Lookup[get_vtable_type_name()], 0);
   std::vector<llvm::Type*> type_struct_setup = {curr_vtable_tp_ptr};
   int k = 1;
   for (auto& iter: obj_tp) {
@@ -699,7 +699,18 @@ void CgenNode::code_init_function() {
   //-------------------
 
   // loop from the list, include the inheritance
-
+  // after the vtable_pointer
+  for (auto& [defined_class, defined_attr]: obj_tp) {
+    auto attr_ptr = Get_Attr_Addr(&env, this, after_cast, defined_attr->get_name()->get_string());
+    auto attr_tp = Get_Attr_Type(this, defined_attr->get_name()->get_string());
+    if (attr_tp->getName() == "Int") {
+      env.builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt32Ty(env.context), 0), attr_ptr);
+    } else if (attr_tp->getName() == "Bool") {
+      env.builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt1Ty(env.context), false), attr_ptr);
+    } else {
+      env.builder.CreateStore(llvm::ConstantPointerNull::get((llvm::PointerType::get(attr_tp, 0))), attr_ptr);
+    }
+  }
   
 }
 

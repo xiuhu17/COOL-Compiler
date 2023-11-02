@@ -434,7 +434,7 @@ auto Get_Attr_Addr(CgenEnvironment* env, CgenNode* curr_cls, llvm::Value* ptr, s
 // class ... {a : B; b : Int} 
 // for a : B, return %"B" 
 // for b : Int, return %"Int" 
-auto Get_Attr_Type(CgenNode* curr_cls, llvm::Value* ptr, std::string attr_name) {
+auto Get_Attr_Type(CgenNode* curr_cls, std::string attr_name) {
   auto current_class_name = curr_cls->get_type_name();
   auto attr_offset = (*curr_cls->get_current_clattr_to_offset())[attr_name] - 1; assert(attr_offset >= 0);
 
