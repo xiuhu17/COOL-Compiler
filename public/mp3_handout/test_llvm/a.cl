@@ -83,6 +83,11 @@ class Main inherits IO
       x + 2;
     }
   };
+    let34(): Int {
+    {
+      x + 2;
+    }
+  };
 };
 
 class C{

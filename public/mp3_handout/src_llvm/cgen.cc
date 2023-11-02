@@ -702,15 +702,25 @@ void CgenNode::code_init_function() {
   // after the vtable_pointer
   for (auto& [defined_class, defined_attr]: obj_tp) {
     auto attr_ptr = Get_Attr_Addr(&env, this, after_cast, defined_attr->get_name()->get_string());
-    auto attr_tp = Get_Attr_Type(this, defined_attr->get_name()->get_string());
-    if (attr_tp->getName() == "Int") {
-      env.builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt32Ty(env.context), 0), attr_ptr);
-    } else if (attr_tp->getName() == "Bool") {
-      env.builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt1Ty(env.context), false), attr_ptr);
+    auto attr_tp = Get_Attr_Type(&env, this, defined_attr->get_name()->get_string());
+    if (attr_tp->isStructTy()) {
+      llvm::StructType* struct_type = llvm::cast<StructType>(attr_tp);
+      env.builder.CreateStore(llvm::ConstantPointerNull::get((llvm::PointerType::get(struct_type, 0))), attr_ptr);
     } else {
-      env.builder.CreateStore(llvm::ConstantPointerNull::get((llvm::PointerType::get(attr_tp, 0))), attr_ptr);
+      if (attr_tp->isIntegerTy(32)) {
+        env.builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt32Ty(env.context), 0), attr_ptr);
+      } else if (attr_tp->isIntegerTy(1)) {
+        env.builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt1Ty(env.context), false), attr_ptr);
+      } else {
+        assert(false);
+      }
     }
   }
+
+  // loop over the true expr
+  // for (auto& [defined_class, defined_attr]: obj_tp) {
+    
+  // }
   
 }
 
@@ -727,7 +737,7 @@ void CgenNode::code_class() {
     if (method_ == NULL) continue;
     CgenEnvironment env(this);
     env.FUNC_PTR = FunctionPointer_;
-    Create_Param(&env, FunctionPointer_, method_);
+    Create_Param(&env, this, FunctionPointer_, method_);
     method_->code(&env);
   }
 }

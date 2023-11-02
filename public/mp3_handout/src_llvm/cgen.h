@@ -236,7 +236,7 @@ public:
   // generation for each method. You may need to add parameters to this
   // constructor.
   CgenEnvironment(CgenNode *cur_class)
-      : FUNC_PTR(0), SELF_ADDR(0), cur_class(cur_class), var_table(), var_tp_table(), var_addr_mp3(), var_type_mp3(), 
+      : FUNC_PTR(0), SELF_ADDR(0), cur_class(cur_class), var_table(), var_tp_table(),
         class_table(*cur_class->get_classtable()), context(class_table.context),
         builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup), Vtable_Type_Lookup(class_table.Vtable_Type_Lookup), Vtable_Proto_Lookup(class_table.Vtable_Proto_Lookup),
         strEntry_to_GlobalStr(class_table.strEntry_to_GlobalStr), llmethod_to_Funtion_Ptr(class_table.llmethod_to_Funtion_Ptr) {
@@ -248,8 +248,6 @@ public:
     end_count = 0;
     var_table.enterscope();
     var_tp_table.enterscope();
-    var_addr_mp3.enterscope();
-    var_type_mp3.enterscope();
     // TODO: add code here
   }
 
@@ -269,18 +267,6 @@ public:
   void var_tp_add_binding(Symbol name, llvm::Type *tp_ptr) { var_tp_table.insert(name, tp_ptr);}
   void var_tp_open_scope() { var_tp_table.enterscope(); }
   void var_tp_close_scope() { var_tp_table.exitscope(); }
-
-
-llvm::Value* find_var_addr_mp3(Symbol name) { return var_addr_mp3.find_in_scopes(name); }
-void add_var_addr_mp3(Symbol name, llvm::Value* addr) { var_addr_mp3.insert(name, addr); }
-void open_var_addr_mp3() { var_addr_mp3.enterscope(); }
-void close_var_addr_mp3() { var_addr_mp3.exitscope(); }
-
-llvm::StructType* find_var_type_mp3(Symbol name) { return var_type_mp3.find_in_scopes(name); }
-void add_var_type_mp3(Symbol name, llvm::StructType* tp) { var_type_mp3.insert(name, tp); }
-void open_var_type_mp3() {var_type_mp3.enterscope(); }
-void close_var_type_mp3() {var_type_mp3.exitscope(); }
-
 
   // LLVM Utils:
   // Create a new llvm function in the current module
@@ -342,12 +328,6 @@ private:
   // need to map to <StructType, bool> bool indicates whether box/unbox
   cool::SymbolTable<llvm::Value> var_table;
   cool::SymbolTable<llvm::Type> var_tp_table;
-
-  // only parameter and local are stored inside the mapping
-  // attribute need to be get from getelementptr
-  cool::SymbolTable<llvm::Value> var_addr_mp3;
-  cool::SymbolTable<llvm::StructType> var_type_mp3;
-
   
   int tmp_count, ok_count; 
   int loop_count, true_count, false_count, end_count;
@@ -376,6 +356,25 @@ public:
 llvm::Value *conform(llvm::Value *src, llvm::Type *dest_type,
                      CgenEnvironment *env);
 
+
+// class D inherits C{} || class Int inherits Object{}
+// ------------------------------------------------------------
+// d : C <- new D;
+// %tmp.16 = getelementptr %D, %D* %tmp.4, i32 0, i32 4
+// %tmp.17 = call %D* @D_new(  )
+// %tmp.18 = bitcast %D* %tmp.17 to %C*
+// store %C* %tmp.18, %C** %tmp.16
+// ------------------------------------------------------------
+// e : Object <- 1;
+// %tmp.19 = getelementptr %D, %D* %tmp.4, i32 0, i32 5
+// %tmp.21 = call %Int* @Int_new(  )
+// call void(%Int*, i32 ) @Int_init( %Int* %tmp.21, i32 1 )
+// %tmp.22 = bitcast %Int* %tmp.21 to %Object*
+// store %Object* %tmp.22, %Object** %tmp.19
+// ------------------------------------------------------------
+auto Conform(CgenEnvironment* env, llvm::Value* exp_val, llvm::Type* exp_tp, llvm::Type* decl_tp) {
+
+}
 
 // box i32 ---> Int 
 //	%tmp.3 = load i32, i32* %tmp.2      || prim is %tmp.3
@@ -428,23 +427,27 @@ auto Get_Attr_Addr(CgenEnvironment* env, CgenNode* curr_cls, llvm::Value* ptr, s
 
   return env->builder.CreateGEP(current_class_type, ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), attr_offset)});
 } 
-
-// if indeed use attribute rather than local, para, then we need to get the type
-// %A, %B, %IO, %Int, SELF_TYPE = ..., ...
 // class ... {a : B; b : Int} 
 // for a : B, return %"B" 
-// for b : Int, return %"Int" 
-auto Get_Attr_Type(CgenNode* curr_cls, std::string attr_name) {
+// for b : Int, return i32
+auto Get_Attr_Type(CgenEnvironment* env, CgenNode* curr_cls, std::string attr_name) {
   auto current_class_name = curr_cls->get_type_name();
   auto attr_offset = (*curr_cls->get_current_clattr_to_offset())[attr_name] - 1; assert(attr_offset >= 0);
 
   auto type_str = (*curr_cls->get_current_obj_tp())[attr_offset].second->get_type_decl()->get_string();
-  auto struct_type = curr_cls->get_classtable()->Type_Lookup[type_str];
-  if (type_str == "SELF_TYPE") {
-    struct_type = curr_cls->get_classtable()->Type_Lookup[current_class_name];
+  llvm::Type* res;
+  if (type_str == "Int") {
+    res = llvm::Type::getInt32Ty(env->context);
+  } else if (type_str == "Bool") {
+    res = llvm::Type::getInt1Ty(env->context);
+  } else if (type_str == "SELF_TYPE") {
+    res = curr_cls->get_classtable()->Type_Lookup[current_class_name];
+  } else {
+    res = curr_cls->get_classtable()->Type_Lookup[type_str];
   }
-
-  return struct_type;
+  
+  assert(res);
+  return res;
 }
 
 // return i32 (%F*,i1,i32) ** 
@@ -453,6 +456,8 @@ auto Get_Attr_Type(CgenNode* curr_cls, std::string attr_name) {
 // [%tmp.51 = getelementptr %_F_vtable, %_F_vtable* %tmp.50, i32 0, i32 9] || ret acts as %tmp.51
 // [%tmp.52 = load i32 (%F*,i1,i32) *, i32 (%F*,i1,i32) ** %tmp.51]
 // [%tmp.53 = call i32(%F*, i1, i32 ) %tmp.52( %F* %tmp.47, i1 false, i32 1 )]
+// ---------------------------------------------------------------------------------------------------------------------
+// class C inherits B{} || class B {test2()} || p : C || p.test2(false, 1);
 // %tmp.59 = getelementptr %C, %C* %tmp.57, i32 0, i32 0   || ptr act as %tmp.57 || || func_class acts as %C
 // %tmp.60 = load %_C_vtable*, %_C_vtable** %tmp.59
 // %tmp.61 = getelementptr %_C_vtable, %_C_vtable* %tmp.60, i32 0, i32 9 || ret acts as %tmp.61
@@ -473,7 +478,6 @@ auto Get_Func_Addr(CgenEnvironment* env, CgenNode* func_class, llvm::Value* ptr,
 
   return func_ptr;
 }
-// return the type of Function Pointer, for load purpose, for i32 (%F*,i1,i32) ** %tmp.51 
 // [%tmp.52 = load i32 (%F*,i1,i32) *, i32 (%F*,i1,i32) ** %tmp.51] 
 // .getType(): "i32 (%F*,i1,i32) *" || .getFunctionType(): "i32 (%F*,i1,i32)" || .getName().str(): get_func_ll_name
 auto Get_Func_Ptr(CgenEnvironment* env, CgenNode* func_class, std::string clfunc_name) {
@@ -493,9 +497,9 @@ auto Get_Func_Ptr(CgenEnvironment* env, CgenNode* func_class, std::string clfunc
 // [%tmp.103 = alloca i32]
 // [%tmp.104 = alloca %B*]
 // [store %Main* %self, %Main** %tmp.102] || SELF_ADDR is %tmp.102
-// [store i32 %x, i32* %tmp.103] || bind x ----> %tmp.103 || type %Int(i32)
-// [store %B* %y, %B** %tmp.104] || bind y ----> %tmp.104 || type %B
-auto Create_Param(CgenEnvironment* env, llvm::Function* func_ptr, method_class* method_ptr) {
+// [store i32 %x, i32* %tmp.103] || bind x ----> %tmp.103 || bind x ----> i32
+// [store %B* %y, %B** %tmp.104] || bind y ----> %tmp.104 || bind y ----> %B
+auto Create_Param(CgenEnvironment* env, CgenNode* curr_cls, llvm::Function* func_ptr, method_class* method_ptr) {
   auto formals = *(method_ptr->get_formals());
 
   int i = 0;
@@ -517,12 +521,23 @@ auto Create_Param(CgenEnvironment* env, llvm::Function* func_ptr, method_class* 
   for (auto& arg: func_ptr->args()) {
     auto alloca_addr = env->insert_alloca_at_head(arg.getType()); 
     env->builder.CreateStore(&arg, alloca_addr);
+
     if (i == 0) {
       env->SELF_ADDR = alloca_addr;
     } else {
-      env->add_var_addr_mp3(formals->nth(i-1)->get_name(), alloca_addr);
-      env->add_var_type_mp3(formals->nth(i-1)->get_name(), env->Type_Lookup[formals->nth(i-1)->get_type_decl()->get_string()]);
+      env->add_binding(formals->nth(i-1)->get_name(), alloca_addr);
+      auto type_str = formals->nth(i-1)->get_type_decl()->get_string();
+      if (type_str == "Int") {
+        env->var_tp_add_binding(formals->nth(i-1)->get_name(), llvm::Type::getInt32Ty(env->context));
+      } else if (type_str == "Bool") {
+        env->var_tp_add_binding(formals->nth(i-1)->get_name(), llvm::Type::getInt1Ty(env->context));
+      } else if (type_str == "SELF_TYPE") {
+        env->var_tp_add_binding(formals->nth(i-1)->get_name(), env->Type_Lookup[curr_cls->get_type_name()]);
+      } else {
+        env->var_tp_add_binding(formals->nth(i-1)->get_name(), env->Type_Lookup[type_str]);
+      }
     }
+    
     i += 1;
   }
 }

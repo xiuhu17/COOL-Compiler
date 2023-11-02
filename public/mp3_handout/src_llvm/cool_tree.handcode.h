@@ -68,9 +68,6 @@ typedef Cases_class *Cases;
   virtual llvm::Type *get_expr_tp(CgenEnvironment *) = 0;                      \
   virtual void set_expr_tp(CgenEnvironment *, llvm::Type*) = 0;               \
   llvm::Type *expr_tp;                                                        \
-  virtual llvm::StructType *get_expr_struct_tp(CgenEnvironment *) = 0;         \
-  virtual void set_expr_struct_tp(CgenEnvironment *, llvm::StructType*) = 0;   \
-  llvm::StructType *expr_struct_tp;                                             \
   Expression_class() { type = (Symbol)NULL; }
 
 #define program_EXTRAS                                                         \
@@ -125,9 +122,7 @@ typedef Cases_class *Cases;
   llvm::Value *code(CgenEnvironment *);                                        \
   void dump_with_types(std::ostream &, int);                                   \
   llvm::Type *get_expr_tp(CgenEnvironment *env) override {return expr_tp;}     \
-  void set_expr_tp(CgenEnvironment *env, llvm::Type* tp_) override {expr_tp = tp_;}  \
-  llvm::StructType *get_expr_struct_tp(CgenEnvironment *env) override {return expr_struct_tp; }                 \
-  void set_expr_struct_tp(CgenEnvironment *env, llvm::StructType* struct_tp_) override {expr_struct_tp = struct_tp_;}    
+  void set_expr_tp(CgenEnvironment *env, llvm::Type* tp_) override {expr_tp = tp_;}   
 
 #define no_expr_EXTRAS        /* ## */                                         \
   int no_code() { return 1; } /* ## */
