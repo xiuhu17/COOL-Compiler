@@ -401,7 +401,7 @@ void CgenClassTable::code_main(){
   auto ele_ptr = this->builder.CreateConstGEP2_32(Main_main_str_ptr_tp, Main_main_val, 0, 0);
   
   auto printf_tp = FunctionType::get(i32, {i8_ptr}, true);
-  auto printf_callee = the_module.getOrInsertFunction("printf", printf_tp);
+  auto printf_callee = the_module.getOrInsertFunction("printf", llmethod_to_Funtion_Ptr["printf"]->getFunctionType());
   builder.CreateCall(printf_callee, {ele_ptr, Main_main_ret});
 
   builder.CreateRet(ConstantInt::get(Type::getInt32Ty(this->context), 0));
@@ -662,28 +662,44 @@ void CgenNode::code_init_function() {
   env.builder.SetInsertPoint(func_entry_block);
   auto func_abort_block = env.get_or_insert_abort_block(new_func_pointer);
   env.set_abrt(func_abort_block);
-
-  /*
-  setup entry block
-  	%tmp.107 = alloca %Main*
-    %tmp.108 = getelementptr %_Main_vtable, %_Main_vtable* @_Main_vtable_prototype, i32 0, i32 1
-    %tmp.109 = load i32, i32* %tmp.108
-    %tmp.110 = call i8*(i32 ) @malloc( i32 %tmp.109 )
-    %tmp.111 = bitcast i8* %tmp.110 to %Main*
-    %malloc.null = icmp eq %Main* %tmp.111, null
-    br i1 %malloc.null, label %abort, label %okay
-  */
+  
+  // setup entry block
+  auto ok_label = env.new_ok_label();
+  auto ok_false = env.new_bb_at_fend(ok_label);
+  // %tmp.107 = alloca %Main*
   auto curr_type = env.Type_Lookup[get_type_name()];
-  auto allocated_curr_class_ptr = env.insert_alloca_at_head(llvm::PointerType::get(curr_type, 0)); // %Main*
-  auto vtable_type = env.Vtable_Type_Lookup[get_vtable_type_name()]; // %_Main_vtable
-  auto vtable_proto = env.Vtable_Proto_Lookup[get_vtable_name()]; // @_Main_vtable_prototype
-  auto grab_size_ptr = env.builder.CreateGEP(vtable_type, vtable_proto, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env.context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env.context), 1)}); // i32 0, i32 1
-  auto grab_size = env.builder.CreateLoad(llvm::Type::getInt32Ty(env.context), grab_size_ptr); // load i32
+  auto allocated_curr_class_ptr = env.insert_alloca_at_head(llvm::PointerType::get(curr_type, 0)); 
+  // %tmp.108 = getelementptr %_Main_vtable, %_Main_vtable* @_Main_vtable_prototype, i32 0, i32 1
+  auto vtable_type = env.Vtable_Type_Lookup[get_vtable_type_name()];
+  auto vtable_proto = env.Vtable_Proto_Lookup[get_vtable_name()]; 
+  auto grab_size_ptr = env.builder.CreateGEP(vtable_type, vtable_proto, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env.context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env.context), 1)}); 
+  // %tmp.109 = load i32, i32* %tmp.108
+  auto grab_size = env.builder.CreateLoad(llvm::Type::getInt32Ty(env.context), grab_size_ptr); 
+  // %tmp.110 = call i8*(i32 ) @malloc( i32 %tmp.109 )
   auto malloc_func_callee = env.the_module.getOrInsertFunction("malloc", env.llmethod_to_Funtion_Ptr["malloc"]->getFunctionType());
-  auto malloc_alloc = env.builder.CreateCall(malloc_func_callee, {grab_size}); // call i8*(i32 ) @malloc( i32 %tmp.109 )
-  /* compare */
+  auto malloc_alloc = env.builder.CreateCall(malloc_func_callee, {grab_size}); 
+  // %tmp.111 = bitcast i8* %tmp.110 to %Main*
+  auto after_cast = env.builder.CreateBitCast(malloc_alloc, llvm::PointerType::get(curr_type, 0)); 
+  // %malloc.null = icmp eq %Main* %tmp.111, null
+  auto cond_check = env.builder.CreateCmp(llvm::CmpInst::ICMP_EQ, after_cast, llvm::ConstantPointerNull::get(llvm::PointerType::get(curr_type, 0))); 
+  // br i1 %malloc.null, label %abort, label %okay
+  env.builder.CreateCondBr(cond_check, func_abort_block, ok_false);
 
-  // include inheritance
+  // ok block
+  env.builder.SetInsertPoint(ok_false);
+  // first for vtable_proto
+  // %tmp.112 = getelementptr %Main, %Main* %tmp.111, i32 0, i32 0
+  auto prepare_to_sotre_proto = env.builder.CreateGEP(curr_type, after_cast, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env.context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env.context), 0)});
+  // store %_Main_vtable* @_Main_vtable_prototype, %_Main_vtable** %tmp.112
+  env.builder.CreateStore(vtable_proto, prepare_to_sotre_proto);
+	// store %Main* %tmp.111, %Main** %tmp.107
+  env.builder.CreateStore(after_cast, allocated_curr_class_ptr);
+  //-------------------
+  env.SELF_ADDR = allocated_curr_class_ptr; // %Main **
+  //-------------------
+
+  // loop from the list, include the inheritance
+
   
 }
 
