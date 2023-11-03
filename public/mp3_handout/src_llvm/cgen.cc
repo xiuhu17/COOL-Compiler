@@ -910,31 +910,50 @@ Value *cond_class::code(CgenEnvironment *env) {
   env->builder.SetInsertPoint(true_block);
   auto then_val = then_exp->code(env);
   auto then_tp = then_exp->get_expr_tp(env);
-  if_type = then_tp;
   auto remain_true_block = env->builder.GetInsertBlock();
   
   // else branch
   env->builder.SetInsertPoint(false_block);
   auto else_val = else_exp->code(env);
   auto else_tp = else_exp->get_expr_tp(env);
-  if_type = else_tp;
   auto remain_false_block = env->builder.GetInsertBlock();
 
-  if_addr_val = env->insert_alloca_at_head(if_type); // only once
+  // if_type and if_addr_val
+  if_type = Find_Parent(env, then_tp, else_tp);
+  if (if_type->isIntegerTy(32)) {
+    if_addr_val = env->insert_alloca_at_head(llvm::Type::getInt32Ty(env->context));
+  } else if (if_type->isIntegerTy(1)) {
+    if_addr_val = env->insert_alloca_at_head(llvm::Type::getInt1Ty(env->context));
+  } else if (if_type->isStructTy()) {
+    if_addr_val = env->insert_alloca_at_head(llvm::PointerType::get(if_type, 0));
+  } else {
+    assert(false);
+  }
 
   // then branch
   env->builder.SetInsertPoint(remain_true_block);
-  env->builder.CreateStore(then_val, if_addr_val);
+  auto after_conform_then = Conform(env, if_type, then_tp, then_val);
+  env->builder.CreateStore(after_conform_then, if_addr_val);
   env->builder.CreateBr(end_block);
 
   // else branch
   env->builder.SetInsertPoint(remain_false_block);
-  env->builder.CreateStore(else_val, if_addr_val);
+  auto after_conform_else = Conform(env, if_type, else_tp, else_val);
+  env->builder.CreateStore(after_conform_else, if_addr_val);
   env->builder.CreateBr(end_block);
 
   // end block
   env->builder.SetInsertPoint(end_block);
-  auto cond_res = env->builder.CreateLoad(if_type, if_addr_val);
+  llvm::LoadInst *cond_res;
+  if (if_type->isIntegerTy(32)) {
+    cond_res = env->builder.CreateLoad(llvm::Type::getInt32Ty(env->context), if_addr_val);
+  } else if (if_type->isIntegerTy(1)) {
+    cond_res = env->builder.CreateLoad(llvm::Type::getInt1Ty(env->context), if_addr_val);
+  } else if (if_type->isStructTy()) {
+    cond_res = env->builder.CreateLoad(llvm::PointerType::get(if_type, 0), if_addr_val);
+  } else {
+    assert(false);
+  }
 
   // set expr_extra
   set_expr_tp(env, if_type);
