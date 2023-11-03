@@ -1013,10 +1013,10 @@ Value *let_class::code(CgenEnvironment *env) {
   llvm::Value* identifier_addr_val;
 
   if (init_expr_val == nullptr || init_expr_tp == nullptr) {
-      if (type_decl->get_string() == "Int") {
+      if (identifier_type->isIntegerTy(32)) {
         identifier_addr_val = env->insert_alloca_at_head(llvm::Type::getInt32Ty(env->context));
         env->builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), identifier_addr_val);
-      } else if (type_decl->get_string() == "Bool") {
+      } else if (identifier_type->isIntegerTy(1)) {
         identifier_addr_val = env->insert_alloca_at_head(llvm::Type::getInt1Ty(env->context));
         env->builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt1Ty(env->context), false), identifier_addr_val);
       } else {
@@ -1024,11 +1024,11 @@ Value *let_class::code(CgenEnvironment *env) {
         env->builder.CreateStore(llvm::ConstantPointerNull::get(llvm::PointerType::get(identifier_type, 0)), identifier_addr_val);
       }
   } else {
-     if (type_decl->get_string() == "Int") {
+     if (identifier_type->isIntegerTy(32)) {
         identifier_addr_val = env->insert_alloca_at_head(llvm::Type::getInt32Ty(env->context));
         auto after_conform = Conform(env, identifier_type, init_expr_tp, init_expr_val);
         env->builder.CreateStore(after_conform, identifier_addr_val);
-      } else if (type_decl->get_string() == "Bool") {
+      } else if (identifier_type->isIntegerTy(1)) {
         identifier_addr_val = env->insert_alloca_at_head(llvm::Type::getInt1Ty(env->context));
         auto after_conform = Conform(env, identifier_type, init_expr_tp, init_expr_val);
         env->builder.CreateStore(after_conform, identifier_addr_val);

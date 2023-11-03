@@ -666,12 +666,9 @@ auto LCA(CgenEnvironment* env, llvm::Type* a, llvm::Type* b) {
   return grab;
 }
 
-// new Int, new Int ---> i32
-// new Int, i32 ---> i32
-// i32, i32 ---> i32
-// new Bool, new Bool ---> i1
-// new Bool, i1 ---> i1
-// i1, i1 ---> i1
+// new Int, new Int ---> i32 new Int, i32 ---> i32 i32, i32 ---> i32
+// new Bool, new Bool ---> i1 new Bool, i1 ---> i1 i1, i1 ---> i1
+// %Object, %Int, %B, ....
 auto Find_Parent(CgenEnvironment* env, llvm::Type* a, llvm::Type* b) {
   llvm::Type* res;
   if (a->isStructTy() && b->isStructTy()) {
