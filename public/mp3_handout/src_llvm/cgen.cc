@@ -1165,11 +1165,13 @@ Value *neg_class::code(CgenEnvironment *env) {
     std::cerr << "neg" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto e1_ = e1->code(env);
+  auto left_val = e1->code(env);
+  auto left_type = e1->get_expr_tp(env);
 
-  auto neg_res = env->builder.CreateNeg(e1_);
+  auto left_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), left_type, left_val);
+  auto neg_res = env->builder.CreateNeg(left_val_conform);
 
-  set_expr_tp(env, e1->get_expr_tp(env));
+  set_expr_tp(env, llvm::Type::getInt32Ty(env->context));
   return neg_res;
 }
 
@@ -1178,27 +1180,18 @@ Value *lt_class::code(CgenEnvironment *env) {
     std::cerr << "lt" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto e1_ = e1->code(env);
-  auto e2_ = e2->code(env);
+  auto left_val = e1->code(env);
+  auto left_tp = e1->get_expr_tp(env);
+  auto right_val = e2->code(env);
+  auto right_tp = e2->get_expr_tp(env);
 
-  auto lt_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_SLT, e1_, e2_);
+  auto left_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), left_tp, left_val);
+  auto right_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), right_tp, right_val);
+
+  auto lt_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_SLT, left_val_conform, right_val_conform);
 
   set_expr_tp(env, Type::getInt1Ty(env->context));
   return lt_res;
-}
-
-Value *eq_class::code(CgenEnvironment *env) {
-  if (cgen_debug)
-    std::cerr << "eq" << std::endl;
-
-  // TODO: add code here and replace `return nullptr`
-  auto e1_ = e1->code(env);
-  auto e2_ = e2->code(env);
-
-  auto eq_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_EQ, e1_, e2_);
-
-  set_expr_tp(env, Type::getInt1Ty(env->context));
-  return eq_res;
 }
 
 Value *leq_class::code(CgenEnvironment *env) {
@@ -1206,13 +1199,50 @@ Value *leq_class::code(CgenEnvironment *env) {
     std::cerr << "leq" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto e1_ = e1->code(env);
-  auto e2_ = e2->code(env);
+  auto left_val = e1->code(env);
+  auto left_tp = e1->get_expr_tp(env);
+  auto right_val = e2->code(env);
+  auto right_tp = e2->get_expr_tp(env);
 
-  auto leq_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_SLE, e1_, e2_);
+  auto left_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), left_tp, left_val);
+  auto right_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), right_tp, right_val);
+
+  auto leq_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_SLE, left_val_conform, right_val_conform);
 
   set_expr_tp(env, Type::getInt1Ty(env->context));
   return leq_res;
+}
+
+Value *eq_class::code(CgenEnvironment *env) {
+  if (cgen_debug)
+    std::cerr << "eq" << std::endl;
+
+  // TODO: add code here and replace `return nullptr`
+  auto left_val = e1->code(env);
+  auto left_tp = e1->get_expr_tp(env);
+  auto right_val = e2->code(env);
+  auto right_tp = e2->get_expr_tp(env);
+  llvm::Value* eq_res;
+
+  if ((!left_tp->isStructTy()) && (!right_tp->isStructTy())) {
+    eq_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_EQ, left_val, right_val);
+  } else {
+    if (left_tp->isIntegerTy(32)) {
+      left_val = BOX(env, left_val);
+    } else if (left_tp->isIntegerTy(1)) {
+      left_val = BOX(env, left_val);
+    }
+    if (right_tp->isIntegerTy(32)) {
+      right_val = BOX(env, right_val);
+    } else if (right_tp->isIntegerTy(1)) {
+      right_val = BOX(env, right_val);
+    }
+    eq_res = env->builder.CreateCmp(llvm::CmpInst::ICMP_EQ, left_val, right_val);
+  }
+  
+  assert(eq_res);
+  set_expr_tp(env, Type::getInt1Ty(env->context));
+  return eq_res;
 }
 
 Value *comp_class::code(CgenEnvironment *env) {
@@ -1220,11 +1250,13 @@ Value *comp_class::code(CgenEnvironment *env) {
     std::cerr << "complement" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
+  auto left_val = e1->code(env);
+  auto left_type = e1->get_expr_tp(env);
 
-  auto e1_ = e1->code(env);
-  auto comp_res = env->builder.CreateXor(e1_, ConstantInt::get(Type::getInt1Ty(env->context), true));
+  auto left_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), left_type, left_val);
+  auto comp_res = env->builder.CreateXor(left_val_conform, ConstantInt::get(Type::getInt1Ty(env->context), true));
 
-  set_expr_tp(env, e1->get_expr_tp(env));
+  set_expr_tp(env, Type::getInt1Ty(env->context));
   return comp_res;
 }
 

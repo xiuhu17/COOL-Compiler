@@ -42,7 +42,11 @@ class Main inherits IO{
             --2 / 3;
             --2 / (3 + 2);
             --3.type_name();
-            let x : Int <- new Int in 0;
+            -- let x : Int <- new Int in 0;
+            --new B = new C;
+            --1 = new Int;
+            --new Int = new Int;
+            --if 2 = 2 then 2 else 3 fi;
             0;
         } 
     };
