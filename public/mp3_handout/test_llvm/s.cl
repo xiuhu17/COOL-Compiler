@@ -1,4 +1,5 @@
-class B {
+class Z{};
+class B inherits Z{
     a : String;
     b : Int <- 0;
     main() : String {
@@ -13,6 +14,9 @@ class B {
         }
     };
     test1(aa : Bool, kk: Int) : SELF_TYPE {
+        self
+    };
+    test222() : Z {
         self
     };
     test2() : SELF_TYPE {
@@ -123,6 +127,12 @@ class F inherits E{
     test17() : Int {
         {
             p@B.test2();
+            0;
+        }
+    };
+        test18() : Int {
+        {
+            3.type_name();
             0;
         }
     };

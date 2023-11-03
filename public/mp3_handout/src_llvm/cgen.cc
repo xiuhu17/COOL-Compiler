@@ -836,7 +836,7 @@ void program_class::cgen(const std::optional<std::string> &outfile) {
   }
 }
 
-// Create a method body
+// define a method body
 Function *method_class::code(CgenEnvironment *env) {
   if (cgen_debug) {
     std::cerr << "method" << std::endl;
@@ -1100,12 +1100,17 @@ Value *sub_class::code(CgenEnvironment *env) {
     std::cerr << "sub" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto e1_ = e1->code(env);
-  auto e2_ = e2->code(env);
+  auto left_val = e1->code(env);
+  auto left_tp = e1->get_expr_tp(env);
+  auto right_val = e2->code(env);
+  auto right_tp = e2->get_expr_tp(env);
 
-  auto sub_res = env->builder.CreateSub(e1_, e2_);
+  auto left_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), left_tp, left_val);
+  auto right_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), right_tp, right_val);
 
-  set_expr_tp(env, e1->get_expr_tp(env));
+  auto sub_res = env->builder.CreateSub(left_val_conform, right_val_conform);
+
+  set_expr_tp(env, llvm::Type::getInt32Ty(env->context));
   return sub_res;
 }
 
@@ -1114,12 +1119,17 @@ Value *mul_class::code(CgenEnvironment *env) {
     std::cerr << "mul" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  auto e1_ = e1->code(env);
-  auto e2_ = e2->code(env);
+  auto left_val = e1->code(env);
+  auto left_tp = e1->get_expr_tp(env);
+  auto right_val = e2->code(env);
+  auto right_tp = e2->get_expr_tp(env);
 
-  auto mul_res = env->builder.CreateMul(e1_, e2_);
+  auto left_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), left_tp, left_val);
+  auto right_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), right_tp, right_val);
 
-  set_expr_tp(env, e1->get_expr_tp(env));
+  auto mul_res = env->builder.CreateMul(left_val_conform, right_val_conform);
+
+  set_expr_tp(env, llvm::Type::getInt32Ty(env->context));
   return mul_res;
 }
 
@@ -1129,19 +1139,24 @@ Value *divide_class::code(CgenEnvironment *env) {
 
   // TODO: add code here and replace `return nullptr`
   auto ok_label = env->new_ok_label();
-  auto numerator = e1->code(env);
-  auto denominator = e2->code(env);
+  auto numerator_val = e1->code(env);
+  auto numerator_tp = e1->get_expr_tp(env);
+  auto denominator_val = e2->code(env);
+  auto denominator_tp = e2->get_expr_tp(env);
+
+  auto numerator_conform = Conform(env, llvm::Type::getInt32Ty(env->context), numerator_tp, numerator_val);
+  auto denominator_conform = Conform(env, llvm::Type::getInt32Ty(env->context), denominator_tp, denominator_val);
 
   auto abort_true = env->get_abrt();              // true, 0
   auto ok_false = env->new_bb_at_fend(ok_label); // false, not 0
 
-  auto cond_ = env->builder.CreateCmp(llvm::CmpInst::ICMP_EQ, ConstantInt::get(Type::getInt32Ty(env->context), 0), denominator);
+  auto cond_ = env->builder.CreateCmp(llvm::CmpInst::ICMP_EQ, ConstantInt::get(Type::getInt32Ty(env->context), 0), denominator_conform);
   env->builder.CreateCondBr(cond_, abort_true, ok_false);
 
   env->builder.SetInsertPoint(ok_false);
-  auto div_res = env->builder.CreateSDiv(numerator, denominator);
+  auto div_res = env->builder.CreateSDiv(numerator_conform, denominator_conform);
 
-  set_expr_tp(env, e1->get_expr_tp(env));
+  set_expr_tp(env, llvm::Type::getInt32Ty(env->context));
   return div_res;
 }
 
