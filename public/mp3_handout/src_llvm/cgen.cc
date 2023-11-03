@@ -979,8 +979,11 @@ Value *loop_class::code(CgenEnvironment *env) {
 
   // insert irbuilder
   env->builder.SetInsertPoint(loop_block);
-  auto pred_ = pred->code(env);
-  env->builder.CreateCondBr(pred_, true_block, false_block);
+  auto pred_val = pred->code(env);
+  auto pred_tp = pred->get_expr_tp(env);
+  auto pred_val_conform = Conform(env, llvm::Type::getInt1Ty(env->context), pred_tp, pred_val);
+
+  env->builder.CreateCondBr(pred_val_conform, true_block, false_block);
 
   // if true, then body
   env->builder.SetInsertPoint(true_block);
@@ -991,8 +994,8 @@ Value *loop_class::code(CgenEnvironment *env) {
   env->builder.SetInsertPoint(false_block);
 
   // set expr_extra
-  set_expr_tp(env, Type::getInt32Ty(env->context));
-  auto loop_res = ConstantInt::get(Type::getInt32Ty(env->context), 0);
+  set_expr_tp(env, env->Type_Lookup["Object"]);
+  auto loop_res = llvm::ConstantPointerNull::get(llvm::PointerType::get(env->Type_Lookup["Object"], 0));
 
   return loop_res;
 }
