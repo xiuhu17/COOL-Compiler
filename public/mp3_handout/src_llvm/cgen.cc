@@ -384,7 +384,6 @@ void CgenClassTable::code_constants() {
 // ret i32 0
 // }
 void CgenClassTable::code_main(){
-// TODO: add code here
 #ifdef MP3
 // MP3
 
@@ -843,10 +842,11 @@ Function *method_class::code(CgenEnvironment *env) {
     std::cerr << "method" << std::endl;
   }
 
-  auto Main_main_ret = expr->code(env);
-
-  // TODO: handle the return; and return type -----------------------------------------------------------------------------------------------------------------
-  env->builder.CreateRet(Main_main_ret);
+  auto ret_expr_val = expr->code(env);
+  auto ret_expr_tp = expr->get_expr_tp(env);
+  auto ret_decl_tp = Get_Decl_Type(env, env->get_class(), return_type->get_string());
+  auto ret_ = Conform(env, ret_decl_tp, ret_expr_tp, ret_expr_val);
+  env->builder.CreateRet(ret_);
 
   return env->FUNC_PTR;
 }
@@ -859,13 +859,24 @@ Value *assign_class::code(CgenEnvironment *env) {
 
   // TODO: add code here and replace `return nullptr`
 
-  // recursive call; grab info
+  // find in symtable
   auto expr_val = expr->code(env);
   auto expr_tp = expr->get_expr_tp(env);
-  auto [id_tp, id_addr_val] = env->find_in_scopes(name);
 
-  // emit code
-  env->builder.CreateStore(expr_val, id_addr_val);
+  // find in attribute
+  auto [decl_tp, id_addr_val] = env->find_in_scopes(name);
+  if (decl_tp  == nullptr || id_addr_val == nullptr) {
+    auto curr_class_type = env->class_table.Type_Lookup[env->get_class()->get_type_name()];
+    auto self_ptr = env->builder.CreateLoad(llvm::PointerType::get(curr_class_type, 0), env->SELF_ADDR);
+    id_addr_val = Get_Attr_Addr(env, env->get_class(), self_ptr, name->get_string());
+    decl_tp = Get_Attr_Type(env, env->get_class(), name->get_string());
+  }
+
+  // conform
+  auto conform_val = Conform(env, decl_tp, expr_tp, expr_val);
+
+  // store value 
+  env->builder.CreateStore(conform_val, id_addr_val);
 
   // settup expression_extra
   set_expr_tp(env, expr_tp);
@@ -890,7 +901,10 @@ Value *cond_class::code(CgenEnvironment *env) {
   auto end_block = env->new_bb_at_fend(end_label);
 
   auto pred_val = pred->code(env);
-  env->builder.CreateCondBr(pred_val, true_block, false_block);
+  auto pred_tp = pred->get_expr_tp(env);
+  auto pred_val_bool = Conform(env, llvm::Type::getInt1Ty(env->context), pred_tp, pred_val);
+
+  env->builder.CreateCondBr(pred_val_bool, true_block, false_block);
 
   // then branch
   env->builder.SetInsertPoint(true_block);
@@ -989,31 +1003,40 @@ Value *let_class::code(CgenEnvironment *env) {
     std::cerr << "let" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  llvm::Type  *identifier_type;                                                         
-  llvm::Value *identifier_addr_val;
 
-  auto init_val = init->code(env);
+  // go init first 
+  auto init_expr_val = init->code(env);
+  auto init_expr_tp = init->get_expr_tp(env);
 
-  auto i32_ = Type::getInt32Ty(env->context);
-  auto i1_ = Type::getInt1Ty(env->context);
+  // 
+  llvm::Type* identifier_type = Get_Decl_Type(env, env->get_class(), type_decl->get_string());               
+  llvm::Value* identifier_addr_val;
 
-  auto type_name = type_decl->get_string();
-  if (type_name == "Int") {
-    identifier_type = i32_;
-    identifier_addr_val = env->insert_alloca_at_head(i32_);
-    if (init_val) {
-      env->builder.CreateStore(init_val, identifier_addr_val);
-    } else {
-      env->builder.CreateStore(ConstantInt::get(i32_, 0), identifier_addr_val);
-    }
-  } else if (type_name == "Bool") {
-    identifier_type = i1_;
-    identifier_addr_val = env->insert_alloca_at_head(i1_);
-    if (init_val) {
-      env->builder.CreateStore(init_val, identifier_addr_val);
-    } else {
-      env->builder.CreateStore(ConstantInt::get(i1_, false), identifier_addr_val);
-    }
+  if (init_expr_val == nullptr || init_expr_tp == nullptr) {
+      if (type_decl->get_string() == "Int") {
+        identifier_addr_val = env->insert_alloca_at_head(llvm::Type::getInt32Ty(env->context));
+        env->builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), identifier_addr_val);
+      } else if (type_decl->get_string() == "Bool") {
+        identifier_addr_val = env->insert_alloca_at_head(llvm::Type::getInt1Ty(env->context));
+        env->builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt1Ty(env->context), false), identifier_addr_val);
+      } else {
+        identifier_addr_val = env->insert_alloca_at_head(llvm::PointerType::get(identifier_type, 0));
+        env->builder.CreateStore(llvm::ConstantPointerNull::get(llvm::PointerType::get(identifier_type, 0)), identifier_addr_val);
+      }
+  } else {
+     if (type_decl->get_string() == "Int") {
+        identifier_addr_val = env->insert_alloca_at_head(llvm::Type::getInt32Ty(env->context));
+        auto after_conform = Conform(env, identifier_type, init_expr_tp, init_expr_val);
+        env->builder.CreateStore(after_conform, identifier_addr_val);
+      } else if (type_decl->get_string() == "Bool") {
+        identifier_addr_val = env->insert_alloca_at_head(llvm::Type::getInt1Ty(env->context));
+        auto after_conform = Conform(env, identifier_type, init_expr_tp, init_expr_val);
+        env->builder.CreateStore(after_conform, identifier_addr_val);
+      } else {
+        identifier_addr_val = env->insert_alloca_at_head(llvm::PointerType::get(identifier_type, 0));
+        auto after_conform = Conform(env, identifier_type, init_expr_tp, init_expr_val);
+        env->builder.CreateStore(after_conform, identifier_addr_val);
+      }
   }
 
   env->var_tp_open_scope();
@@ -1197,11 +1220,27 @@ Value *object_class::code(CgenEnvironment *env) {
 
   // TODO: add code here and replace `return nullptr`
   auto [object_type, object_addr_val] = env->find_in_scopes(name);
+  if (object_type == nullptr || object_addr_val == nullptr) {
+    auto curr_class_type = env->class_table.Type_Lookup[env->get_class()->get_type_name()];
+    auto self_ptr = env->builder.CreateLoad(llvm::PointerType::get(curr_class_type, 0), env->SELF_ADDR);
+    object_addr_val = Get_Attr_Addr(env, env->get_class(), self_ptr, name->get_string());
+    object_type = Get_Attr_Type(env, env->get_class(), name->get_string());
+  }
 
-  auto object_res = env->builder.CreateLoad(object_type, object_addr_val);
+  llvm::LoadInst *obj_val;
+  if (object_type->isIntegerTy(32)) {
+    obj_val = env->builder.CreateLoad(llvm::Type::getInt32Ty(env->context), object_addr_val);
+  } else if (object_type->isIntegerTy(1)) {
+    obj_val = env->builder.CreateLoad(llvm::Type::getInt1Ty(env->context), object_addr_val);
+  } else if (object_type->isStructTy()) {
+    obj_val = env->builder.CreateLoad(llvm::PointerType::get(object_type, 0), object_addr_val);
+  } else {
+    assert(false);
+  }
+
   set_expr_tp(env, object_type);
 
-  return object_res;
+  return obj_val;
 }
 
 Value *no_expr_class::code(CgenEnvironment *env) {
@@ -1209,6 +1248,7 @@ Value *no_expr_class::code(CgenEnvironment *env) {
     std::cerr << "No_expr" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
+  set_expr_tp(env, nullptr);
   return nullptr;
 }
 

@@ -1,6 +1,6 @@
 class Main inherits IO{
     c : Int;
-    main() : Int {
+    main() : Object {
         {   
             let x : Int in x <- 3;
             let x : Int in x.type_name();
@@ -8,11 +8,13 @@ class Main inherits IO{
             0;
         } 
     };
-        mainn(a: Int, b: Main, c: Int, d : Int, f : Bool, j: Int) : Int {
+        mainn(a: Int, b: Main, c: Int, d : Int, f : Bool, j: Int, k : Int) : Int {
         {   
             --let x : Int in x <- 3;
             --let x : Int in x.type_name();
             -- c <- new Int;
+            c + 2;
+            c + 2;
             0;
         } 
     };

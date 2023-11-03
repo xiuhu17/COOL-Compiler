@@ -162,6 +162,9 @@ public:
     }
     return parentnd->get_current_clmethod_to_llmethod_idx();
   }
+  CgenNode* get_parentnd() {
+    return parentnd;
+  }
 
 #ifdef MP3
   std::string get_type_name() { return name->get_string(); }
@@ -632,14 +635,96 @@ auto Get_Func_Ptr_Static(CgenEnvironment* env, CgenNode* func_class, std::string
   return function_ptr;
 }
 
+
+auto LCA(CgenEnvironment* env, llvm::Type* a, llvm::Type* b) {
+  llvm::StructType* a_struct = llvm::cast<llvm::StructType>(a);
+  llvm::StructType* b_struct = llvm::cast<llvm::StructType>(b);
+  CgenNode* A = env->Name_to_Node[a_struct->getName().str()];
+  CgenNode* B = env->Name_to_Node[b_struct->getName().str()];
+  std::unordered_map<CgenNode*, bool> storeA;
+
+  CgenNode* curr = A;
+  CgenNode* grab = NULL;
+  while (curr) {
+    storeA[curr] = true;
+    if (curr->get_type_name() == "Object") {
+      break;
+    }
+    curr = curr->get_parentnd();
+  }
+
+  curr = B;
+  while (curr) {
+    if (storeA.find(curr) != storeA.end()) {
+      grab = curr;
+      break;
+    }
+    curr = curr->get_parentnd();
+  }
+
+  assert(grab);
+  return grab;
+}
+
+// new Int, new Int ---> i32
+// new Int, i32 ---> i32
+// i32, i32 ---> i32
+// new Bool, new Bool ---> i1
+// new Bool, i1 ---> i1
+// i1, i1 ---> i1
+auto Find_Parent(CgenEnvironment* env, llvm::Type* a, llvm::Type* b) {
+  llvm::Type* res;
+  if (a->isStructTy() && b->isStructTy()) {
+    llvm::StructType* a_struct = llvm::cast<llvm::StructType>(a);
+    llvm::StructType* b_struct = llvm::cast<llvm::StructType>(b);
+    if (a_struct->getName() == "Int" && b_struct->getName() == "Int") { // new Int, new Int ---> i32
+      res = llvm::Type::getInt32Ty(env->context);
+    } else if (a_struct->getName() == "Bool" && b_struct->getName() == "Bool") { // new Bool, new Bool ---> i1
+      res = llvm::Type::getInt1Ty(env->context);
+    } else {
+      auto node = LCA(env, a_struct, b_struct);
+      res = env->Type_Lookup[node->get_type_name()];
+    }
+  } else if ((!a->isStructTy()) && (!b->isStructTy())) {
+    if (a->isIntegerTy(32) && b->isIntegerTy(32)) { // i32, i32 ---> i32
+      res = llvm::Type::getInt32Ty(env->context);
+    } else if (a->isIntegerTy(1) && b->isIntegerTy(1)) { // i1, i1 ---> i1
+      res = llvm::Type::getInt1Ty(env->context);
+    } else { // i32, i1 ---> %Object
+      res = env->class_table.Type_Lookup["Object"];
+    }
+  } else if ((!a->isStructTy()) && b->isStructTy()) {
+    llvm::StructType* b_struct = llvm::cast<llvm::StructType>(b);
+    if (a->isIntegerTy(32) && b_struct->getName() == "Int") { // i32, Int ---> i32
+      res = llvm::Type::getInt32Ty(env->context);
+    } else if (a->isIntegerTy(1) && b_struct->getName() == "Bool") { // i1, Bool ---> i1
+      res = llvm::Type::getInt1Ty(env->context);
+    } else {
+      res = env->class_table.Type_Lookup["Object"];
+    }
+  } else if (a->isStructTy() && (!b->isStructTy())) {
+    llvm::StructType* a_struct = llvm::cast<llvm::StructType>(a);
+    if (a_struct->getName() == "Int" && b->isIntegerTy(32)) { // Int, i32 ---> i32
+      res = llvm::Type::getInt32Ty(env->context);
+    } else if (a_struct->getName() == "Bool" && b->isIntegerTy(1)) { // Bool, i1 ---> i1
+      res = llvm::Type::getInt1Ty(env->context);
+    } else {
+      res = env->class_table.Type_Lookup["Object"];
+    }
+  } else {
+    assert(false);
+  }
+  return res;
+}
+
 // current env, class curr_cls {}, .....
 // let33(x : Int, y : B*): Int ----> i32 @Main.let33(%Main* %self, i32 %x, %B* %y)
 // [%tmp.102 = alloca %Main*]
 // [%tmp.103 = alloca i32]
 // [%tmp.104 = alloca %B*]
 // [store %Main* %self, %Main** %tmp.102] || SELF_ADDR is %tmp.102
-// [store i32 %x, i32* %tmp.103] || bind x ----> %tmp.103 || bind x ----> i32
-// [store %B* %y, %B** %tmp.104] || bind y ----> %tmp.104 || bind y ----> %B
+// [store i32 %x, i32* %tmp.103] || bind x ----> %tmp.103 || bind x ----> "i32"
+// [store %B* %y, %B** %tmp.104] || bind y ----> %tmp.104 || bind y ----> "%B"
 auto Create_Param(CgenEnvironment* env, CgenNode* curr_cls, llvm::Function* func_ptr, method_class* method_ptr) {
   auto formals = *(method_ptr->get_formals());
 
