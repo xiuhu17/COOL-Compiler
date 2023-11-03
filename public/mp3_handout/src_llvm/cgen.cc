@@ -845,8 +845,8 @@ Function *method_class::code(CgenEnvironment *env) {
   auto ret_expr_val = expr->code(env);
   auto ret_expr_tp = expr->get_expr_tp(env);
   auto ret_decl_tp = Get_Decl_Type(env, env->get_class(), return_type->get_string());
-  auto ret_ = Conform(env, ret_decl_tp, ret_expr_tp, ret_expr_val);
-  env->builder.CreateRet(ret_);
+  auto ret_conform = Conform(env, ret_decl_tp, ret_expr_tp, ret_expr_val);
+  env->builder.CreateRet(ret_conform);
 
   return env->FUNC_PTR;
 }
@@ -1081,12 +1081,17 @@ Value *plus_class::code(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "plus" << std::endl;
 
-  auto e1_ = e1->code(env);
-  auto e2_ = e2->code(env);
+  auto left_val = e1->code(env);
+  auto left_tp = e1->get_expr_tp(env);
+  auto right_val = e2->code(env);
+  auto right_tp = e2->get_expr_tp(env);
 
-  auto add_res = env->builder.CreateAdd(e1_, e2_);
+  auto left_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), left_tp, left_val);
+  auto right_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), right_tp, right_val);
 
-  set_expr_tp(env, e1->get_expr_tp(env));
+  auto add_res = env->builder.CreateAdd(left_val_conform, right_val_conform);
+
+  set_expr_tp(env, llvm::Type::getInt32Ty(env->context));
   return add_res;
 }
 
@@ -1332,9 +1337,33 @@ Value *new__class::code(CgenEnvironment *env) {
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  llvm::CallInst* allocated;
+  if (type_name->get_string() == "Int") {
+    auto func_ptr = env->llmethod_to_Funtion_Ptr["Int_new"];
+    auto callee = env->the_module.getOrInsertFunction("Int_new", func_ptr->getFunctionType());
+    allocated = env->builder.CreateCall(callee, {});
+    set_expr_tp(env, env->Type_Lookup["Int"]);
+  } else if (type_name->get_string() == "Bool") {
+    auto func_ptr = env->llmethod_to_Funtion_Ptr["Bool_new"];
+    auto callee = env->the_module.getOrInsertFunction("Bool_new", func_ptr->getFunctionType());
+    allocated = env->builder.CreateCall(callee, {});
+    set_expr_tp(env, env->Type_Lookup["Bool"]);
+  } else if (type_name->get_string() == "SELF_TYPE") {
+    auto func_ptr = env->llmethod_to_Funtion_Ptr[env->get_class()->get_init_function_name()];
+    auto callee = env->the_module.getOrInsertFunction(env->get_class()->get_init_function_name(), func_ptr->getFunctionType());
+    allocated = env->builder.CreateCall(callee, {});
+    set_expr_tp(env, env->Type_Lookup[env->get_class()->get_type_name()]);
+  } else {
+    auto cls = env->Name_to_Node[type_name->get_string()];
+    auto func_ptr = env->llmethod_to_Funtion_Ptr[cls->get_init_function_name()];
+    auto callee = env->the_module.getOrInsertFunction(cls->get_init_function_name(), func_ptr->getFunctionType());
+    allocated = env->builder.CreateCall(callee, {});
+    set_expr_tp(env, env->Type_Lookup[type_name->get_string()]);
+  }
+  return allocated;
 #endif
 }
+
 
 Value *isvoid_class::code(CgenEnvironment *env) {
   if (cgen_debug)
