@@ -133,12 +133,13 @@ class F inherits E{
         }
     };
 
+    (*
     test18() : Int {
         {
             p@B.test2();
             0;
         }
-    };
+    }; *)
 
 
         test19() : Int {

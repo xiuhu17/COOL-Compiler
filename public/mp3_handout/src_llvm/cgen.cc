@@ -1376,7 +1376,32 @@ Value *dispatch_class::code(CgenEnvironment *env) {
   auto expr_val = expr->code(env);
   auto expr_tp = expr->get_expr_tp(env);
   if (expr_val == nullptr || expr_tp == nullptr) { // use self
-  
+      auto self_tp_dispatch = env->Type_Lookup[env->get_class()->get_type_name()];
+      auto self_val_dispatch = env->builder.CreateLoad(llvm::PointerType::get(self_tp_dispatch, 0), env->SELF_ADDR);
+
+      llvm::StructType* tp_cast = llvm::cast<llvm::StructType>(self_tp_dispatch);
+      auto func_class = env->Name_to_Node[tp_cast->getName().str()];
+      auto clfunc_name = name->get_string();
+      auto func_addr = Get_Func_Addr(env, func_class, self_val_dispatch, clfunc_name);
+      auto func_ptr = Get_Func_Ptr(env, func_class, clfunc_name);
+
+      auto func_call = env->builder.CreateLoad(func_ptr->getType(), func_addr);
+      auto [func_tp_vec, orig_ret_tp]  = Get_Func_Decl_Type(env, func_class, clfunc_name); // ret, self, para
+
+      std::vector<llvm::Value*> arg_conform_vec = {Conform(env, func_tp_vec[1], self_tp_dispatch, self_val_dispatch)};
+      for (int i = actual->first(); actual->more(i); i = actual->next(i)) {
+        auto arg = actual->nth(i);
+        auto arg_val = arg->code(env);
+        auto arg_tp = arg->get_expr_tp(env);
+        auto arg_val_conform = Conform(env, func_tp_vec[i + 2], arg_tp, arg_val);
+        arg_conform_vec.push_back(arg_val_conform);
+      }
+
+      auto ret_val = env->builder.CreateCall(func_ptr->getFunctionType(), func_call, arg_conform_vec);
+      auto ret_val_conform = Conform(env, func_tp_vec[0], orig_ret_tp, ret_val);
+
+      set_expr_tp(env, func_tp_vec[0]);
+      return ret_val_conform;
   } else {
     if (expr_tp->isIntegerTy(32)) {
       auto self_tp_dispatch = env->Type_Lookup["Int"];

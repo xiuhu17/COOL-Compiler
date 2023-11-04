@@ -660,14 +660,16 @@ auto Get_Func_Ptr_Static(CgenEnvironment* env, CgenNode* func_class, std::string
   return function_ptr;
 }
 // two Conform, one inside the define function body, one after call function
-// i32/i1/%Main/%B, %Int/%Bool/%Main/%B, i32/i1/%Main/%B, ...
+// <i32/i1/%Main/%B, %Int/%Bool/%Main/%B, i32/i1/%Main/%B, ... || i32/i1/%Main/%B>
 // ret_, self_, para_, ...
-auto Get_Func_Decl_Type_Static(CgenEnvironment* env, CgenNode* func_class, std::string clfunc_name) {
+std::pair<std::vector<llvm::Type*>, llvm::Type*> Get_Func_Decl_Type_Static(CgenEnvironment* env, CgenNode* func_class, std::string clfunc_name) {
   auto func_offset = (*func_class->get_current_clmethod_to_offset())[clfunc_name] - 4; assert(func_offset >= 0);
 
-  auto [_, defined_method] = (*func_class->get_current_vtable_tp())[func_offset];
-  std::vector<llvm::Type*> type_;
+  auto [defined_class, defined_method] = (*func_class->get_current_vtable_tp())[func_offset];
 
+  auto orig_ret_ = Get_Decl_Type(env, defined_class, defined_method->get_return_type()->get_string());
+
+  std::vector<llvm::Type*> type_;
   auto ret_ = Get_Decl_Type(env, func_class, defined_method->get_return_type()->get_string());
   type_.push_back(ret_);
   auto self_ = env->Type_Lookup[func_class->get_type_name()];
@@ -679,7 +681,7 @@ auto Get_Func_Decl_Type_Static(CgenEnvironment* env, CgenNode* func_class, std::
     type_.push_back(Get_Decl_Type(env, func_class, formal_iter->get_type_decl()->get_string()));
   }
 
-  return type_;
+  return {type_, orig_ret_};
 }
 
 
