@@ -31,7 +31,7 @@ class Main inherits IO{
             if true then new Bool else new Bool fi;
             if true then false else new B fi;
              if b <- false then 2 else 3 fi;
-              while true loop 3 pool;
+              --while true loop 3 pool;
             -- new Int;
              --if isvoid c then 3 else 4 fi;
              a <- 2 + 3;

@@ -1357,7 +1357,11 @@ Value *string_const_class::code(CgenEnvironment *env) {
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto idx = token->get_index();
+  auto global_str = env->strEntry_to_GlobalStr[idx];
+
+  set_expr_tp(env, env->Type_Lookup["String"]);
+  return global_str;
 #endif
 }
 

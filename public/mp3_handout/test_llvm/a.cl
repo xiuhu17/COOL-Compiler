@@ -14,10 +14,10 @@ class Main inherits IO
   func():Bool {2=5};
   main():Object {{ 
 		let x : A <- new B in out_string("test");  
+    self;
   }};
 
-
-  let3(): Object {
+let3(): Object {
     {
       let x : Int <- 0 in 2 +  x;
       self;
@@ -87,6 +87,7 @@ class Main inherits IO
       x + 2;
     }
   };
+  
 };
 
 class C{
