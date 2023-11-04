@@ -114,7 +114,10 @@ class F inherits E{
     };
     ----------------------------------------------------------------------
     test15() : Int {
-        {test2(); 0;}
+        {
+            test2(); 
+            0;
+        }
     };
 
     test16() : Int {
@@ -123,14 +126,22 @@ class F inherits E{
             0;
         }
     };
+        test17(p : C) : Int {
+        {
+            p.test2();
+            0;
+        }
+    };
 
-    test17() : Int {
+    test18() : Int {
         {
             p@B.test2();
             0;
         }
     };
-        test18() : Int {
+
+
+        test19() : Int {
         {
             3.type_name();
             0;
