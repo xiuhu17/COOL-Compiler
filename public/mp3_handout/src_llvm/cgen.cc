@@ -1311,11 +1311,11 @@ Value *object_class::code(CgenEnvironment *env) {
 
   llvm::LoadInst *obj_val;
   if (object_type->isIntegerTy(32)) {
-    obj_val = env->builder.CreateLoad(llvm::Type::getInt32Ty(env->context), object_addr_val);
+    obj_val = env->builder.CreateLoad(llvm::Type::getInt32Ty(env->context), object_addr_val); // i32* -> i32
   } else if (object_type->isIntegerTy(1)) {
-    obj_val = env->builder.CreateLoad(llvm::Type::getInt1Ty(env->context), object_addr_val);
+    obj_val = env->builder.CreateLoad(llvm::Type::getInt1Ty(env->context), object_addr_val); // i1* -> i1
   } else if (object_type->isStructTy()) {
-    obj_val = env->builder.CreateLoad(llvm::PointerType::get(object_type, 0), object_addr_val);
+    obj_val = env->builder.CreateLoad(llvm::PointerType::get(object_type, 0), object_addr_val); // %B** -> %B*
   } else {
     assert(false);
   }
@@ -1347,8 +1347,18 @@ Value *static_dispatch_class::code(CgenEnvironment *env) {
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here and replace `return nullptr`
+
   auto expr_val = expr->code(env);
   auto expr_tp = expr->get_expr_tp(env);
+
+  auto ok_label = env->new_ok_label();
+  auto abort_true = env->get_abrt();              // true, 0
+  auto ok_false = env->new_bb_at_fend(ok_label); // false, not 0
+
+  auto cond_ = env->builder.CreateCmp(llvm::CmpInst::ICMP_EQ, llvm::ConstantPointerNull::get(llvm::PointerType::get(expr_tp, 0)), expr_val);
+  env->builder.CreateCondBr(cond_, abort_true, ok_false);
+
+  env->builder.SetInsertPoint(ok_false);
 
   auto func_class = env->Name_to_Node[type_name->get_string()];
   auto clfunc_name = name->get_string();
@@ -1413,6 +1423,7 @@ Value *dispatch_class::code(CgenEnvironment *env) {
   // TODO: add code here and replace `return nullptr`
   auto expr_val = expr->code(env);
   auto expr_tp = expr->get_expr_tp(env);
+  
   if (expr_val == nullptr || expr_tp == nullptr) { // use self
       auto self_tp_dispatch = env->Type_Lookup[env->get_class()->get_type_name()];
       auto self_val_dispatch = env->builder.CreateLoad(llvm::PointerType::get(self_tp_dispatch, 0), env->SELF_ADDR);
@@ -1576,14 +1587,15 @@ Value *isvoid_class::code(CgenEnvironment *env) {
 #else
   // TODO: add code here and replace `return nullptr`
   set_expr_tp(env, Type::getInt1Ty(env->context));
-
   auto e1_expr = e1->code(env);
   auto e1_type = e1->get_expr_tp(env);
-  if (e1_expr == nullptr || e1_type == nullptr) {
-    return ConstantInt::get(Type::getInt1Ty(env->context), true); // void
+
+  if (e1_type->isStructTy()) {
+    auto cond_ = env->builder.CreateCmp(llvm::CmpInst::ICMP_EQ, llvm::ConstantPointerNull::get(llvm::PointerType::get(e1_type, 0)), e1_expr);
+    return cond_;
+  } else {
+    return ConstantInt::get(Type::getInt1Ty(env->context), false); // not void
   }
-  
-  return ConstantInt::get(Type::getInt1Ty(env->context), false); // not void
 
   return nullptr;
 #endif
