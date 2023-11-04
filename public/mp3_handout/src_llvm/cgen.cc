@@ -690,6 +690,7 @@ void CgenNode::code_init_function() {
   auto malloc_alloc = env.builder.CreateCall(malloc_func_callee, {grab_size}); 
   // %tmp.111 = bitcast i8* %tmp.110 to %Main*
   auto after_cast = env.builder.CreateBitCast(malloc_alloc, llvm::PointerType::get(curr_type, 0)); 
+  env.MALLOC_ADDR = after_cast;
   // %malloc.null = icmp eq %Main* %tmp.111, null
   auto cond_check = env.builder.CreateCmp(llvm::CmpInst::ICMP_EQ, after_cast, llvm::ConstantPointerNull::get(llvm::PointerType::get(curr_type, 0))); 
   // br i1 %malloc.null, label %abort, label %okay
@@ -1536,8 +1537,7 @@ Value *attr_class::code(CgenEnvironment *env) {
   auto expr_type = init->get_expr_tp(env);
 
   if (expr_val == nullptr || expr_type == nullptr) {
-      auto curr_class_type = env->class_table.Type_Lookup[env->get_class()->get_type_name()];
-      auto self_ptr = env->builder.CreateLoad(llvm::PointerType::get(curr_class_type, 0), env->SELF_ADDR);
+      auto self_ptr = env->MALLOC_ADDR;
       auto attr_addr_val = Get_Attr_Addr(env, env->get_class(), self_ptr, name->get_string());
       auto attr_type = Get_Attr_Type(env, env->get_class(), name->get_string());
       if (attr_type->isIntegerTy(32)) {
@@ -1550,8 +1550,7 @@ Value *attr_class::code(CgenEnvironment *env) {
         assert(false);
       }
   } else {
-      auto curr_class_type = env->class_table.Type_Lookup[env->get_class()->get_type_name()];
-      auto self_ptr = env->builder.CreateLoad(llvm::PointerType::get(curr_class_type, 0), env->SELF_ADDR);
+      auto self_ptr = env->MALLOC_ADDR;
       auto attr_addr_val = Get_Attr_Addr(env, env->get_class(), self_ptr, name->get_string());
       auto attr_type = Get_Attr_Type(env, env->get_class(), name->get_string());
 

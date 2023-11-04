@@ -240,7 +240,7 @@ public:
   // generation for each method. You may need to add parameters to this
   // constructor.
   CgenEnvironment(CgenNode *cur_class)
-      : FUNC_PTR(0), SELF_ADDR(0), cur_class(cur_class), var_table(), var_tp_table(),
+      : FUNC_PTR(0), SELF_ADDR(0), MALLOC_ADDR(0), cur_class(cur_class), var_table(), var_tp_table(),
         class_table(*cur_class->get_classtable()), context(class_table.context),
         builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup), Vtable_Type_Lookup(class_table.Vtable_Type_Lookup), Vtable_Proto_Lookup(class_table.Vtable_Proto_Lookup),
         strEntry_to_GlobalStr(class_table.strEntry_to_GlobalStr), llmethod_to_Funtion_Ptr(class_table.llmethod_to_Funtion_Ptr), Name_to_Node(class_table.Name_to_Node) {
@@ -325,6 +325,7 @@ public:
   // [store %Main* %self, %Main** %tmp.102] || SELF_ADDR is %tmp.102
   // -----------------------------------------------------------------------------------------
   llvm::Value* SELF_ADDR; 
+  llvm::Value* MALLOC_ADDR;
 private:
   CgenNode *cur_class;
 
