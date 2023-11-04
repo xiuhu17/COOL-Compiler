@@ -1,5 +1,0 @@
-new A
-A.f: x = 0
-new B
-B.f: y = 0
-initializing B.y. here x = 12

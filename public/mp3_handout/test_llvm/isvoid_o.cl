@@ -1,10 +1,11 @@
--- Equality test
+-- Test of isvoid
 
 class Main inherits IO
 {
-  func():Bool {2=5};
-  main():Object {{ 
+  x:Main;
+  func() : Bool {isvoid x};
+  main() : Object {{
 	if func() then out_string("ok") else out_string("not ok") fi;
-	self; 
+	self;
   }};
 };

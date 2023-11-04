@@ -15,6 +15,9 @@ n=$(find $TESTCASE_DIR -name "*.cl" | wc -l)
 total_tests=0
 passed_tests=0
 
+# 失败的测试文件名称列表
+failed_tests=()
+
 # 切换到 mp2_testcases 目录
 cd $TESTCASE_DIR
 
@@ -31,18 +34,28 @@ for file in *.cl; do
     total_tests=$((total_tests+1))
 
     # 对比两个文件的内容
-    diff -q "$base.out" "$base.outref" > /dev/null
-    if [ $? -eq 0 ]; then
+    if diff -q "$base.out" "$base.outref" > /dev/null; then
         # 如果文件相同
         passed_tests=$((passed_tests+1))
-        echo "pass [$total_tests/$n]" >> $RESULT_DIR/result.txt
+        echo "pass [$base] [$total_tests/$n]" >> $RESULT_DIR/result.txt
     else
-        echo "fail [$total_tests/$n]" >> $RESULT_DIR/result.txt
+        # 记录失败的文件名称
+        failed_tests+=("$base")
+        echo "fail [$base] [$total_tests/$n]" >> $RESULT_DIR/result.txt
     fi
 done
 
 # 输出总结
 echo "Total Pass EC [$passed_tests/$n]" >> $RESULT_DIR/result.txt
+echo "Total Fail EC [$((${#failed_tests[@]}))/$n]" >> $RESULT_DIR/result.txt
+
+# 如果有失败的测试，列出所有失败的文件名称
+if [ ${#failed_tests[@]} -ne 0 ]; then
+    echo "Failed Testcases:" >> $RESULT_DIR/result.txt
+    for fail in "${failed_tests[@]}"; do
+        echo "$fail" >> $RESULT_DIR/result.txt
+    done
+fi
 
 # 执行 make clean 并忽略其输出
 make clean > /dev/null 2>&1

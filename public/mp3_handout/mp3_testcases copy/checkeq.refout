@@ -1,4 +1,0 @@
-self != obj
-1 != 0
-true != false
-"abc" != "bbc"

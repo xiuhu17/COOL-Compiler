@@ -1,0 +1,18 @@
+Total Pass EC [55/70]
+Total Fail EC [15/70]
+Failed Testcases:
+book_list
+caseloop_o
+case-none
+case-order
+caseskip
+checkvoid_static
+copy_o3
+hairyscary
+isvoid_o
+shadow-attr-case
+shadow-case-let
+shadow-formal-case
+shadow-let-case
+typcase1
+typcase2_o
