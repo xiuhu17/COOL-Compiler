@@ -1575,6 +1575,16 @@ Value *isvoid_class::code(CgenEnvironment *env) {
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here and replace `return nullptr`
+  set_expr_tp(env, Type::getInt1Ty(env->context));
+
+  auto e1_expr = e1->code(env);
+  auto e1_type = e1->get_expr_tp(env);
+  if (e1_expr == nullptr || e1_type == nullptr) {
+    return ConstantInt::get(Type::getInt1Ty(env->context), true); // void
+  }
+  
+  return ConstantInt::get(Type::getInt1Ty(env->context), false); // not void
+
   return nullptr;
 #endif
 }
