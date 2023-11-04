@@ -3,7 +3,7 @@ class Main inherits IO{
     main() : Object {
         {   
             let x : Int in x <- 3;
-            let x : Int in x.type_name();
+            --let x : Int in x.type_name();
             --c <- new Int;
             0;
         } 
@@ -30,20 +30,6 @@ class C{
   c : SELF_TYPE;
 };
 
-class D inherits C{
-    d : C;
-    e : SELF_TYPE;
-    f : D;
-};
-class E inherits D {
-    g : B;
-    h: C;
-    i : D;
-    j : E;
-    k : SELF_TYPE;
-};
-
-(*
 class  D inherits C{
     d : C <- new D;
     e : Object <- 1; -- Object <- i32
@@ -72,14 +58,14 @@ class F {
     test4():Int{
         new Int
     };
-    test5():Object{
-        let x : Int in x.type_name()
-    };
-    test6():Object{
-        let x : Int in x.copy()
-    };
+    --test5():Object{
+    --    let x : Int in x.type_name()
+    --};
+    --test6():Object{
+    --    let x : Int in x.copy()
+    --};
 };
-*)
+
 
 
 -- llvm::Function* test; test.getType(); test.getFunctionType(); test.getname(); 

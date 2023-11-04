@@ -727,12 +727,13 @@ void CgenNode::code_init_function() {
     }
   }
 
-  // TODO: handle the second pass-----------------------------------------------------------------------------------------------------------------
   // loop over the true expr
-  // for (auto& [defined_class, defined_attr]: obj_tp) {
-  //
-  // }
+  for (auto& [defined_class, defined_attr]: obj_tp) {
+    defined_attr->code(&env);
+  }
   
+  // return malloc allocated stuff
+  env.builder.CreateRet(after_cast);
 }
 
 // Class codegen. This should performed after every class has been setup.
@@ -1253,7 +1254,7 @@ Value *comp_class::code(CgenEnvironment *env) {
   auto left_val = e1->code(env);
   auto left_type = e1->get_expr_tp(env);
 
-  auto left_val_conform = Conform(env, llvm::Type::getInt32Ty(env->context), left_type, left_val);
+  auto left_val_conform = Conform(env, llvm::Type::getInt1Ty(env->context), left_type, left_val);
   auto comp_res = env->builder.CreateXor(left_val_conform, ConstantInt::get(Type::getInt1Ty(env->context), true));
 
   set_expr_tp(env, Type::getInt1Ty(env->context));
@@ -1293,6 +1294,12 @@ Value *object_class::code(CgenEnvironment *env) {
     std::cerr << "Object" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
+  if (name->get_string() == "self") {
+    auto cls_tp = env->class_table.Type_Lookup[env->get_class()->get_type_name()];
+    auto self_val = env->builder.CreateLoad(llvm::PointerType::get(cls_tp, 0), env->SELF_ADDR);
+    set_expr_tp(env, cls_tp);
+    return self_val;
+  }
   auto [object_type, object_addr_val] = env->find_in_scopes(name);
   if (object_type == nullptr || object_addr_val == nullptr) {
     auto curr_class_type = env->class_table.Type_Lookup[env->get_class()->get_type_name()];
@@ -1521,7 +1528,34 @@ Value *attr_class::code(CgenEnvironment *env) {
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto expr_val = init->code(env);
+  auto expr_type = init->get_expr_tp(env);
+
+  if (expr_val == nullptr || expr_type == nullptr) {
+      auto curr_class_type = env->class_table.Type_Lookup[env->get_class()->get_type_name()];
+      auto self_ptr = env->builder.CreateLoad(llvm::PointerType::get(curr_class_type, 0), env->SELF_ADDR);
+      auto attr_addr_val = Get_Attr_Addr(env, env->get_class(), self_ptr, name->get_string());
+      auto attr_type = Get_Attr_Type(env, env->get_class(), name->get_string());
+      if (attr_type->isIntegerTy(32)) {
+        env->builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), attr_addr_val);
+      } else if (attr_type->isIntegerTy(1)) {
+        env->builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt1Ty(env->context), false), attr_addr_val);
+      } else if (attr_type->isStructTy()) {
+        env->builder.CreateStore(llvm::ConstantPointerNull::get(llvm::PointerType::get(attr_type, 0)), attr_addr_val);
+      } else {
+        assert(false);
+      }
+  } else {
+      auto curr_class_type = env->class_table.Type_Lookup[env->get_class()->get_type_name()];
+      auto self_ptr = env->builder.CreateLoad(llvm::PointerType::get(curr_class_type, 0), env->SELF_ADDR);
+      auto attr_addr_val = Get_Attr_Addr(env, env->get_class(), self_ptr, name->get_string());
+      auto attr_type = Get_Attr_Type(env, env->get_class(), name->get_string());
+
+      auto expr_val_conform = Conform(env, attr_type, expr_type, expr_val);
+      env->builder.CreateStore(expr_val_conform, attr_addr_val);
+  }
+
+  return expr_val;
 #endif
 }
 
