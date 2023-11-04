@@ -607,12 +607,10 @@ auto Get_Func_Ptr(CgenEnvironment* env, CgenNode* func_class, std::string clfunc
 // two Conform, one inside the define function body, one after call function
 // <i32/i1/%Main/%B, %Int/%Bool/%Main/%B, i32/i1/%Main/%B, ... || i32/i1/%Main/%B>
 // ret_, self_, para_, ...
-std::pair<std::vector<llvm::Type*>, llvm::Type*> Get_Func_Decl_Type(CgenEnvironment* env, CgenNode* func_class, std::string clfunc_name) {
+auto Get_Func_Decl_Type(CgenEnvironment* env, CgenNode* func_class, std::string clfunc_name) {
   auto func_offset = (*func_class->get_current_clmethod_to_offset())[clfunc_name] - 4; assert(func_offset >= 0);
 
-  auto [defined_class, defined_method] = (*func_class->get_current_vtable_tp())[func_offset];
-
-  auto orig_ret_ = Get_Decl_Type(env, defined_class, defined_method->get_return_type()->get_string());
+  auto [_, defined_method] = (*func_class->get_current_vtable_tp())[func_offset];
 
   std::vector<llvm::Type*> type_;
   auto ret_ = Get_Decl_Type(env, func_class, defined_method->get_return_type()->get_string());
@@ -626,7 +624,7 @@ std::pair<std::vector<llvm::Type*>, llvm::Type*> Get_Func_Decl_Type(CgenEnvironm
     type_.push_back(Get_Decl_Type(env, func_class, formal_iter->get_type_decl()->get_string()));
   }
 
-  return {type_, orig_ret_};
+  return type_;
 }
 
 // class B { test2(): SELF_TYPE{} }  || class C inherits B{} || class F inherits ... {p : C}
@@ -645,45 +643,18 @@ auto Get_Func_Addr_Static(CgenEnvironment* env, CgenNode* func_class, std::strin
   auto ret_val = env->builder.CreateGEP(vtable_type, vtable_proto, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), func_offset)});
   return ret_val;
 }
-// class B { test2(): SELF_TYPE{} }  || class C inherits B{} || class F inherits ... {p : C}
-// ---------------------------------------------------------------------------------------------------------------------
-// class F { test15() : Int { { p@B.test2(); 0; } }; };  ------------> "%B*"
-// %tmp.69 = getelementptr %_B_vtable, %_B_vtable* @_B_vtable_prototype, i32 0, i32 9 || func_class is "%B"
-auto Get_Func_Ptr_Static(CgenEnvironment* env, CgenNode* func_class, std::string clfunc_name) {
-  auto func_offset = (*func_class->get_current_clmethod_to_offset())[clfunc_name] - 4; assert(func_offset >= 0);
-
-  auto [defined_class, defined_method] = (*func_class->get_current_vtable_tp())[func_offset];
-  auto get_func_ll_name = defined_class->get_function_name(defined_method->get_name()->get_string());
-  auto function_ptr = env->llmethod_to_Funtion_Ptr[get_func_ll_name];
-
-  assert(function_ptr);
-  return function_ptr;
-}
 // two Conform, one inside the define function body, one after call function
 // <i32/i1/%Main/%B, %Int/%Bool/%Main/%B, i32/i1/%Main/%B, ... || i32/i1/%Main/%B>
 // ret_, self_, para_, ...
-std::pair<std::vector<llvm::Type*>, llvm::Type*> Get_Func_Decl_Type_Static(CgenEnvironment* env, CgenNode* func_class, std::string clfunc_name) {
+auto Get_Func_Ret_Type_Static(CgenEnvironment* env, CgenNode* func_class, std::string clfunc_name) {
   auto func_offset = (*func_class->get_current_clmethod_to_offset())[clfunc_name] - 4; assert(func_offset >= 0);
 
-  auto [defined_class, defined_method] = (*func_class->get_current_vtable_tp())[func_offset];
+  auto [_, defined_method] = (*func_class->get_current_vtable_tp())[func_offset];
 
-  auto orig_ret_ = Get_Decl_Type(env, defined_class, defined_method->get_return_type()->get_string());
-
-  std::vector<llvm::Type*> type_;
   auto ret_ = Get_Decl_Type(env, func_class, defined_method->get_return_type()->get_string());
-  type_.push_back(ret_);
-  auto self_ = env->Type_Lookup[func_class->get_type_name()];
-  type_.push_back(self_);
-  
-  auto formals = (*defined_method->get_formals()); 
-  for (int i = formals->first(); formals->more(i); i = formals->next(i)) {
-    auto formal_iter = formals->nth(i);
-    type_.push_back(Get_Decl_Type(env, func_class, formal_iter->get_type_decl()->get_string()));
-  }
 
-  return {type_, orig_ret_};
+  return ret_;
 }
-
 
 auto LCA(CgenEnvironment* env, llvm::Type* a, llvm::Type* b) {
   llvm::StructType* a_struct = llvm::cast<llvm::StructType>(a);

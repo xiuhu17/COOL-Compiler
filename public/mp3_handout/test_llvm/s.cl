@@ -1,4 +1,10 @@
-class Z{};
+class Z{
+    test2() : SELF_TYPE {
+        {
+            0;
+            self;
+        }
+    };};
 class B inherits Z{
     a : String;
     b : Int <- 0;
@@ -19,12 +25,7 @@ class B inherits Z{
     test222() : Z {
         self
     };
-    test2() : SELF_TYPE {
-        {
-            0;
-            self;
-        }
-    };
+    
     test3(aa : Bool, kk: Int, ee : B) : Int {
         {test2(); 0;}
     };
@@ -126,20 +127,20 @@ class F inherits E{
             0;
         }
     };
-        test17(p : C) : Int {
+        test17() : Int {
         {
             p.test2();
             0;
         }
     };
 
-    (*
+    
     test18() : Int {
         {
             p@B.test2();
             0;
         }
-    }; *)
+    }; 
 
 
         test19() : Int {

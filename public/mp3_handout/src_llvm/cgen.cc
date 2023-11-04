@@ -1347,7 +1347,45 @@ Value *static_dispatch_class::code(CgenEnvironment *env) {
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  auto expr_val = expr->code(env);
+  auto expr_tp = expr->get_expr_tp(env);
+
+  auto func_class = env->Name_to_Node[type_name->get_string()];
+  auto clfunc_name = name->get_string();
+
+  auto func_addr = Get_Func_Addr_Static(env, func_class, clfunc_name);
+  auto func_ptr = Get_Func_Ptr(env, func_class, clfunc_name);
+
+  auto func_call = env->builder.CreateLoad(func_ptr->getType(), func_addr);
+  auto func_tp_vec = Get_Func_Decl_Type(env, func_class, clfunc_name);
+
+  std::vector<llvm::Value*> arg_conform_vec = {Conform(env, func_tp_vec[1], expr_tp, expr_val)};
+  for (int i = actual->first(); actual->more(i); i = actual->next(i)) {
+    auto arg = actual->nth(i);
+    auto arg_val = arg->code(env);
+    auto arg_tp = arg->get_expr_tp(env);
+    auto arg_val_conform = Conform(env, func_tp_vec[i + 2], arg_tp, arg_val);
+    arg_conform_vec.push_back(arg_val_conform);
+  }
+  auto ret_val = env->builder.CreateCall(func_ptr->getFunctionType(), func_call, arg_conform_vec);
+
+  CgenNode* orig_class;
+  if (expr_tp->isIntegerTy(32)) {
+    orig_class = env->Name_to_Node["Int"];
+  } else if (expr_tp->isIntegerTy(1)) {
+    orig_class = env->Name_to_Node["Bool"];
+  } else if (expr_tp->isStructTy()) {
+    llvm::StructType* expr_tp_struct = llvm::cast<llvm::StructType>(expr_tp);
+    orig_class = env->Name_to_Node[expr_tp_struct->getName().str()];
+  } else {
+    assert(false);
+  }
+  
+  auto orig_type = Get_Func_Ret_Type_Static(env, orig_class, clfunc_name);
+  auto ret_val_conform = Conform(env, orig_type, func_tp_vec[0], ret_val);
+
+  set_expr_tp(env, orig_type);
+  return ret_val_conform;
 #endif
 }
 
@@ -1379,14 +1417,14 @@ Value *dispatch_class::code(CgenEnvironment *env) {
       auto self_tp_dispatch = env->Type_Lookup[env->get_class()->get_type_name()];
       auto self_val_dispatch = env->builder.CreateLoad(llvm::PointerType::get(self_tp_dispatch, 0), env->SELF_ADDR);
 
-      llvm::StructType* tp_cast = llvm::cast<llvm::StructType>(self_tp_dispatch);
-      auto func_class = env->Name_to_Node[tp_cast->getName().str()];
+      auto func_class = env->Name_to_Node[env->get_class()->get_type_name()];
       auto clfunc_name = name->get_string();
+
       auto func_addr = Get_Func_Addr(env, func_class, self_val_dispatch, clfunc_name);
       auto func_ptr = Get_Func_Ptr(env, func_class, clfunc_name);
 
       auto func_call = env->builder.CreateLoad(func_ptr->getType(), func_addr);
-      auto [func_tp_vec, orig_ret_tp]  = Get_Func_Decl_Type(env, func_class, clfunc_name); // ret, self, para
+      auto func_tp_vec = Get_Func_Decl_Type(env, func_class, clfunc_name); // ret, self, para
 
       std::vector<llvm::Value*> arg_conform_vec = {Conform(env, func_tp_vec[1], self_tp_dispatch, self_val_dispatch)};
       for (int i = actual->first(); actual->more(i); i = actual->next(i)) {
@@ -1398,10 +1436,8 @@ Value *dispatch_class::code(CgenEnvironment *env) {
       }
 
       auto ret_val = env->builder.CreateCall(func_ptr->getFunctionType(), func_call, arg_conform_vec);
-      auto ret_val_conform = Conform(env, func_tp_vec[0], orig_ret_tp, ret_val);
-
       set_expr_tp(env, func_tp_vec[0]);
-      return ret_val_conform;
+      return ret_val;
   } else {
     if (expr_tp->isIntegerTy(32)) {
       auto self_tp_dispatch = env->Type_Lookup["Int"];
@@ -1413,7 +1449,7 @@ Value *dispatch_class::code(CgenEnvironment *env) {
       auto func_ptr = Get_Func_Ptr(env, func_class, clfunc_name);
 
       auto func_call = env->builder.CreateLoad(func_ptr->getType(), func_addr);
-      auto [func_tp_vec, orig_ret_tp]  = Get_Func_Decl_Type(env, func_class, clfunc_name); // ret, self, para
+      auto func_tp_vec  = Get_Func_Decl_Type(env, func_class, clfunc_name); // ret, self, para
 
       std::vector<llvm::Value*> arg_conform_vec = {Conform(env, func_tp_vec[1], self_tp_dispatch, self_val_dispatch)};
       for (int i = actual->first(); actual->more(i); i = actual->next(i)) {
@@ -1425,10 +1461,8 @@ Value *dispatch_class::code(CgenEnvironment *env) {
       }
 
       auto ret_val = env->builder.CreateCall(func_ptr->getFunctionType(), func_call, arg_conform_vec);
-      auto ret_val_conform = Conform(env, func_tp_vec[0], orig_ret_tp, ret_val);
-
       set_expr_tp(env, func_tp_vec[0]);
-      return ret_val_conform;
+      return ret_val;
     } else if (expr_tp->isIntegerTy(1)) {
       auto self_tp_dispatch = env->Type_Lookup["Bool"];
       auto self_val_dispatch = BOX(env, expr_val);
@@ -1439,7 +1473,7 @@ Value *dispatch_class::code(CgenEnvironment *env) {
       auto func_ptr = Get_Func_Ptr(env, func_class, clfunc_name);
 
       auto func_call = env->builder.CreateLoad(func_ptr->getType(), func_addr);
-      auto [func_tp_vec, orig_ret_tp]  = Get_Func_Decl_Type(env, func_class, clfunc_name); // ret, self, para
+      auto func_tp_vec  = Get_Func_Decl_Type(env, func_class, clfunc_name); // ret, self, para
 
       std::vector<llvm::Value*> arg_conform_vec = {Conform(env, func_tp_vec[1], self_tp_dispatch, self_val_dispatch)};
       for (int i = actual->first(); actual->more(i); i = actual->next(i)) {
@@ -1451,10 +1485,8 @@ Value *dispatch_class::code(CgenEnvironment *env) {
       }
 
       auto ret_val = env->builder.CreateCall(func_ptr->getFunctionType(), func_call, arg_conform_vec);
-      auto ret_val_conform = Conform(env, func_tp_vec[0], orig_ret_tp, ret_val);
-
       set_expr_tp(env, func_tp_vec[0]);
-      return ret_val_conform;
+      return ret_val;
     } else if (expr_tp->isStructTy()) {
       auto self_tp_dispatch = expr_tp;
       auto self_val_dispatch = expr_val;
@@ -1466,7 +1498,7 @@ Value *dispatch_class::code(CgenEnvironment *env) {
       auto func_ptr = Get_Func_Ptr(env, func_class, clfunc_name);
 
       auto func_call = env->builder.CreateLoad(func_ptr->getType(), func_addr);
-      auto [func_tp_vec, orig_ret_tp]  = Get_Func_Decl_Type(env, func_class, clfunc_name); // ret, self, para
+      auto func_tp_vec = Get_Func_Decl_Type(env, func_class, clfunc_name); // ret, self, para
 
       std::vector<llvm::Value*> arg_conform_vec = {Conform(env, func_tp_vec[1], self_tp_dispatch, self_val_dispatch)};
       for (int i = actual->first(); actual->more(i); i = actual->next(i)) {
@@ -1478,10 +1510,8 @@ Value *dispatch_class::code(CgenEnvironment *env) {
       }
 
       auto ret_val = env->builder.CreateCall(func_ptr->getFunctionType(), func_call, arg_conform_vec);
-      auto ret_val_conform = Conform(env, func_tp_vec[0], orig_ret_tp, ret_val);
-
       set_expr_tp(env, func_tp_vec[0]);
-      return ret_val_conform;
+      return ret_val;
     } else {
       assert(false);
     }
