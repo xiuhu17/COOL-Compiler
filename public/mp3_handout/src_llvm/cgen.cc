@@ -1662,7 +1662,7 @@ Value *typcase_class::code(CgenEnvironment *env) {
     set_ = types[0];
   } else {
     set_ = Find_Parent(env, types[0], types[1]);
-    for (int i = 2; i < types.size(); ++ i) {
+    for (size_t i = 2; i < types.size(); ++ i) {
       set_ = Find_Parent(env, set_, types[i]);
     }
   }
