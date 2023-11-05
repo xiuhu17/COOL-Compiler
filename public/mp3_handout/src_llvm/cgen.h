@@ -240,10 +240,11 @@ public:
   // generation for each method. You may need to add parameters to this
   // constructor.
   CgenEnvironment(CgenNode *cur_class)
-      : FUNC_PTR(0), SELF_ADDR(0), MALLOC_ADDR(0), cur_class(cur_class), var_table(), var_tp_table(),
+      : FUNC_PTR(0), SELF_ADDR(0), MALLOC_ADDR(0), branch_operand(0), branch_operand_tp(0), next_label(0), cur_class(cur_class), var_table(), var_tp_table(),
         class_table(*cur_class->get_classtable()), context(class_table.context),
         builder(class_table.builder), the_module(class_table.the_module), Type_Lookup(class_table.Type_Lookup), Vtable_Type_Lookup(class_table.Vtable_Type_Lookup), Vtable_Proto_Lookup(class_table.Vtable_Proto_Lookup),
         strEntry_to_GlobalStr(class_table.strEntry_to_GlobalStr), llmethod_to_Funtion_Ptr(class_table.llmethod_to_Funtion_Ptr), Name_to_Node(class_table.Name_to_Node) {
+    block_count = 0;
     tmp_count = 0;
     ok_count = 0;
     loop_count = 0;
@@ -299,6 +300,11 @@ public:
   llvm::BasicBlock *get_or_insert_abort_block(llvm::Function *f);
 
   // TODO: Add more functions as necessary.
+  std::string new_label(const std::string &prefix, bool increment) {
+    std::string suffix = std::to_string(block_count);
+    block_count += increment;
+    return prefix + suffix;
+  }
 
   std::string new_name() { return "tmp." + std::to_string(tmp_count++); }
   std::string new_ok_label() { return "ok." + std::to_string(ok_count++); }
@@ -326,6 +332,9 @@ public:
   // -----------------------------------------------------------------------------------------
   llvm::Value* SELF_ADDR; 
   llvm::Value* MALLOC_ADDR;
+  llvm::Value* branch_operand;
+  llvm::Type* branch_operand_tp;
+  llvm::BasicBlock* next_label;
 private:
   CgenNode *cur_class;
 
@@ -334,7 +343,7 @@ private:
   cool::SymbolTable<llvm::Value> var_table;
   cool::SymbolTable<llvm::Type> var_tp_table;
   
-  int tmp_count, ok_count; 
+  int block_count, tmp_count, ok_count; 
   int loop_count, true_count, false_count, end_count;
   llvm::BasicBlock *abrt;
 

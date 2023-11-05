@@ -105,8 +105,8 @@ typedef Cases_class *Cases;
   void dump_with_types(std::ostream &, int);
 
 #define Case_EXTRAS                                                            \
-  virtual Symbol get_type_decl() = 0;                                          \
-  virtual llvm::Value *code(llvm::Value *, llvm::Value *, llvm::Type *,        \
+  virtual Symbol get_type_decl() = 0;                                           \
+  virtual std::pair<llvm::Value*, llvm::Type*> code(llvm::Type*, llvm::Value *, llvm::Value *, llvm::Type *,        \
                             CgenEnvironment *) = 0;                            \
   virtual void dump_with_types(std::ostream &, int) = 0;
 
@@ -114,7 +114,7 @@ typedef Cases_class *Cases;
   Symbol get_type_decl() { return type_decl; }                                 \
   Expression get_expr() { return expr; }                                       \
   llvm::Value *alloca_op;                                                      \
-  llvm::Value *code(llvm::Value *expr_val, llvm::Value *tag,                   \
+  std::pair<llvm::Value*, llvm::Type*> code(llvm::Type* expr_tp, llvm::Value *expr_val, llvm::Value *tag,                   \
                     llvm::Type *join_type, CgenEnvironment *env);              \
   void dump_with_types(std::ostream &, int);
 

@@ -737,6 +737,26 @@ void CgenNode::code_init_function() {
   env.builder.CreateRet(after_cast);
 }
 
+#ifdef MP3
+// Retrieve the class tag from an object record.
+// src is the object we need the tag from.
+// src_class is the CgenNode for the *static* class of the expression.
+// You need to look up and return the class tag for it's dynamic value
+Value *get_class_tag(Value *src, CgenNode *src_cls, CgenEnvironment *env) {
+  // ADD CODE HERE (MP3 ONLY)
+  auto static_obj_tp = env->Type_Lookup[src_cls->get_type_name()];
+  auto static_vtable_tp = env->Vtable_Type_Lookup[src_cls->get_vtable_type_name()];
+
+  auto gep = env->builder.CreateGEP(static_obj_tp, src, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0)});
+  auto vtable_ptr = env->builder.CreateLoad(llvm::PointerType::get(static_vtable_tp, 0), gep);
+  auto tag_ptr = env->builder.CreateGEP(static_vtable_tp, vtable_ptr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0), llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), 0)});
+  auto tag = env->builder.CreateLoad(llvm::Type::getInt32Ty(env->context), tag_ptr);
+
+  return tag;
+}
+#endif
+
+
 // Class codegen. This should performed after every class has been setup.
 // Generate code for each method of the class.
 void CgenNode::code_class() {
@@ -843,17 +863,50 @@ Function *method_class::code(CgenEnvironment *env) {
   if (cgen_debug) {
     std::cerr << "method" << std::endl;
   }
+  std::cerr << "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \n";
 
   auto ret_expr_val = expr->code(env);
   auto ret_expr_tp = expr->get_expr_tp(env);
   auto ret_decl_tp = Get_Decl_Type(env, env->get_class(), return_type->get_string());
   auto ret_conform = Conform(env, ret_decl_tp, ret_expr_tp, ret_expr_val);
   env->builder.CreateRet(ret_conform);
-
   return env->FUNC_PTR;
 }
 
 // Codegen for expressions. Note that each expression has a value.
+
+#ifdef MP3
+// TODO: implement these functions (MP3), and add more functions as necessary
+
+// Utitlity function
+// Generate any code necessary to convert from given Value* to
+// dest_type, assuming it has already been checked to be compatible
+
+// conform - If necessary, emit a bitcast or boxing/unboxing operations
+// to convert an object to a new type. This can assume the object
+// is known to be (dynamically) compatible with the target type.
+// It should only be called when this condition holds.
+// (It's needed by the supplied code for typecase)
+llvm::Value *conform(llvm::Value *src, llvm::Type *dest_type, CgenEnvironment *env) {
+  auto type = src->getType();
+  if (type->isIntegerTy(32)) {
+    type = llvm::Type::getInt32Ty(env->context);
+  } else if (type->isIntegerTy(1)) {
+    type = llvm::Type::getInt1Ty(env->context);
+  } else if (type->isStructTy()) {
+    llvm::StructType* type_struct = llvm::cast<StructType>(type);
+    type = env->Type_Lookup[type_struct->getName().str()];
+  } else {
+    if (type->isPointerTy()) {
+      std::cerr << "src: POINTER ISSUE---------------------- \n";
+    } else if (dest_type->isPointerTy()) {
+      std::cerr << "dest_type: POINTER ISSUE---------------------- \n";
+    }
+    assert(false);
+  }
+  return Conform(env, dest_type, type, src);
+}
+#endif
 
 Value *assign_class::code(CgenEnvironment *env) {
   if (cgen_debug)
@@ -1295,10 +1348,13 @@ Value *object_class::code(CgenEnvironment *env) {
     std::cerr << "Object" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
+  
   if (name->get_string() == "self") {
     auto cls_tp = env->class_table.Type_Lookup[env->get_class()->get_type_name()];
     auto self_val = env->builder.CreateLoad(llvm::PointerType::get(cls_tp, 0), env->SELF_ADDR);
     set_expr_tp(env, cls_tp);
+    assert(self_val);
+
     return self_val;
   }
   auto [object_type, object_addr_val] = env->find_in_scopes(name);
@@ -1321,7 +1377,6 @@ Value *object_class::code(CgenEnvironment *env) {
   }
 
   set_expr_tp(env, object_type);
-
   return obj_val;
 }
 
@@ -1539,8 +1594,87 @@ Value *typcase_class::code(CgenEnvironment *env) {
 #ifndef MP3
   assert(0 && "Unsupported case for phase 1");
 #else
-  // TODO: add code here and replace `return nullptr`
-  return nullptr;
+  // // TODO: add code here and replace `return nullptr`
+  llvm::Type* alloca_type;
+  llvm::Value* alloca_op;
+
+  auto code_val = expr->code(env);
+  auto code_val_tp = expr->get_expr_tp(env);
+  auto expr_val = code_val;
+ 
+  branch_class *b = (branch_class *)cases->nth(cases->first());
+  std::string case_result_type = b->get_expr()->get_type()->get_string();
+  if (case_result_type == "SELF_TYPE")
+    case_result_type = env->get_class()->get_type_name();
+  alloca_type = env->Type_Lookup[case_result_type];
+  alloca_op = env->insert_alloca_at_head(llvm::PointerType::get(alloca_type, 0));
+
+  CgenClassTable *ct = env->get_class()->get_classtable();
+  std::string header_label_ = env->new_label("case.hdr.", false);
+  std::string exit_label_ = env->new_label("case.exit.", false);
+  auto header_label = env->new_bb_at_fend(header_label_);
+  auto exit_label = env->new_bb_at_fend(exit_label_);
+
+
+  auto expr_type = expr->get_expr_tp(env);
+  auto join_type = env->Type_Lookup[env->type_to_class(type)->get_type_name()];
+  CgenNode *cls = env->type_to_class(expr->get_type());
+
+  if (!code_val_tp->isStructTy()) {
+    llvm::Value* null_op = llvm::ConstantPointerNull::get(llvm::PointerType::get(code_val_tp, 0));
+    auto icmp_result = env->builder.CreateCmp(llvm::CmpInst::ICMP_EQ, code_val, null_op);
+    auto abort_true = env->get_abrt();
+    auto ok_label = env->new_ok_label();
+    auto ok_false = env->new_bb_at_fend(ok_label); // false, not 0
+    env->builder.CreateCondBr(icmp_result, abort_true, ok_false);
+    env->builder.SetInsertPoint(ok_false);
+  }
+  auto tag = get_class_tag(expr_val, cls, env);
+  env->builder.CreateBr(header_label);
+  auto prev_label = header_label;
+  env->builder.SetInsertPoint(header_label);
+  env->branch_operand = alloca_op;
+  env->branch_operand_tp = alloca_type;
+  std::vector<llvm::Value*> values;
+  std::vector<llvm::Type*> types;
+  env->next_label = exit_label;
+
+
+  for (int i = ct->get_num_classes() - 1; i >= 0; --i) {
+    for (auto case_branch : cases) {
+      if (i == ct->find_in_scopes(case_branch->get_type_decl())->get_tag()) {
+        std::string prefix = std::string("case.") + std::to_string(i) + ".";
+        std::string case_label_ = env->new_label(prefix, false);
+        auto case_label = env->new_bb_at_fend(case_label_);
+        env->builder.CreateBr(case_label);
+        env->builder.SetInsertPoint(case_label);
+        auto [val, tp_] = case_branch->code(expr->get_expr_tp(env), expr_val, tag, join_type, env);
+        values.push_back(val);
+        types.push_back(tp_);
+      }
+    }
+  } 
+
+  llvm::Type* set_;
+  if (types.size() == 0) {
+    set_ = env->Type_Lookup["Object"];
+  } else if (types.size() == 1) {
+    set_ = types[0];
+  } else {
+    set_ = Find_Parent(env, types[0], types[1]);
+    for (int i = 2; i < types.size(); ++ i) {
+      set_ = Find_Parent(env, set_, types[i]);
+    }
+  }
+  set_expr_tp(env, set_);
+
+  env->builder.CreateBr(env->get_abrt());
+
+  env->new_label("", true);
+  env->builder.SetInsertPoint(exit_label);
+
+  auto final_result = env->builder.CreateLoad(llvm::PointerType::get(alloca_type, 0), alloca_op);
+  return final_result;
 #endif
 }
 
@@ -1674,13 +1808,80 @@ void method_class::layout_feature(CgenNode *cls) {
 // and <= (max child of the branch class) tag,
 // then the branch is a superclass of the source.
 // See the MP3 handout for more information about our use of class tags.
-Value *branch_class::code(Value *expr_val, Value *tag, Type *join_type,
+std::pair<llvm::Value*, llvm::Type*> branch_class::code(llvm::Type* expr_tp, Value *expr_val, Value *tag, Type *join_type,
                           CgenEnvironment *env) {
 #ifndef MP3
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here and replace `return nullptr`
-  return nullptr;
+
+  CgenNode *cls = env->get_class()->get_classtable()->find_in_scopes(type_decl);
+  llvm::Type* alloca_type;
+  llvm::Value* alloca_op;
+  if (cls->get_type_name() == "Int") {
+    alloca_type = llvm::Type::getInt32Ty(env->context);
+    alloca_op = env->insert_alloca_at_head(llvm::Type::getInt32Ty(env->context));
+  } else if (cls->get_type_name() == "Bool") {
+    alloca_type = llvm::Type::getInt1Ty(env->context);
+    alloca_op = env->insert_alloca_at_head(llvm::Type::getInt1Ty(env->context));
+  } else {
+    alloca_type = env->Type_Lookup[cls->get_type_name()];
+    alloca_op = env->insert_alloca_at_head(llvm::PointerType::get(alloca_type, 0));
+  }
+  int my_tag = cls->get_tag();
+  int max_child = cls->get_max_child();
+
+  std::string sg_label_ =
+      env->new_label(std::string("src_gte_br") + "." + std::to_string(my_tag) + ".", false);
+  std::string sl_label_ =
+      env->new_label(std::string("src_lte_mc") + "." + std::to_string(my_tag) + ".", false);
+  std::string exit_label_ =
+      env->new_label(std::string("br_exit") + "." + std::to_string(my_tag) + ".", false);
+  auto sg_label = env->new_bb_at_fend(sg_label_);
+  auto sl_label = env->new_bb_at_fend(sl_label_);
+  auto exit_label = env->new_bb_at_fend(exit_label_);
+
+
+  llvm::Value* my_tag_val = llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), my_tag);
+  auto icmp_result = env->builder.CreateCmp(llvm::CmpInst::ICMP_SLT, tag, my_tag_val);
+  env->builder.CreateCondBr(icmp_result, exit_label, sg_label);
+  env->builder.SetInsertPoint(sg_label);
+
+  llvm::Value* max_child_val = llvm::ConstantInt::get(llvm::Type::getInt32Ty(env->context), max_child);
+  auto icmp_result2 = env->builder.CreateCmp(llvm::CmpInst::ICMP_SGT, tag, max_child_val);
+  env->builder.CreateCondBr(icmp_result2, exit_label, sl_label);
+  env->builder.SetInsertPoint(sl_label);
+
+  if (cls->get_type_name() == "Int") {
+    expr_val = Conform(env, env->Type_Lookup["Int"], expr_tp, expr_val);
+    expr_tp = env->Type_Lookup["Int"];
+  } else if (cls->get_type_name() == "Bool") {
+    expr_val = Conform(env, env->Type_Lookup["Bool"], expr_tp, expr_val);
+    expr_tp = env->Type_Lookup["Bool"];
+  }
+  
+  auto conf_result = Conform(env, alloca_type, expr_tp, expr_val);
+
+  env->builder.CreateStore(conf_result, alloca_op);
+  env->open_scope();
+  env->var_tp_open_scope();
+  env->add_binding(name, alloca_op);
+  env->var_tp_add_binding(name, alloca_type); //////////////////////////////
+
+  auto Val_ = expr->code(env);
+  auto Tp_ = expr->get_expr_tp(env);
+  auto val = Conform(env, join_type, Tp_, Val_);
+  auto conformed = Conform(env, env->branch_operand_tp, join_type, val); 
+  env->builder.CreateStore(conformed, env->branch_operand);
+
+
+  env->close_scope();
+  env->var_tp_close_scope();
+
+  env->builder.CreateBr(env->next_label);
+  env->builder.SetInsertPoint(exit_label);
+
+  return {conformed, env->branch_operand_tp};
 #endif
 }
 
@@ -1727,32 +1928,3 @@ Value *attr_class::code(CgenEnvironment *env) {
   return expr_val;
 #endif
 }
-
-#ifdef MP3
-// TODO: implement these functions (MP3), and add more functions as necessary
-
-// Utitlity function
-// Generate any code necessary to convert from given Value* to
-// dest_type, assuming it has already been checked to be compatible
-
-// conform - If necessary, emit a bitcast or boxing/unboxing operations
-// to convert an object to a new type. This can assume the object
-// is known to be (dynamically) compatible with the target type.
-// It should only be called when this condition holds.
-// (It's needed by the supplied code for typecase)
-llvm::Value *conform(llvm::Value *src, llvm::Type *dest_type, CgenEnvironment *env) {
-
-  return NULL;
-}
-#endif
-
-#ifdef MP3
-// Retrieve the class tag from an object record.
-// src is the object we need the tag from.
-// src_class is the CgenNode for the *static* class of the expression.
-// You need to look up and return the class tag for it's dynamic value
-Value *get_class_tag(Value *src, CgenNode *src_cls, CgenEnvironment *env) {
-  // ADD CODE HERE (MP3 ONLY)
-  return 0;
-}
-#endif
