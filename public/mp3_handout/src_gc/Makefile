@@ -1,12 +1,14 @@
 LEXER = ../reference-binaries/lexer
 PARSER = ../reference-binaries/parser
 SEMANT = ../reference-binaries/semant
-CGENREF = ../reference-binaries/cgen-2
 CLANG = clang-15
 OPT = opt-15
 
+GC_LIB = ./gc.so
+GC_FLAGS = -Wl,-rpath $(realpath .)
+
 debug = true
-mp3 = true
+mp3 = false
 proj_dir = ../src
 
 ifeq ($(debug),true)
@@ -28,7 +30,7 @@ SRCS := $(wildcard *.cl)
 # Disable built-in rules and variables
 .SUFFIXES:
 
-.PRECIOUS: %.ast %.ll %-o3.ll %.bin %.llref %-o3.llref %.binref %.outref
+.PRECIOUS: %.ast %.ll %-o3.ll %.bin
 
 default: all
 all: $(SRCS:%.cl=%.out)
@@ -50,8 +52,8 @@ cgen-2:
 %-o3.ll: %.ll
 	$(OPT) -O3 -S $< -f -o $*-o3.ll
 
-%.bin: %-o3.ll $(COOLRT)
-	$(CLANG) -g $+ -o $@
+%.bin: %-o3.ll $(COOLRT) $(GC_LIB)
+	$(CLANG) -g $+ $(GC_FLAGS) -o $@
 
 %.verify: %.ll
 	$(OPT) -S -verify $<
@@ -62,18 +64,5 @@ cgen-2:
 %.check: %.out
 	diff -u $< $(<:%.out=%.refout)
 
-%.llref: %.cl
-	$(LEXER) $< | $(PARSER) | $(SEMANT) | $(CGENREF) > $@
-
-%-o3.llref: %.llref
-	$(OPT) -O3 -S $< -f -o $*-o3.llref
-
-%.binref: %-o3.llref $(COOLRT)
-	$(CLANG) -g -x ir - -o $@ < $<
-
-%.outref: %.binref
-	./$< > $@ || true
-
 clean:
-	-rm -f *.bin *.ll *.out *.ast *.verify *.llref *.binref *.outref 
-	make -C $(proj_dir) clean
+	-rm -f *.bin *.ll *.out *.ast *.verify
