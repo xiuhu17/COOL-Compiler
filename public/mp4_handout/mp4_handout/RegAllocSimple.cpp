@@ -19,6 +19,8 @@
 
 #include <map>
 #include <set>
+#include <unordered_map>
+#include <unordered_set>
 
 using namespace llvm;
 
@@ -78,6 +80,21 @@ namespace {
     }
 
   private:
+
+    using VirtualReg = Register;
+    using PhysicalReg = MCRegister;
+    struct STK{
+      MachineBasicBlock* mbb;
+      MachineBasicBlock::iterator* mbbi;
+      Register* drg;
+      int fidx;
+      const TargetRegisterClass* rc;
+      const TargetRegisterInfo* tri;
+      Register vreg;
+    };
+
+    DenseMap<VirtualReg*, STK*> SpillVirtRegs;
+    DenseMap<VirtualReg*, PhysicalReg*>  LiveVirtRegs;
 
     /// Allocate physical register for virtual register operand
     void allocateOperand(MachineOperand &MO, Register VirtReg, bool is_use) {
