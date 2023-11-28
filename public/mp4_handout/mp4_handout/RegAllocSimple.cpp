@@ -103,6 +103,8 @@ namespace {
     // used physical reg
     // for LiveVirtRegs_Phys, if eax is allocated, al, ah also marked as allocated
     DenseSet<PhysicalReg_ID> LiveVirtRegs_Phys; 
+    // virtual registser -> last exists Machineoperand
+    DenseMap<VirtualReg, MachineOperand*> VirtualReg_Status;
 
     // helper function for set
     // if eax is added to use, then ah, al added to use
@@ -143,6 +145,13 @@ namespace {
     inline bool NOT_USE(DenseSet<PhysicalReg_ID>& UsedInInstr_Phys, llvm::MCRegister& input) {
       return (LiveVirtRegs_Phys.find(input.id()) == LiveVirtRegs_Phys.end()) && (UsedInInstr_Phys.find(input.id()) == UsedInInstr_Phys.end());
     }
+    // helper function for checking whether need spill
+    inline bool Need_Spill(Register& vreg) { 
+      // if dead/kill, no later use
+      // if the register is already on stack, and is only for use
+      auto MO = VirtualReg_Status[vreg];
+      return !(MO->isKill() || MO->isDead() || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end() && MO->isUse()));
+    }
 
     // Allocate physical register for virtual register operand
     // for UsedInInstr_Phys, if eax is allocated, al, ah also marked as allocated
@@ -151,8 +160,8 @@ namespace {
       // TODO: allocate physical register for a virtual register
 
       // if the virtual register is in the LiveVirtRegs
-      if (LiveVirtRegs.find(VirtReg) != LiveVirtRegs.end()) {
-        return LiveVirtRegs[VirtReg];
+      if (LiveVirtRegs.find(MO) != LiveVirtRegs.end()) {
+        return LiveVirtRegs[MO];
       }
 
       // find an unused physical register
@@ -160,10 +169,10 @@ namespace {
       auto arr_phy_reg = RegClassInfo.getOrder((MRI->getRegClass(VirtReg)));
       // subreg
       auto virt_subreg = MO.getSubReg();
-      // not empty
+
+      // find whether empty physical register or find in inside the LiveVirtRegs_Phys
       if (!arr_phy_reg.empty()) { 
         // not allocated 
-        // size must be correct 
         for (auto phy_num: arr_phy_reg) {
           if (NOT_USE(UsedInInstr_Phys, phy_num)) {
             auto phy_reg_iter = MCRegUnitIterator(MCRegister(phy_num), TRI);
@@ -178,11 +187,19 @@ namespace {
             }
           }
         }
+
+        // not allocated in UsedInInstr_Phys
+        for (auto phy_num: arr_phy_reg) {
+          if (UsedInInstr_Phys.find(phy_num) == UsedInInstr_Phys.end()) {
+            auto phy_reg_iter = MCRegUnitIterator(MCRegister(phy_num), TRI);
+            while (phy_reg_iter.isValid()) {
+              auto phy_sub_reg = TRI->getSubReg(*phy_reg_iter, virt_subreg);
+              
+              ++ phy_reg_iter;
+            }
+          }
+        }
       }
-
-      // not find the physical register
-      // find in the LiveVirtRegs_Phys but not UsedInInstr_Phys
-
     }
 
     void allocateInstruction(MachineInstr &MI) {
