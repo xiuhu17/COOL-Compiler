@@ -107,7 +107,7 @@ namespace {
     // helper function for set
     // if eax is added to use, then ah, al added to use
     // if ah is added to use, then ah added to use
-    inline void Add_Use(DenseSet<PhysicalReg_ID>& input, MCRegister phys_reg) {
+    inline void Add_Use(DenseSet<PhysicalReg_ID>& input, MCRegister& phys_reg) {
       auto phy_reg_iter = MCRegUnitIterator(phys_reg, TRI);
       while (phy_reg_iter.isValid()) {
         
@@ -117,7 +117,7 @@ namespace {
         ++ phy_reg_iter;
       }
     }
-    inline void Erase_Use(DenseSet<PhysicalReg_ID>& input, MCRegister phys_reg) {
+    inline void Erase_Use(DenseSet<PhysicalReg_ID>& input, MCRegister& phys_reg) {
       auto phy_reg_iter = MCRegUnitIterator(phys_reg, TRI);
       while (phy_reg_iter.isValid()) {
         
@@ -146,7 +146,8 @@ namespace {
 
     // Allocate physical register for virtual register operand
     // for UsedInInstr_Phys, if eax is allocated, al, ah also marked as allocated
-    PhysicalReg allocateOperand(MachineOperand &MO, Register VirtReg, bool is_use, DenseSet<PhysicalReg_ID>& UsedInInstr_Phys) {
+    // after this function, we need to call MachineOperand::setReg, MachineOperand::setSubReg
+    MCRegister allocateOperand(MachineOperand &MO, Register VirtReg, bool is_use, DenseSet<PhysicalReg_ID>& UsedInInstr_Phys) {
       // TODO: allocate physical register for a virtual register
 
       // if the virtual register is in the LiveVirtRegs
@@ -157,27 +158,30 @@ namespace {
       // find an unused physical register
       auto virt_reg_sz = Size(VirtReg);
       auto arr_phy_reg = RegClassInfo.getOrder((MRI->getRegClass(VirtReg)));
-
       // subreg
       auto virt_subreg = MO.getSubReg();
-
       // not empty
       if (!arr_phy_reg.empty()) { 
         // not allocated 
         // size must be correct 
-        for (auto& phy_num: arr_phy_reg) {
-          if (NOT_USE(phy_num)) {
+        for (auto phy_num: arr_phy_reg) {
+          if (NOT_USE(UsedInInstr_Phys, phy_num)) {
             auto phy_reg_iter = MCRegUnitIterator(MCRegister(phy_num), TRI);
             while (phy_reg_iter.isValid()) {
-              
               auto phy_sub_reg = TRI->getSubReg(*phy_reg_iter, virt_subreg);
-              if (NOT_USE())
-              
+              if (NOT_USE(UsedInInstr_Phys, phy_sub_reg)) {
+                Add_Use(UsedInInstr_Phys, phy_sub_reg);
+                Add_Use(LiveVirtRegs_Phys, phy_sub_reg);
+                return phy_sub_reg; 
+              }
               ++ phy_reg_iter;
             }
           }
         }
       }
+
+      // not find the physical register
+      // find in the LiveVirtRegs_Phys but not UsedInInstr_Phys
 
     }
 
