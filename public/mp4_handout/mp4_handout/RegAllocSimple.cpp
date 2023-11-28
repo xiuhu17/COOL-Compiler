@@ -25,7 +25,6 @@
 using namespace llvm;
 
 #define DEBUG_TYPE "regalloc"
-#define NOT_USE(phy_num) (((LiveVirtRegs_Phys.find((phy_num))) == (LiveVirtRegs_Phys.end())) && ((UsedInInstr_Phys.find((phy_num))) == (UsedInInstr_Phys.end())))
 
 STATISTIC(NumStores, "Number of stores added");
 STATISTIC(NumLoads , "Number of loads added");
@@ -85,6 +84,7 @@ namespace {
     // rename
     using VirtualReg = Register;
     using PhysicalReg = MCRegister;
+    using PhysicalReg_ID = unsigned;
     
     // stk struct
     struct STK{
@@ -102,9 +102,12 @@ namespace {
     DenseMap<VirtualReg, PhysicalReg>  LiveVirtRegs;
     // used physical reg
     // for LiveVirtRegs_Phys, if eax is allocated, al, ah also marked as allocated
-    DenseSet<MCPhysReg> LiveVirtRegs_Phys; 
+    DenseSet<PhysicalReg_ID> LiveVirtRegs_Phys; 
 
-    void Add_Use(DenseSet<MCPhysReg>& input, MCRegister phys_reg) {
+    // helper function for set
+    // if eax is added to use, then ah, al added to use
+    // if ah is added to use, then ah added to use
+    inline void Add_Use(DenseSet<PhysicalReg_ID>& input, MCRegister phys_reg) {
       auto phy_reg_iter = MCRegUnitIterator(phys_reg, TRI);
       while (phy_reg_iter.isValid()) {
         
@@ -114,20 +117,36 @@ namespace {
         ++ phy_reg_iter;
       }
     }
-    void Erase_Use(DenseSet<MCPhysReg>& input, MCRegister phys_reg) {
+    inline void Erase_Use(DenseSet<PhysicalReg_ID>& input, MCRegister phys_reg) {
       auto phy_reg_iter = MCRegUnitIterator(phys_reg, TRI);
       while (phy_reg_iter.isValid()) {
         
-        assert(input.find(*phy_reg_iter) != input.end());
         input.erase(*phy_reg_iter);
 
         ++ phy_reg_iter;
       }
     }
+    // helper function for size
+    inline unsigned int Size(Register& input) {
+      return TRI->getSpillSize(*(MRI->getRegClass(input)));
+    }
+    inline unsigned int SpillSize(Register& input) {
+      return TRI->getSpillSize(*(MRI->getRegClass(input)));
+    }
+    inline llvm::Align SpillAlignment(Register& input) {
+      return TRI->getSpillAlign(*(MRI->getRegClass(input)));
+    } 
+    // helper function for checking in use status
+    inline bool NOT_USE(DenseSet<PhysicalReg_ID>& UsedInInstr_Phys, llvm::MCPhysReg& input) {
+      return (LiveVirtRegs_Phys.find(input) == LiveVirtRegs_Phys.end()) && (UsedInInstr_Phys.find(input) == UsedInInstr_Phys.end());
+    }
+    inline bool NOT_USE(DenseSet<PhysicalReg_ID>& UsedInInstr_Phys, llvm::MCRegister& input) {
+      return (LiveVirtRegs_Phys.find(input.id()) == LiveVirtRegs_Phys.end()) && (UsedInInstr_Phys.find(input.id()) == UsedInInstr_Phys.end());
+    }
 
     // Allocate physical register for virtual register operand
     // for UsedInInstr_Phys, if eax is allocated, al, ah also marked as allocated
-    PhysicalReg allocateOperand(MachineOperand &MO, Register VirtReg, bool is_use, DenseSet<MCPhysReg>& UsedInInstr_Phys) {
+    PhysicalReg allocateOperand(MachineOperand &MO, Register VirtReg, bool is_use, DenseSet<PhysicalReg_ID>& UsedInInstr_Phys) {
       // TODO: allocate physical register for a virtual register
 
       // if the virtual register is in the LiveVirtRegs
@@ -136,9 +155,8 @@ namespace {
       }
 
       // find an unused physical register
-      const llvm::TargetRegisterClass* tar_reg_cls = MRI->getRegClass(VirtReg);
-      auto virt_reg_sz = TRI->getSpillSize(*tar_reg_cls);
-      auto arr_phy_reg = RegClassInfo.getOrder(tar_reg_cls);
+      auto virt_reg_sz = Size(VirtReg);
+      auto arr_phy_reg = RegClassInfo.getOrder((MRI->getRegClass(VirtReg)));
 
       // subreg
       auto virt_subreg = MO.getSubReg();
@@ -152,9 +170,10 @@ namespace {
             auto phy_reg_iter = MCRegUnitIterator(MCRegister(phy_num), TRI);
             while (phy_reg_iter.isValid()) {
               
+              auto phy_sub_reg = TRI->getSubReg(*phy_reg_iter, virt_subreg);
+              if (NOT_USE())
               
-              
-              ++phy_reg_iter;
+              ++ phy_reg_iter;
             }
           }
         }
