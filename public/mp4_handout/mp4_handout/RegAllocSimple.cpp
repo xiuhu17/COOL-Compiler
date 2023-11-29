@@ -84,7 +84,6 @@ namespace {
     // rename
     using VirtualReg = Register;
     using PhysicalReg = MCRegister;
-    using PhysicalReg_ID = unsigned;
     
     // stk struct
     struct STK{
@@ -102,45 +101,51 @@ namespace {
     DenseMap<VirtualReg, PhysicalReg>  LiveVirtRegs;
     // used physical reg
     // for LiveVirtRegs_Phys, if eax is allocated, al, ah also marked as allocated
-    DenseSet<PhysicalReg_ID> LiveVirtRegs_Phys; 
+    DenseSet<PhysicalReg> LiveVirtRegs_Phys; 
     // virtual registser -> last exists Machineoperand
     DenseMap<VirtualReg, MachineOperand*> VirtualReg_Status;
 
     // helper function for set
     // if eax is added to use, then ah, al added to use
     // if ah is added to use, then ah added to use
-    inline void Add_Use(DenseSet<PhysicalReg_ID>& input, MCRegister& phys_reg) {
+    inline bool NOT_USE(DenseSet<PhysicalReg>& used_phys, llvm::MCRegister& phys_reg) {
+      return used_phys.find(phys_reg) == used_phys.end();
+    }
+    // whether all reg&subreg is not being used
+    inline bool CAN_USE(DenseSet<PhysicalReg>& used_phys, llvm::MCPhysReg& phys_reg) {
+      auto phy_reg_iter = MCRegUnitIterator(phys_reg, TRI);
+      while (phy_reg_iter.isValid()) {
+
+        if (used_phys.find((*phy_reg_iter)) != used_phys.end()) { // find used, can not use, false
+          return false;
+        }
+
+        ++ phy_reg_iter;
+      }
+
+      return true;
+    }
+    inline void Add_Use(DenseSet<PhysicalReg>& used_phys, MCRegister& phys_reg) {
       auto phy_reg_iter = MCRegUnitIterator(phys_reg, TRI);
       while (phy_reg_iter.isValid()) {
         
-        assert(input.find(*phy_reg_iter) == input.end());
-        input.insert(*phy_reg_iter);
+        assert(used_phys.find((*phy_reg_iter)) == used_phys.end());
+        used_phys.insert((*phy_reg_iter));
 
         ++ phy_reg_iter;
       }
     }
-    inline void Erase_Use(DenseSet<PhysicalReg_ID>& input, MCRegister& phys_reg) {
+    inline void Erase_Use(DenseSet<PhysicalReg>& used_phys, MCRegister& phys_reg) {
       auto phy_reg_iter = MCRegUnitIterator(phys_reg, TRI);
       while (phy_reg_iter.isValid()) {
         
-        input.erase(*phy_reg_iter);
+        assert(used_phys.find((*phy_reg_iter)) != used_phys.end());
+        used_phys.erase((*phy_reg_iter));
 
         ++ phy_reg_iter;
       }
     }
-    // if ah is added to use, then eax is still in unused
-    inline bool NOT_USE(DenseSet<PhysicalReg_ID>& UsedInInstr_Phys, llvm::MCPhysReg& input) {
-      return (LiveVirtRegs_Phys.find(input) == LiveVirtRegs_Phys.end()) && (UsedInInstr_Phys.find(input) == UsedInInstr_Phys.end());
-    }
-    inline bool NOT_USE(DenseSet<PhysicalReg_ID>& UsedInInstr_Phys, llvm::MCRegister& input) {
-      return (LiveVirtRegs_Phys.find(input.id()) == LiveVirtRegs_Phys.end()) && (UsedInInstr_Phys.find(input.id()) == UsedInInstr_Phys.end());
-    }
-    inline bool CAN_USE() {
 
-    }
-    inline bool CAN_USE() {
-
-    }
     // helper function for size
     inline unsigned int Size(Register& input) {
       return TRI->getSpillSize(*(MRI->getRegClass(input)));
@@ -152,22 +157,26 @@ namespace {
       return TRI->getSpillAlign(*(MRI->getRegClass(input)));
     } 
     // helper function for checking whether need spill
-    inline bool Need_Spill(Register& vreg) { 
+    inline bool Need_Spill_Action(Register& vreg) { 
       // if dead/kill, no later use
       // if the register is already on stack, and is only for use
       auto MO = VirtualReg_Status[vreg];
       return !(MO->isKill() || MO->isDead() || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end() && MO->isUse()));
     }
 
+    /* HELPER FUNCTION */
     // Allocate physical register for virtual register operand
     // for UsedInInstr_Phys, if eax is allocated, al, ah also marked as allocated
     // after this function, we need to call MachineOperand::setReg, MachineOperand::setSubReg
-    MCRegister allocateOperand(MachineOperand &MO, Register VirtReg, bool is_use, DenseSet<PhysicalReg_ID>& UsedInInstr_Phys) {
+    void allocateOperand(MachineOperand &MO, Register VirtReg, bool is_use, DenseSet<PhysicalReg>& UsedInInstr_Phys) {
       // TODO: allocate physical register for a virtual register
 
       // if the virtual register is in the LiveVirtRegs
       if (LiveVirtRegs.find(VirtReg) != LiveVirtRegs.end()) {
-        return LiveVirtRegs[VirtReg];
+        auto physical_reg = LiveVirtRegs[VirtReg];
+        MO.setReg(physical_reg);
+        MO.setSubReg(0);
+        return;
       }
 
       // find an unused physical register
@@ -179,8 +188,11 @@ namespace {
       // need subreg
       if (virt_subreg) {
           // not allocated 
+          // may need to compare the size
           for (auto phy_num: arr_phy_reg) {
             if (NOT_USE(UsedInInstr_Phys, phy_num)) {
+              auto phy_sub_reg = TRI->getSubReg(MCRegister(phy_num), virt_subreg);
+
               auto phy_reg_iter = MCRegUnitIterator(MCRegister(phy_num), TRI);
               while (phy_reg_iter.isValid()) {
                 auto phy_sub_reg = TRI->getSubReg(*phy_reg_iter, virt_subreg);
@@ -195,6 +207,8 @@ namespace {
           }
 
           // not allocated in UsedInInstr_Phys
+          // select spill
+          // allocate as previous code, may reuse the previous for-loop code
           for (auto phy_num: arr_phy_reg) {
             if (UsedInInstr_Phys.find(phy_num) == UsedInInstr_Phys.end()) {
               auto phy_reg_iter = MCRegUnitIterator(MCRegister(phy_num), TRI);
