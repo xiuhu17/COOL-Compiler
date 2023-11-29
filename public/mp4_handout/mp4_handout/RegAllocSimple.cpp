@@ -99,24 +99,26 @@ namespace {
     // build lookup map
     DenseMap<VirtualReg, STK> SpillVirtRegs;
     DenseMap<VirtualReg, PhysicalReg>  LiveVirtRegs;
-    DenseMap<VirtualReg, MachineOperand> VirtualReg_Status;// virtual registser -> last exists Machineoperand
+    DenseMap<VirtualReg, MachineOperand> LiveVirtualRegs_Status;// virtual registser -> last exists Machineoperand
+
     DenseMap<PhysicalReg, VirtualReg> Live_Phy_to_Vir;  // used physical reg // for LiveVirtRegs_Phys, if eax is allocated, al, ah also marked as allocated
+    // DenseMap<PhysicalReg, VirtualReg>& Instr_Phy_to_Vir
 
     // helper function for set
     // if eax is added to use, then eax add use
-    inline bool CAN_USE(DenseSet<PhysicalReg>& used_phys, MCRegister& phys_reg) {
+    inline bool CAN_USE(DenseMap<PhysicalReg, VirtualReg>& used_phys, MCRegister phys_reg) {
       for (auto i = used_phys.begin(); i != used_phys.end();  ++ i) {
-        if (TRI->regsOverlap(*i, phys_reg)) {
+        if (TRI->regsOverlap(i->first, phys_reg)) {
           return false;
         }
       }
       return true;
     }
-    inline void Add_Use(DenseSet<PhysicalReg>& used_phys, MCRegister& phys_reg) {
+    inline void Add_Use(DenseMap<PhysicalReg, VirtualReg>& used_phys, MCRegister phys_reg, Register virt_reg) {
       assert(CAN_USE(used_phys, phys_reg));
-      used_phys.insert(phys_reg);
+      used_phys[phys_reg] = virt_reg;
     }
-    inline void Erase_Use(DenseSet<PhysicalReg>& used_phys, MCRegister& phys_reg) {
+    inline void Erase_Use(DenseMap<PhysicalReg, VirtualReg>& used_phys, MCRegister phys_reg) {
       assert(used_phys.find(phys_reg) != used_phys.end());
       used_phys.erase(phys_reg);
     }
@@ -134,34 +136,38 @@ namespace {
     // helper function for checking whether need spill
     // if dead/kill, no later use
     // if the register is already on stack, and is only for use
-    inline bool Need_Store_Back(Register& reg) { 
+    inline bool Need_Store_Back(DenseMap<PhysicalReg, VirtualReg>& used_phys, Register reg) { 
       Register vreg;
       if (reg.isPhysical()) {
-        vreg = Phy_to_Vir[reg];
+        assert(used_phys.find(reg) != used_phys.end());
+        vreg = used_phys[reg];
       } else if (reg.isVirtual()) {
         vreg = reg;
       } else {
         assert(false);
       }
-      auto MO = VirtualReg_Status[vreg];
+      auto MO = LiveVirtualRegs_Status[vreg];
       return !(MO.isKill() || MO.isDead() || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end() && MO.isUse()));
     }
     
     // free all overlap 
     // spill one with lowest store/load
-    int Find_Reg_Spill(DenseSet<PhysicalReg>& used_phys, SmallVector<MCRegister, 5>& Spill_Candidate) {
+    int Find_Reg_Spill(DenseMap<PhysicalReg, VirtualReg>& used_phys, SmallVector<MCRegister, 5>& Spill_Candidate) {
       int i = 0, idx = 0;
       int comp = used_phys.size() * 2;
       for (auto& phy_for_using: Spill_Candidate) {
         int count_load = 0, count_store = 0;
-        for (auto phy_occupied = used_phys.begin(); phy_occupied != used_phys.end();  ++ phy_occupied) {
-          if (TRI->regsOverlap(phy_for_using, *phy_occupied)) {
+        for (auto iter = used_phys.begin(); iter != used_phys.end();  ++ iter) {
+          auto phys_intefere = iter->first;
+          if (TRI->regsOverlap(phy_for_using, phys_intefere)) {
             count_load ++;
-            if ()
+            if (Need_Store_Back(used_phys, phys_intefere)) {
+              count_store ++;
+            }
           }
         }
-        if (count <= comp) {
-          comp = count;
+        if (count_load + count_store <= comp) {
+          comp = count_load + count_store;
           idx = i;
         }
         i ++;
@@ -190,9 +196,9 @@ namespace {
         auto physical_reg = LiveVirtRegs[VirtReg];
         MO.setReg(physical_reg);
         MO.setSubReg(0);
-        VirtualReg_Status[VirtReg] = MO;
-        assert(LiveVirtRegs_Phys.find(physical_reg) != LiveVirtRegs_Phys.end());
-        Add_Use(UsedInInstr_Phys, physical_reg);
+        LiveVirtualRegs_Status[VirtReg] = MO;
+        assert(Live_Phy_to_Vir.find(physical_reg) != Live_Phy_to_Vir.end());
+        Add_Use(Instr_Phy_to_Vir, physical_reg, VirtReg);
         return;
       }
 
@@ -207,13 +213,13 @@ namespace {
           // may need to compare the size
           for (auto phy_num: arr_phy_reg) {
             auto phy_sub_reg = TRI->getSubReg(MCRegister(phy_num), virt_subreg);
-            if (CAN_USE(LiveVirtRegs_Phys, phy_sub_reg) && CAN_USE(UsedInInstr_Phys, phy_sub_reg)) {
-              Add_Use(LiveVirtRegs_Phys, phy_sub_reg);
-              Add_Use(UsedInInstr_Phys, phy_sub_reg);
+            if (CAN_USE(Live_Phy_to_Vir, phy_sub_reg) && CAN_USE(Instr_Phy_to_Vir, phy_sub_reg)) {
+              Add_Use(Live_Phy_to_Vir, phy_sub_reg, VirtReg);
+              Add_Use(Instr_Phy_to_Vir, phy_sub_reg, VirtReg);
               LiveVirtRegs[VirtReg] = phy_sub_reg;
               MO.setReg(phy_sub_reg);
               MO.setSubReg(0);
-              VirtualReg_Status[VirtReg] = MO;
+              LiveVirtualRegs_Status[VirtReg] = MO;
               return;
             }
           }
