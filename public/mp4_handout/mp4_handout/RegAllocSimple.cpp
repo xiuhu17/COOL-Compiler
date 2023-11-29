@@ -106,44 +106,22 @@ namespace {
     DenseMap<VirtualReg, MachineOperand*> VirtualReg_Status;
 
     // helper function for set
-    // if eax is added to use, then ah, al added to use
-    // if ah is added to use, then ah added to use
-    inline bool NOT_USE(DenseSet<PhysicalReg>& used_phys, llvm::MCRegister& phys_reg) {
-      return used_phys.find(phys_reg) == used_phys.end();
-    }
-    // whether all reg&subreg is not being used
-    inline bool CAN_USE(DenseSet<PhysicalReg>& used_phys, llvm::MCPhysReg& phys_reg) {
-      auto phy_reg_iter = MCRegUnitIterator(phys_reg, TRI);
-      while (phy_reg_iter.isValid()) {
-
-        if (used_phys.find((*phy_reg_iter)) != used_phys.end()) { // find used, can not use, false
+    // if eax is added to use, then eax add use
+    inline bool CAN_USE(DenseSet<PhysicalReg>& used_phys, MCRegister& phys_reg) {
+      for (auto i = used_phys.begin(); i != used_phys.end();  ++ i) {
+        if (TRI->regsOverlap(*i, phys_reg)) {
           return false;
         }
-
-        ++ phy_reg_iter;
       }
-
       return true;
     }
     inline void Add_Use(DenseSet<PhysicalReg>& used_phys, MCRegister& phys_reg) {
-      auto phy_reg_iter = MCRegUnitIterator(phys_reg, TRI);
-      while (phy_reg_iter.isValid()) {
-        
-        assert(used_phys.find((*phy_reg_iter)) == used_phys.end());
-        used_phys.insert((*phy_reg_iter));
-
-        ++ phy_reg_iter;
-      }
+      assert(CAN_USE(used_phys, phys_reg));
+      used_phys.insert(phys_reg);
     }
     inline void Erase_Use(DenseSet<PhysicalReg>& used_phys, MCRegister& phys_reg) {
-      auto phy_reg_iter = MCRegUnitIterator(phys_reg, TRI);
-      while (phy_reg_iter.isValid()) {
-        
-        assert(used_phys.find((*phy_reg_iter)) != used_phys.end());
-        used_phys.erase((*phy_reg_iter));
-
-        ++ phy_reg_iter;
-      }
+      assert(used_phys.find(phys_reg) != used_phys.end());
+      used_phys.erase(phys_reg);
     }
 
     // helper function for size
@@ -157,9 +135,10 @@ namespace {
       return TRI->getSpillAlign(*(MRI->getRegClass(input)));
     } 
     // helper function for checking whether need spill
+    // if dead/kill, no later use
+    // if the register is already on stack, and is only for use
     inline bool Need_Spill_Action(Register& vreg) { 
-      // if dead/kill, no later use
-      // if the register is already on stack, and is only for use
+
       auto MO = VirtualReg_Status[vreg];
       return !(MO->isKill() || MO->isDead() || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end() && MO->isUse()));
     }
