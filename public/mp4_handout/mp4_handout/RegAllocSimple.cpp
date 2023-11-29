@@ -99,8 +99,8 @@ namespace {
     // build lookup map
     DenseMap<VirtualReg, STK> SpillVirtRegs;
     DenseMap<VirtualReg, PhysicalReg>  LiveVirtRegs;
-    DenseSet<PhysicalReg> LiveVirtRegs_Phys; // used physical reg // for LiveVirtRegs_Phys, if eax is allocated, al, ah also marked as allocated
     DenseMap<VirtualReg, MachineOperand> VirtualReg_Status;// virtual registser -> last exists Machineoperand
+    DenseSet<PhysicalReg> LiveVirtRegs_Phys; // used physical reg // for LiveVirtRegs_Phys, if eax is allocated, al, ah also marked as allocated
 
     // helper function for set
     // if eax is added to use, then eax add use
@@ -137,7 +137,12 @@ namespace {
     inline bool Need_Spill_Action(Register& vreg) { 
 
       auto MO = VirtualReg_Status[vreg];
-      return !(MO->isKill() || MO->isDead() || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end() && MO->isUse()));
+      return !(MO.isKill() || MO.isDead() || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end() && MO.isUse()));
+    }
+
+
+    void Find_Spill() {
+      
     }
 
     /* HELPER FUNCTION */
@@ -150,12 +155,11 @@ namespace {
       // if the virtual register is in the LiveVirtRegs
       if (LiveVirtRegs.find(VirtReg) != LiveVirtRegs.end()) {
         auto physical_reg = LiveVirtRegs[VirtReg];
-        assert(LiveVirtRegs_Phys.find(physical_reg) != LiveVirtRegs_Phys.end());
-        VirtualReg_Status[VirtReg] = MO;
-        UsedInInstr_Phys.insert(physical_reg);
-
         MO.setReg(physical_reg);
         MO.setSubReg(0);
+        VirtualReg_Status[VirtReg] = MO;
+        assert(LiveVirtRegs_Phys.find(physical_reg) != LiveVirtRegs_Phys.end());
+        Add_Use(UsedInInstr_Phys, physical_reg);
         return;
       }
 
@@ -173,18 +177,11 @@ namespace {
             if (CAN_USE(LiveVirtRegs_Phys, phy_sub_reg) && CAN_USE(UsedInInstr_Phys, phy_sub_reg)) {
               Add_Use(LiveVirtRegs_Phys, phy_sub_reg);
               Add_Use(UsedInInstr_Phys, phy_sub_reg);
-
-            }
-              auto phy_reg_iter = MCRegUnitIterator(MCRegister(phy_num), TRI);
-              while (phy_reg_iter.isValid()) {
-                auto phy_sub_reg = TRI->getSubReg(*phy_reg_iter, virt_subreg);
-                if (NOT_USE(UsedInInstr_Phys, phy_sub_reg)) {
-                  Add_Use(UsedInInstr_Phys, phy_sub_reg);
-                  Add_Use(LiveVirtRegs_Phys, phy_sub_reg);
-                  return phy_sub_reg; 
-                }
-                ++ phy_reg_iter;
-              
+              LiveVirtRegs[VirtReg] = phy_sub_reg;
+              MO.setReg(phy_sub_reg);
+              MO.setSubReg(0);
+              VirtualReg_Status[VirtReg] = MO;
+              return;
             }
           }
 
