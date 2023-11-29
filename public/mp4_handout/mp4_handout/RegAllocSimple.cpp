@@ -100,7 +100,7 @@ namespace {
     DenseMap<VirtualReg, STK> SpillVirtRegs;
     DenseMap<VirtualReg, PhysicalReg>  LiveVirtRegs;
     DenseMap<VirtualReg, MachineOperand> VirtualReg_Status;// virtual registser -> last exists Machineoperand
-    DenseSet<PhysicalReg> LiveVirtRegs_Phys; // used physical reg // for LiveVirtRegs_Phys, if eax is allocated, al, ah also marked as allocated
+    DenseMap<PhysicalReg, VirtualReg> Live_Phy_to_Vir;  // used physical reg // for LiveVirtRegs_Phys, if eax is allocated, al, ah also marked as allocated
 
     // helper function for set
     // if eax is added to use, then eax add use
@@ -134,22 +134,55 @@ namespace {
     // helper function for checking whether need spill
     // if dead/kill, no later use
     // if the register is already on stack, and is only for use
-    inline bool Need_Spill_Action(Register& vreg) { 
-
+    inline bool Need_Store_Back(Register& reg) { 
+      Register vreg;
+      if (reg.isPhysical()) {
+        vreg = Phy_to_Vir[reg];
+      } else if (reg.isVirtual()) {
+        vreg = reg;
+      } else {
+        assert(false);
+      }
       auto MO = VirtualReg_Status[vreg];
       return !(MO.isKill() || MO.isDead() || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end() && MO.isUse()));
     }
+    
+    // free all overlap 
+    // spill one with lowest store/load
+    int Find_Reg_Spill(DenseSet<PhysicalReg>& used_phys, SmallVector<MCRegister, 5>& Spill_Candidate) {
+      int i = 0, idx = 0;
+      int comp = used_phys.size() * 2;
+      for (auto& phy_for_using: Spill_Candidate) {
+        int count_load = 0, count_store = 0;
+        for (auto phy_occupied = used_phys.begin(); phy_occupied != used_phys.end();  ++ phy_occupied) {
+          if (TRI->regsOverlap(phy_for_using, *phy_occupied)) {
+            count_load ++;
+            if ()
+          }
+        }
+        if (count <= comp) {
+          comp = count;
+          idx = i;
+        }
+        i ++;
+      }
 
+      return idx;
+    }
 
-    void Find_Spill() {
-      
+    void Do_Store() {
+
+    }
+
+    void Do_Load() {
+
     }
 
     /* HELPER FUNCTION */
     // Allocate physical register for virtual register operand
     // for UsedInInstr_Phys, if eax is allocated, al, ah also marked as allocated
     // after this function, we need to call MachineOperand::setReg, MachineOperand::setSubReg
-    void allocateOperand(MachineOperand &MO, Register VirtReg, bool is_use, DenseSet<PhysicalReg>& UsedInInstr_Phys) {
+    void allocateOperand(MachineOperand &MO, Register VirtReg, bool is_use, DenseMap<PhysicalReg, VirtualReg>& Instr_Phy_to_Vir) {
       // TODO: allocate physical register for a virtual register
 
       // if the virtual register is in the LiveVirtRegs
@@ -185,19 +218,17 @@ namespace {
             }
           }
 
-          // not allocated in UsedInInstr_Phys
+          // can use in UsedInInstr_Phys
           // select spill
           // allocate as previous code, may reuse the previous for-loop code
+          SmallVector<MCRegister, 5> Spill_Candidate;
           for (auto phy_num: arr_phy_reg) {
-            if (UsedInInstr_Phys.find(phy_num) == UsedInInstr_Phys.end()) {
-              auto phy_reg_iter = MCRegUnitIterator(MCRegister(phy_num), TRI);
-              while (phy_reg_iter.isValid()) {
-                auto phy_sub_reg = TRI->getSubReg(*phy_reg_iter, virt_subreg);
-                
-                ++ phy_reg_iter;
-              }
+            auto phy_sub_reg = TRI->getSubReg(MCRegister(phy_num), virt_subreg);
+            if (CAN_USE(UsedInInstr_Phys, phy_sub_reg)) {
+              Spill_Candidate.push_back(phy_sub_reg);
             }
           }
+
       } else { // no subreg
 
       }
