@@ -99,11 +99,8 @@ namespace {
     // build lookup map
     DenseMap<VirtualReg, STK> SpillVirtRegs;
     DenseMap<VirtualReg, PhysicalReg>  LiveVirtRegs;
-    // used physical reg
-    // for LiveVirtRegs_Phys, if eax is allocated, al, ah also marked as allocated
-    DenseSet<PhysicalReg> LiveVirtRegs_Phys; 
-    // virtual registser -> last exists Machineoperand
-    DenseMap<VirtualReg, MachineOperand*> VirtualReg_Status;
+    DenseSet<PhysicalReg> LiveVirtRegs_Phys; // used physical reg // for LiveVirtRegs_Phys, if eax is allocated, al, ah also marked as allocated
+    DenseMap<VirtualReg, MachineOperand> VirtualReg_Status;// virtual registser -> last exists Machineoperand
 
     // helper function for set
     // if eax is added to use, then eax add use
@@ -153,13 +150,16 @@ namespace {
       // if the virtual register is in the LiveVirtRegs
       if (LiveVirtRegs.find(VirtReg) != LiveVirtRegs.end()) {
         auto physical_reg = LiveVirtRegs[VirtReg];
+        assert(LiveVirtRegs_Phys.find(physical_reg) != LiveVirtRegs_Phys.end());
+        VirtualReg_Status[VirtReg] = MO;
+        UsedInInstr_Phys.insert(physical_reg);
+
         MO.setReg(physical_reg);
         MO.setSubReg(0);
         return;
       }
 
       // find an unused physical register
-      auto virt_reg_sz = Size(VirtReg);
       auto arr_phy_reg = RegClassInfo.getOrder((MRI->getRegClass(VirtReg)));
       // subreg
       auto virt_subreg = MO.getSubReg();
@@ -169,9 +169,12 @@ namespace {
           // not allocated 
           // may need to compare the size
           for (auto phy_num: arr_phy_reg) {
-            if (NOT_USE(UsedInInstr_Phys, phy_num)) {
-              auto phy_sub_reg = TRI->getSubReg(MCRegister(phy_num), virt_subreg);
+            auto phy_sub_reg = TRI->getSubReg(MCRegister(phy_num), virt_subreg);
+            if (CAN_USE(LiveVirtRegs_Phys, phy_sub_reg) && CAN_USE(UsedInInstr_Phys, phy_sub_reg)) {
+              Add_Use(LiveVirtRegs_Phys, phy_sub_reg);
+              Add_Use(UsedInInstr_Phys, phy_sub_reg);
 
+            }
               auto phy_reg_iter = MCRegUnitIterator(MCRegister(phy_num), TRI);
               while (phy_reg_iter.isValid()) {
                 auto phy_sub_reg = TRI->getSubReg(*phy_reg_iter, virt_subreg);
@@ -181,7 +184,7 @@ namespace {
                   return phy_sub_reg; 
                 }
                 ++ phy_reg_iter;
-              }
+              
             }
           }
 
