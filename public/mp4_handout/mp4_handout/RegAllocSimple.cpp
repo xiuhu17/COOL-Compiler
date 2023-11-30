@@ -175,7 +175,10 @@ namespace {
     }
 
     inline void Do_Load(MachineBasicBlock& MBB, MachineInstr& MI, MachineOperand& MO, Register vert_reg) {
-
+      auto phy_reg = LiveVirtRegs[vert_reg];
+      assert(SpillVirtRegs.find(vert_reg) != SpillVirtRegs.end());
+      auto stk_idx = SpillVirtRegs[vert_reg];
+      TII->loadRegFromStackSlot(MBB, MI, phy_reg, stk_idx, MRI->getRegClass(phy_reg), TRI);
     }
 
     void Do_Spill(DenseMap<PhysicalReg, VirtualReg>& used_phys, MachineBasicBlock& MBB, MachineInstr& MI, MachineOperand& MO, MCRegister physical_intefere) {
@@ -201,6 +204,10 @@ namespace {
         SpillVirtRegs.erase(VirtReg);
       } 
 
+      if (MO.getReg().isPhysical()) {
+        ///////////////////////////////////////////
+      }
+
       // if the virtual register is in the LiveVirtRegs
       if (LiveVirtRegs.find(VirtReg) != LiveVirtRegs.end()) {
         auto physical_reg = LiveVirtRegs[VirtReg];
@@ -222,7 +229,7 @@ namespace {
           // not allocated 
           for (auto phy_num: arr_phy_reg) {
             auto phy_sub_reg = TRI->getSubReg(MCRegister(phy_num), virt_subreg);
-            if (CAN_USE(Live_Phy_to_Vir, phy_sub_reg) && CAN_USE(Instr_Phy_to_Vir, phy_sub_reg)) {
+            if (phy_sub_reg && CAN_USE(Live_Phy_to_Vir, phy_sub_reg) && CAN_USE(Instr_Phy_to_Vir, phy_sub_reg)) {
               LiveVirtRegs[VirtReg] = phy_sub_reg;
               MO.setReg(phy_sub_reg);
               MO.setSubReg(0);
@@ -230,7 +237,7 @@ namespace {
               Add_Use(Live_Phy_to_Vir, phy_sub_reg, VirtReg);
               Add_Use(Instr_Phy_to_Vir, phy_sub_reg, VirtReg);
               if (is_use) {
-                /////////////////////////////////////////////////
+                Do_Load(MBB, MI, MO, VirtReg);
               }
               return;
             }
@@ -241,7 +248,7 @@ namespace {
           SmallVector<MCRegister, 5> Spill_Candidate;
           for (auto phy_num: arr_phy_reg) {
             auto phy_sub_reg = TRI->getSubReg(MCRegister(phy_num), virt_subreg);
-            if (CAN_USE(Instr_Phy_to_Vir, phy_sub_reg)) {
+            if (phy_sub_reg && CAN_USE(Instr_Phy_to_Vir, phy_sub_reg)) {
               Spill_Candidate.push_back(phy_sub_reg);
             }
           }
@@ -251,11 +258,12 @@ namespace {
             auto physical_intefere = iter->first;
             if (TRI->regsOverlap(physical_intefere, phy_sub_reg)) {
               assert(Instr_Phy_to_Vir.find(physical_intefere) == Instr_Phy_to_Vir.end());
+              // must spill
+              //  do spill action
+              //  directly reclaim
               Do_Spill(Live_Phy_to_Vir, MBB, MI, MO, physical_intefere);
             }
           }
-          
-          // if (CAN_USE(Live_Phy_to_Vir, phy_sub_reg) && CAN_USE(Instr_Phy_to_Vir, phy_sub_reg)) {
           //   LiveVirtRegs[VirtReg] = phy_sub_reg;
           //   MO.setReg(phy_sub_reg);
           //   MO.setSubReg(0);
@@ -263,10 +271,9 @@ namespace {
           //   Add_Use(Live_Phy_to_Vir, phy_sub_reg, VirtReg);
           //   Add_Use(Instr_Phy_to_Vir, phy_sub_reg, VirtReg);
           //   if (is_use) {
-          //     /////////////////////////////////////////////////
+          //     Do_Load(MBB, MI, MO, VirtReg);
           //   }
           //   return;
-          // }
       } else { // no subreg
 
       }
