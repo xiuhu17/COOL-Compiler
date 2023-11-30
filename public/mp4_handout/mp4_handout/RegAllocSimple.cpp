@@ -203,7 +203,8 @@ namespace {
     void allocateOperand(MachineBasicBlock& MBB, MachineInstr& MI, MachineOperand &MO, Register VirtReg, bool is_use, DenseMap<PhysicalReg, VirtualReg>& Instr_Phy_to_Vir) {
       // TODO: allocate physical register for a virtual register
       if (MO.getReg().isPhysical()) {
-          MCRegister phy_reg = MO.getReg();
+        MCRegister phy_reg = MO.getReg();
+        if (MO.isDef()) {
           for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
             auto physical_intefere = iter->first;
             if (TRI->regsOverlap(physical_intefere, phy_reg)) {
@@ -214,8 +215,11 @@ namespace {
               Do_Spill(Live_Phy_to_Vir, MBB, MI, MO, physical_intefere);
             }
           }
-          Arg_Ret.insert(phy_reg);/////////////////////////////////////////////////////////////////////
-        return;
+          Arg_Ret.insert(phy_reg);
+         } else if (MO.isDead() || MO.isKill()) {
+          Arg_Ret.erase(phy_reg);
+         }
+       return;
       }
 
       if (!is_use) {
