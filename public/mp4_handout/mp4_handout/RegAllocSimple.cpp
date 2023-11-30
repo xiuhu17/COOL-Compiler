@@ -203,7 +203,6 @@ namespace {
     void allocateOperand(MachineBasicBlock& MBB, MachineInstr& MI, MachineOperand &MO, Register VirtReg, bool is_use, DenseMap<PhysicalReg, VirtualReg>& Instr_Phy_to_Vir) {
       // TODO: allocate physical register for a virtual register
       if (MO.getReg().isPhysical()) {
-        if (!is_use) {
           MCRegister phy_reg = MO.getReg();
           for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
             auto physical_intefere = iter->first;
@@ -215,10 +214,9 @@ namespace {
               Do_Spill(Live_Phy_to_Vir, MBB, MI, MO, physical_intefere);
             }
           }
-        }
+          Arg_Ret.insert(phy_reg);/////////////////////////////////////////////////////////////////////
         return;
       }
-
 
       if (!is_use) {
         SpillVirtRegs.erase(VirtReg);
