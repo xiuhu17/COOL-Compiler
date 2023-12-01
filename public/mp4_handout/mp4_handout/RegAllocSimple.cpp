@@ -201,7 +201,7 @@ namespace {
         i ++;
       }
 
-      return idx;
+      return 0;
     }
 
     inline int Do_Store(MachineBasicBlock& MBB, MachineInstr& MI, MCRegister physical_intefere, Register reclaim_vreg) {
