@@ -385,6 +385,8 @@ namespace {
     void allocateBasicBlock(MachineBasicBlock &MBB) {
       // TODO: allocate each instruction
       // TODO: spill all live registers at the end
+
+      // reset
       LiveVirtRegs.clear();
       Live_Phy_to_Vir.clear();
       DenseSet<MCRegister> lookup;
@@ -396,14 +398,41 @@ namespace {
           LivePhysRegs_Status.erase(iter->first);
         }
       }
+
+      // empty block
+      if (MBB.size() == 0) return;
+
+      // normal
       for (MachineInstr& MI: MBB) {
-        allocateInstruction(MBB, MI);    
+        allocateInstruction(MBB, MI);  
+        if (MI.isTerminator()) {
+          if (!MI.isReturn()) {
+            for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
+              auto phy = iter->first;
+              auto vir = iter->second;
+              Do_Spill(Live_Phy_to_Vir, MBB, MI, phy);
+            }
+          }
+          return;
+        }
       }
-      for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
-        auto phy = iter->first;
-        auto vir = iter->second;
-        Do_Spill(Live_Phy_to_Vir, MBB, MBB.instr_back(), phy);
-      }
+
+        MachineInstr& anchor = MBB.instr_back();
+        size_t orig_sz = MBB.size();
+        for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
+          auto phy = iter->first;
+          auto vir = iter->second;
+          Do_Spill(Live_Phy_to_Vir, MBB, anchor, phy);
+        }
+        size_t count = 0;
+        for (MachineInstr& MI: MBB) {
+          assert(orig_sz >= 1);
+          if (count == orig_sz - 1) {
+            anchor.moveBefore(&MI);
+            return;
+          }
+          count ++;
+        }
     }
 
     bool runOnMachineFunction(MachineFunction &MF) override {
