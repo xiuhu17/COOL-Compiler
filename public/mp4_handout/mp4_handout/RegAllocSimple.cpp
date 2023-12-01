@@ -89,12 +89,12 @@ namespace {
     // build lookup map
     DenseMap<VirtualReg, FrameIndex> SpillVirtRegs;
     DenseMap<VirtualReg, PhysicalReg>  LiveVirtRegs;
-    DenseMap<VirtualReg, MachineOperand> VirtualRegs_Status;// virtual registser -> last exists Machineoperand
+    DenseMap<VirtualReg, bool> VirtualRegs_Status;// virtual registser -> last exists Machineoperand
 
     DenseMap<PhysicalReg, VirtualReg> Live_Phy_to_Vir;  // used physical reg // for LiveVirtRegs_Phys, if eax is allocated, al, ah also marked as allocated
     // DenseMap<PhysicalReg, VirtualReg>& Instr_Phy_to_Vir
 
-    DenseMap<PhysicalReg, MachineOperand> LivePhysRegs_Status;
+    DenseMap<PhysicalReg, bool> LivePhysRegs_Status;
 
     // helper function for set
     // if eax is added to use, then eax add use
@@ -126,8 +126,8 @@ namespace {
       SmallVector<MCRegister, 3> arr;
       for (auto iter = LivePhysRegs_Status.begin(); iter != LivePhysRegs_Status.end(); ++ iter) {
         auto arg_ret_phys = iter->first;
-        auto MO = iter->second;
-        if (MO.isKill() || MO.isDead()) {
+        auto kill_or_dead = iter->second;
+        if (kill_or_dead) {
           arr.push_back(arg_ret_phys);
         }
       }
@@ -159,9 +159,9 @@ namespace {
       } else {
         assert(false);
       }
-      auto MO = VirtualRegs_Status[vreg];
+      auto kill_or_dead = VirtualRegs_Status[vreg];
       // return !(MO.isKill() || MO.isDead() || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end() && MO.isUse()));
-      return !(MO.isKill() || MO.isDead() || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end()));
+      return !(kill_or_dead || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end()));
     }
      
     // spill one with lowest store/load
@@ -250,7 +250,7 @@ namespace {
             }
           }
         }
-        LivePhysRegs_Status[phy_reg] = MO;
+        LivePhysRegs_Status[phy_reg] = MO.isKill() || MO.isDead();
         setMachineOperandToPhysReg(MO, phy_reg);
         Add_Use(Instr_Phy_to_Vir, phy_reg, phy_reg);
        return;
@@ -263,7 +263,7 @@ namespace {
       // if the virtual register is in the LiveVirtRegs
       if (LiveVirtRegs.find(VirtReg) != LiveVirtRegs.end()) {
         auto physical_reg = LiveVirtRegs[VirtReg];
-        VirtualRegs_Status[VirtReg] = MO;
+        VirtualRegs_Status[VirtReg] = MO.isKill() || MO.isDead();
         setMachineOperandToPhysReg(MO, physical_reg);
         assert(Live_Phy_to_Vir.find(physical_reg) != Live_Phy_to_Vir.end());
         Add_Use(Instr_Phy_to_Vir, physical_reg, VirtReg);   
@@ -278,7 +278,7 @@ namespace {
             auto phy_reg = MCRegister(phy_num);
             if (CAN_USE(Live_Phy_to_Vir, phy_reg) && CAN_USE(Instr_Phy_to_Vir, phy_reg) && Can_Avoid_Existing(phy_reg)) {
               LiveVirtRegs[VirtReg] = phy_reg;
-              VirtualRegs_Status[VirtReg] = MO;
+              VirtualRegs_Status[VirtReg] = MO.isKill() || MO.isDead();
               setMachineOperandToPhysReg(MO, phy_reg);
               Add_Use(Live_Phy_to_Vir, phy_reg, VirtReg);
               Add_Use(Instr_Phy_to_Vir, phy_reg, VirtReg);
@@ -310,7 +310,7 @@ namespace {
             }
           }
           LiveVirtRegs[VirtReg] = phy_reg;
-          VirtualRegs_Status[VirtReg] = MO;
+          VirtualRegs_Status[VirtReg] = MO.isKill() || MO.isDead();
           setMachineOperandToPhysReg(MO, phy_reg);
           Add_Use(Live_Phy_to_Vir, phy_reg, VirtReg);
           Add_Use(Instr_Phy_to_Vir, phy_reg, VirtReg);
