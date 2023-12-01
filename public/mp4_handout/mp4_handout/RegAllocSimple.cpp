@@ -222,12 +222,12 @@ namespace {
         MO.setSubReg(0);
       }
       MO.setReg(PhysReg);
-      // if (MO.isKill()) {
-      //   MO.setIsKill(false);
-      // } else if (MO.isDead()) {
-      //   MO.setIsDead(false);
-      // }
-      // MO.setIsRenamable();
+      if (MO.isKill()) {
+        MO.setIsKill(false);
+      } else if (MO.isDead()) {
+        MO.setIsDead(false);
+      }
+      MO.setIsRenamable();
     }
 
     /* HELPER FUNCTION */
@@ -250,8 +250,8 @@ namespace {
             }
           }
         }
-        setMachineOperandToPhysReg(MO, phy_reg);
         LivePhysRegs_Status[phy_reg] = MO;
+        setMachineOperandToPhysReg(MO, phy_reg);
         Add_Use(Instr_Phy_to_Vir, phy_reg, phy_reg);
        return;
       }
@@ -263,8 +263,8 @@ namespace {
       // if the virtual register is in the LiveVirtRegs
       if (LiveVirtRegs.find(VirtReg) != LiveVirtRegs.end()) {
         auto physical_reg = LiveVirtRegs[VirtReg];
-        setMachineOperandToPhysReg(MO, physical_reg);
         VirtualRegs_Status[VirtReg] = MO;
+        setMachineOperandToPhysReg(MO, physical_reg);
         assert(Live_Phy_to_Vir.find(physical_reg) != Live_Phy_to_Vir.end());
         Add_Use(Instr_Phy_to_Vir, physical_reg, VirtReg);   
         return;
@@ -278,8 +278,8 @@ namespace {
             auto phy_reg = MCRegister(phy_num);
             if (CAN_USE(Live_Phy_to_Vir, phy_reg) && CAN_USE(Instr_Phy_to_Vir, phy_reg) && Can_Avoid_Existing(phy_reg)) {
               LiveVirtRegs[VirtReg] = phy_reg;
-              setMachineOperandToPhysReg(MO, phy_reg);
               VirtualRegs_Status[VirtReg] = MO;
+              setMachineOperandToPhysReg(MO, phy_reg);
               Add_Use(Live_Phy_to_Vir, phy_reg, VirtReg);
               Add_Use(Instr_Phy_to_Vir, phy_reg, VirtReg);
               if (is_use) {
@@ -310,8 +310,8 @@ namespace {
             }
           }
           LiveVirtRegs[VirtReg] = phy_reg;
-          setMachineOperandToPhysReg(MO, phy_reg);
           VirtualRegs_Status[VirtReg] = MO;
+          setMachineOperandToPhysReg(MO, phy_reg);
           Add_Use(Live_Phy_to_Vir, phy_reg, VirtReg);
           Add_Use(Instr_Phy_to_Vir, phy_reg, VirtReg);
           if (is_use) {
