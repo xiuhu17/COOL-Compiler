@@ -138,6 +138,7 @@ namespace {
         if (kill_or_dead) {
           LiveVirtRegs.erase(vir_reg);
           Live_Phy_to_Vir.erase(phy_reg);
+          SpillVirtRegs.erase(vir_reg);
         }
       }
     }
@@ -174,9 +175,8 @@ namespace {
       } else {
         assert(false);
       }
-      auto kill_or_dead = VirtualRegs_Status[vreg];
-      // return !(MO.isKill() || MO.isDead() || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end() && MO.isUse()));
-      return !(kill_or_dead || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end()));
+
+      return !((SpillVirtRegs.find(vreg) != SpillVirtRegs.end()));
     }
      
     // spill one with lowest store/load

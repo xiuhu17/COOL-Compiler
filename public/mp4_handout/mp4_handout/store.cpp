@@ -123,16 +123,23 @@ namespace {
       return true;
     }
     void Update_Existing_Per_Instr() {
-      SmallVector<MCRegister, 3> arr;
       for (auto iter = LivePhysRegs_Status.begin(); iter != LivePhysRegs_Status.end(); ++ iter) {
         auto arg_ret_phys = iter->first;
         auto kill_or_dead = iter->second;
         if (kill_or_dead) {
-          arr.push_back(arg_ret_phys);
+          LivePhysRegs_Status.erase(arg_ret_phys);
         }
       }
-      for (int i = 0; i < arr.size(); ++ i) {
-        LivePhysRegs_Status.erase(arr[i]);
+
+      for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
+        auto phy_reg = iter->first;
+        auto vir_reg = iter->second;
+        auto kill_or_dead = VirtualRegs_Status[vir_reg];
+        if (kill_or_dead) {
+          LiveVirtRegs.erase(vir_reg);
+          Live_Phy_to_Vir.erase(phy_reg);
+          SpillVirtRegs.erase(vir_reg);
+        }
       }
     }
 
@@ -168,9 +175,8 @@ namespace {
       } else {
         assert(false);
       }
-      auto kill_or_dead = VirtualRegs_Status[vreg];
-      // return !(MO.isKill() || MO.isDead() || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end() && MO.isUse()));
-      return !(kill_or_dead || (SpillVirtRegs.find(vreg) != SpillVirtRegs.end()));
+
+      return !((SpillVirtRegs.find(vreg) != SpillVirtRegs.end()));
     }
      
     // spill one with lowest store/load
