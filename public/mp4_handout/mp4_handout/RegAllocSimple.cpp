@@ -241,7 +241,7 @@ namespace {
       } else if (MO.isDead()) {
         MO.setIsDead(false);
       }
-      MO.setIsRenamable();
+      // MO.setIsRenamable();
     }
 
     /* HELPER FUNCTION */
