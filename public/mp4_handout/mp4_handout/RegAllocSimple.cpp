@@ -138,12 +138,21 @@ namespace {
 
     // helper function for size
     inline unsigned int Size(Register input) {
+      if (input.isPhysical()) {
+        input = Live_Phy_to_Vir[input];
+      }
       return TRI->getSpillSize(*(MRI->getRegClass(input)));
     }
     inline unsigned int SpillSize(Register input) {
+      if (input.isPhysical()) {
+        input = Live_Phy_to_Vir[input];
+      }
       return TRI->getSpillSize(*(MRI->getRegClass(input)));
     }
     inline llvm::Align SpillAlignment(Register input) {
+      if (input.isPhysical()) {
+        input = Live_Phy_to_Vir[input];
+      }
       return TRI->getSpillAlign(*(MRI->getRegClass(input)));
     } 
     // helper function for checking whether need spill
@@ -189,11 +198,14 @@ namespace {
       return idx;
     }
 
-    inline int Do_Store(MachineBasicBlock& MBB, MachineInstr& MI, MCRegister physical_intefere) {
-      auto spill_sz = SpillSize(physical_intefere);
-      auto spill_al = SpillAlignment(physical_intefere);
+    inline int Do_Store(MachineBasicBlock& MBB, MachineInstr& MI, MCRegister physical_intefere, Register reclaim_vreg) {
+      auto spill_sz = SpillSize(reclaim_vreg);
+      auto spill_al = SpillAlignment(reclaim_vreg);
       auto stk_idx = MFI->CreateSpillStackObject(spill_sz, spill_al);
-      TII->storeRegToStackSlot(MBB, MI, physical_intefere, false, stk_idx, MRI->getRegClass(physical_intefere), TRI);
+      TII->storeRegToStackSlot(MBB, MI, physical_intefere, false, stk_idx, MRI->getRegClass(reclaim_vreg), TRI);
+
+      NumStores ++;
+
       return stk_idx;
     }
 
@@ -201,13 +213,15 @@ namespace {
       auto phy_reg = LiveVirtRegs[vert_reg];
       assert(SpillVirtRegs.find(vert_reg) != SpillVirtRegs.end());
       auto stk_idx = SpillVirtRegs[vert_reg];
-      TII->loadRegFromStackSlot(MBB, MI, phy_reg, stk_idx, MRI->getRegClass(phy_reg), TRI);
+      TII->loadRegFromStackSlot(MBB, MI, phy_reg, stk_idx, MRI->getRegClass(vert_reg), TRI);
+
+      NumLoads ++;
     }
 
     void Do_Spill(DenseMap<PhysicalReg, VirtualReg>& used_phys, MachineBasicBlock& MBB, MachineInstr& MI, MCRegister physical_intefere) {
       auto reclaim_vreg = used_phys[physical_intefere];
       if (Need_Store_Back(used_phys, physical_intefere)) {
-        auto stk_idx = Do_Store(MBB, MI, physical_intefere);      
+        auto stk_idx = Do_Store(MBB, MI, physical_intefere, reclaim_vreg);      
         SpillVirtRegs[reclaim_vreg] = stk_idx;
       } 
       
@@ -234,28 +248,28 @@ namespace {
     // Allocate physical register for virtual register operand
     // for UsedInInstr_Phys, if eax is allocated, al, ah also marked as allocated
     // after this function, we need to call MachineOperand::setReg, MachineOperand::setSubReg
-    void allocateOperand(MachineBasicBlock& MBB, MachineInstr& MI, MachineOperand &MO, Register VirtReg, bool is_use, DenseMap<PhysicalReg, VirtualReg>& Instr_Phy_to_Vir) {
+    void allocateOperand(MachineBasicBlock& MBB, MachineInstr& MI, MachineOperand &MO, bool is_use, DenseMap<PhysicalReg, VirtualReg>& Instr_Phy_to_Vir) {
       // TODO: allocate physical register for a virtual register
+      auto VirtReg = MO.getReg();
+
       if (MO.getReg().isPhysical()) {
         MCRegister phy_reg = MO.getReg();
         if (MO.isDef()) {
           for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
             auto physical_intefere = iter->first;
             if (TRI->regsOverlap(physical_intefere, phy_reg)) {
-              assert(Instr_Phy_to_Vir.find(physical_intefere) == Instr_Phy_to_Vir.end());
-              // must spill
-              //  do spill action
-              //  directly reclaim
+              // assert(Instr_Phy_to_Vir.find(physical_intefere) == Instr_Phy_to_Vir.end());/////////////////////////////////////////
+              // assert(CAN_USE(Instr_Phy_to_Vir, phy_reg));////////////////////////
               Do_Spill(Live_Phy_to_Vir, MBB, MI, physical_intefere);
             }
           }
         }
         LivePhysRegs_Status[phy_reg] = MO.isKill() || MO.isDead();
         setMachineOperandToPhysReg(MO, phy_reg);
-        Add_Use(Instr_Phy_to_Vir, phy_reg, phy_reg);
-       return;
+        // Add_Use(Instr_Phy_to_Vir, phy_reg, phy_reg);////////////////////////////
+        return;
       }
-
+      
       if (MO.isDef()) {
         SpillVirtRegs.erase(VirtReg);
       } 
@@ -266,7 +280,8 @@ namespace {
         VirtualRegs_Status[VirtReg] = MO.isKill() || MO.isDead();
         setMachineOperandToPhysReg(MO, physical_reg);
         assert(Live_Phy_to_Vir.find(physical_reg) != Live_Phy_to_Vir.end());
-        Add_Use(Instr_Phy_to_Vir, physical_reg, VirtReg);   
+        // Add_Use(Instr_Phy_to_Vir, physical_reg, VirtReg);   /////////////////////////
+        Instr_Phy_to_Vir[physical_reg] = VirtReg;
         return;
       }
 
@@ -276,7 +291,16 @@ namespace {
           // not allocated 
           for (auto phy_num: arr_phy_reg) {
             auto phy_reg = MCRegister(phy_num);
-            if (CAN_USE(Live_Phy_to_Vir, phy_reg) && CAN_USE(Instr_Phy_to_Vir, phy_reg) && Can_Avoid_Existing(phy_reg)) {
+            bool check = true; // true as default
+            if (MO.getSubReg()) { // if need subreg
+              check = false;
+              if (TRI->getSubReg(phy_reg, MO.getSubReg())) {
+                check = true;
+              } else {
+                check = false;
+              }
+            }
+            if (check && CAN_USE(Live_Phy_to_Vir, phy_reg) && CAN_USE(Instr_Phy_to_Vir, phy_reg) && Can_Avoid_Existing(phy_reg)) {
               LiveVirtRegs[VirtReg] = phy_reg;
               VirtualRegs_Status[VirtReg] = MO.isKill() || MO.isDead();
               setMachineOperandToPhysReg(MO, phy_reg);
@@ -293,7 +317,16 @@ namespace {
           SmallVector<MCRegister, 5> Spill_Candidate;
           for (auto phy_num: arr_phy_reg) {
             auto phy_reg = MCRegister(phy_num);
-            if (CAN_USE(Instr_Phy_to_Vir, phy_reg) && Can_Avoid_Existing(phy_reg)) {
+            bool check = true; // true as default
+            if (MO.getSubReg()) { // if need subreg
+              check = false;
+              if (TRI->getSubReg(phy_reg, MO.getSubReg())) {
+                check = true;
+              } else {
+                check = false;
+              }
+            }
+            if (check && CAN_USE(Instr_Phy_to_Vir, phy_reg) && Can_Avoid_Existing(phy_reg)) {
               Spill_Candidate.push_back(phy_reg);
             }
           }
@@ -325,8 +358,8 @@ namespace {
       DenseMap<PhysicalReg, VirtualReg> Instr_Phy_to_Vir;
       Instr_Phy_to_Vir.clear();
       for (MachineOperand& MO : MI.operands()) {
-        if (MO.isUse()) {
-          allocateOperand(MBB, MI, MO, true, MO.getReg(), Instr_Phy_to_Vir);
+        if (MO.isReg()&& MO.getReg().isValid() && MO.isUse()) {
+          allocateOperand(MBB, MI, MO, true, Instr_Phy_to_Vir);
         }
       }
       for (MachineOperand& MO : MI.operands()) {
@@ -342,8 +375,8 @@ namespace {
         }
       }
       for (MachineOperand& MO : MI.operands()) {
-        if (MO.isDef()) {
-          allocateOperand(MBB, MI, MO, false, MO.getReg(), Instr_Phy_to_Vir);
+        if (MO.isReg() && MO.getReg().isValid() && MO.isDef()) {
+          allocateOperand(MBB, MI, MO, false,  Instr_Phy_to_Vir);
         }
       }
       Update_Existing_Per_Instr();
@@ -369,15 +402,15 @@ namespace {
       for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
         auto phy = iter->first;
         auto vir = iter->second;
-        Do_Spill(Live_Phy_to_Vir, MBB, *MBB.end(), phy);
+        Do_Spill(Live_Phy_to_Vir, MBB, MBB.instr_back(), phy);
       }
     }
 
     bool runOnMachineFunction(MachineFunction &MF) override {
       dbgs() << "simple regalloc running on: " << MF.getName() << "\n";
 
-      outs() << "simple regalloc not implemented\n";
-      abort();
+      // outs() << "simple regalloc not implemented\n";
+      // abort();
 
       // Get some useful information about the target
       MRI = &MF.getRegInfo();
