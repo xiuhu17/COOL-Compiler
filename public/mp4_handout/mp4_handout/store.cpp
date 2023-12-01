@@ -123,22 +123,16 @@ namespace {
       return true;
     }
     void Update_Existing_Per_Instr() {
+      SmallVector<MCRegister, 3> arr;
       for (auto iter = LivePhysRegs_Status.begin(); iter != LivePhysRegs_Status.end(); ++ iter) {
         auto arg_ret_phys = iter->first;
         auto kill_or_dead = iter->second;
         if (kill_or_dead) {
-          LivePhysRegs_Status.erase(arg_ret_phys);
+          arr.push_back(arg_ret_phys);
         }
       }
-
-      for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
-        auto phy_reg = iter->first;
-        auto vir_reg = iter->second;
-        auto kill_or_dead = VirtualRegs_Status[vir_reg];
-        if (kill_or_dead) {
-          LiveVirtRegs.erase(vir_reg);
-          Live_Phy_to_Vir.erase(phy_reg);
-        }
+      for (int i = 0; i < arr.size(); ++ i) {
+        LivePhysRegs_Status.erase(arr[i]);
       }
     }
 
