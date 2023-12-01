@@ -323,6 +323,7 @@ namespace {
     void allocateInstruction(MachineBasicBlock& MBB, MachineInstr &MI) {
       // TODO: find and allocate all virtual registers in MI
       DenseMap<PhysicalReg, VirtualReg> Instr_Phy_to_Vir;
+      Instr_Phy_to_Vir.clear();
       for (MachineOperand& MO : MI.operands()) {
         if (MO.isUse()) {
           allocateOperand(MBB, MI, MO, true, MO.getReg(), Instr_Phy_to_Vir);
@@ -386,6 +387,13 @@ namespace {
       MFI = &MF.getFrameInfo();
       MRI->freezeReservedRegs(MF);
       RegClassInfo.runOnMachineFunction(MF);
+
+      // reset
+      SpillVirtRegs.clear();
+      LiveVirtRegs.clear();
+      VirtualRegs_Status.clear();
+      Live_Phy_to_Vir.clear();
+      LivePhysRegs_Status.clear();
 
       // Allocate each basic block locally
       for (MachineBasicBlock &MBB : MF) {
