@@ -6,7 +6,7 @@ Realize a Compiler for COOL language
 - Implement Parser, use Bison as parser generator to generate scanner which supports Error Recovery.
 
 ### Middle End(CodeGen): MP2_Handout & MP3_Handout
-- Implement Intermediate Code Generation phase of the compiler. Under Semantic Analysis, use AST data structure built in Parser stage and LLVM MiddleEnd API to generate LLVM three-address assembly code.
+- Implement IR Code Generation. Under Semantic Analysis, use AST data structure built in Parser stage and LLVM MiddleEnd API to generate LLVM three-address assembly code.
 - With the Runtime Library, the LLVM IR generator supports full language features:
   - Inheritance, Virtual Function, Polymorphism(classes, objects) 
   - Type Conformation, Boxing/Unboxing(support harware acceleration)
