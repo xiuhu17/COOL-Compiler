@@ -14,5 +14,5 @@ Realize a Compiler for COOL language
   - Run-time Garbage Collection using Mark-and-Sweep algorithm.
 
 ### Back End(RegAlloc): MP4_Handout
-  - Implement Register Allocation, using a Greedy and BasicBlock Level Local allocation algorithm, with predicting potential storing and loading. Implement using LLVM BackEnd API(TargetRegisterInfo, MachineBasicblock, MachineRegisterInfo ...).
+  - Implement Register Allocation, using a Greedy and BasicBlock Level Local allocation algorithm, optimized with storing register live across function-calls into callee-saved. Implement using LLVM BackEnd API(TargetRegisterInfo, MachineBasicblock, MachineRegisterInfo ...).
 
