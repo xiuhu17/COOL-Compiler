@@ -1,9 +1,3 @@
-//===----------------------------------------------------------------------===//
-//
-/// A register allocator simplified from RegAllocFast.cpp
-//
-//===----------------------------------------------------------------------===//
-
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -13,9 +7,15 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
-
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/SlotIndexes.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
+#include "llvm/Support/TypeSize.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
+
+
+#include "iostream"
 
 #include <map>
 #include <set>
@@ -44,7 +44,6 @@ namespace {
     const TargetRegisterInfo *TRI;
     const TargetInstrInfo *TII;
     RegisterClassInfo RegClassInfo;
-
     // TODO: maintain information about live registers
 
   public:
@@ -94,7 +93,10 @@ namespace {
     DenseMap<PhysicalReg, VirtualReg> Live_Phy_to_Vir;  // used physical reg // for LiveVirtRegs_Phys, if eax is allocated, al, ah also marked as allocated
     // DenseMap<PhysicalReg, VirtualReg>& Instr_Phy_to_Vir
 
-    DenseMap<PhysicalReg, bool> LivePhysRegs_Status;
+    DenseSet<PhysicalReg> PreCol_LivePhysRegs; //
+
+    DenseSet<MCRegister> Callee_Saved_;
+    DenseMap<MCRegister, int> Callee_Frame_;
 
     // helper function for set
     // if eax is added to use, then eax add use
@@ -115,22 +117,67 @@ namespace {
       used_phys.erase(phys_reg);
     }
     inline bool Can_Avoid_Existing(MCRegister phys_reg) {
-      for (auto i = LivePhysRegs_Status.begin(); i != LivePhysRegs_Status.end(); ++ i) {
-        if (TRI->regsOverlap(i->first, phys_reg)) {
+      for (auto i = PreCol_LivePhysRegs.begin(); i != PreCol_LivePhysRegs.end(); ++ i) {
+        if (TRI->regsOverlap(*i, phys_reg)) {
           return false;
         }
       }
       return true;
     }
-    void Update_Existing_Per_Instr() {
-      for (auto iter = LivePhysRegs_Status.begin(); iter != LivePhysRegs_Status.end(); ++ iter) {
-        auto arg_ret_phys = iter->first;
-        auto kill_or_dead = iter->second;
-        if (kill_or_dead) {
-          LivePhysRegs_Status.erase(arg_ret_phys);
+    inline bool Can_Avoid_Callee(MCRegister phys_reg) {
+      for (auto i = Callee_Saved_.begin(); i != Callee_Saved_.end(); ++ i) {
+        if (TRI->regsOverlap(*i, phys_reg)) {
+          return false;
         }
       }
+      return true;
+    }
+    
+    void Store_Callee(MachineBasicBlock& MBB, MachineInstr& MI, MCRegister phys_reg) {
+      Callee_Saved_.erase(phys_reg);
+      for (unsigned i = 0; i < TRI->getNumRegClasses(); ++i) {
+        const TargetRegisterClass *RC = TRI->getRegClass(i);
+        if (RC->contains(phys_reg)) {
+            auto sz = TRI->getSpillSize(*RC);
+            auto al = TRI->getSpillAlign(*RC);
+            auto stk_idx = MFI->CreateSpillStackObject(sz, al);
+            TII->storeRegToStackSlot(MBB, MI, phys_reg, false, stk_idx, RC, TRI);
+            Callee_Frame_[phys_reg] = stk_idx;
+            NumStores = NumStores + 1;
+            return;
+        }
+      }
+     
+    }
 
+    void Load_Callee(MachineBasicBlock& MBB, MachineInstr& MI, MCRegister phys_reg) {
+      for (unsigned i = 0, e = TRI->getNumRegClasses(); i < e; ++i) {
+        const TargetRegisterClass *RC = TRI->getRegClass(i);
+        if (RC->contains(phys_reg)) {
+            auto stk_idx = Callee_Frame_[phys_reg];
+            TII->loadRegFromStackSlot(MBB, MI, phys_reg, stk_idx, RC, TRI);
+            NumLoads = NumLoads + 1;
+            return;
+        }
+      }
+    }
+
+    void Spill_Callee(MachineBasicBlock& MBB, MachineInstr& MI, MCRegister input) {
+      for (auto i = Callee_Saved_.begin(); i != Callee_Saved_.end(); ++ i) {
+        if (TRI->regsOverlap(*i, input)) {
+          Store_Callee(MBB, MI, *i);
+        }
+      }
+    }
+
+    void Restore_Callee(MachineBasicBlock& MBB, MachineInstr& MI) {
+      for (auto iter = Callee_Frame_.begin(); iter != Callee_Frame_.end(); ++ iter) {
+        auto phy = iter->first;
+        Load_Callee(MBB, MI, phy);
+      }
+    }
+
+    void Update_Existing_Per_Instr() {
       for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
         auto phy_reg = iter->first;
         auto vir_reg = iter->second;
@@ -179,38 +226,13 @@ namespace {
       return !((SpillVirtRegs.find(vreg) != SpillVirtRegs.end()));
     }
      
-    // spill one with lowest store/load
-    int Find_Reg_Spill(DenseMap<PhysicalReg, VirtualReg>& used_phys, SmallVector<MCRegister, 5>& Spill_Candidate) {
-      int i = 0, idx = 0;
-      int comp = used_phys.size() * 5;
-      for (auto& phy_for_using: Spill_Candidate) {
-        int count_load = 0, count_store = 0;
-        for (auto iter = used_phys.begin(); iter != used_phys.end();  ++ iter) {
-          auto phys_intefere = iter->first;
-          if (TRI->regsOverlap(phy_for_using, phys_intefere)) {
-            count_load ++;
-            if (Need_Store_Back(used_phys, phys_intefere)) {
-              count_store ++;
-            }
-          }
-        }
-        if (count_load + count_store <= comp) {
-          comp = count_load + count_store;
-          idx = i;
-        }
-        i ++;
-      }
-
-      return 0;
-    }
-
     inline int Do_Store(MachineBasicBlock& MBB, MachineInstr& MI, MCRegister physical_intefere, Register reclaim_vreg) {
       auto spill_sz = SpillSize(reclaim_vreg);
       auto spill_al = SpillAlignment(reclaim_vreg);
       auto stk_idx = MFI->CreateSpillStackObject(spill_sz, spill_al);
       TII->storeRegToStackSlot(MBB, MI, physical_intefere, false, stk_idx, MRI->getRegClass(reclaim_vreg), TRI);
 
-      NumStores ++;
+      NumStores = NumStores + 1;
 
       return stk_idx;
     }
@@ -221,7 +243,7 @@ namespace {
       auto stk_idx = SpillVirtRegs[vert_reg];
       TII->loadRegFromStackSlot(MBB, MI, phy_reg, stk_idx, MRI->getRegClass(vert_reg), TRI);
 
-      NumLoads ++;
+      NumLoads = NumLoads + 1;
     }
 
     void Do_Spill(DenseMap<PhysicalReg, VirtualReg>& used_phys, MachineBasicBlock& MBB, MachineInstr& MI, MCRegister physical_intefere) {
@@ -250,7 +272,7 @@ namespace {
       // MO.setIsRenamable();
     }
 
-    /* HELPER FUNCTION */
+   
     // Allocate physical register for virtual register operand
     // for UsedInInstr_Phys, if eax is allocated, al, ah also marked as allocated
     // after this function, we need to call MachineOperand::setReg, MachineOperand::setSubReg
@@ -264,15 +286,13 @@ namespace {
           for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
             auto physical_intefere = iter->first;
             if (TRI->regsOverlap(physical_intefere, phy_reg)) {
-              // assert(Instr_Phy_to_Vir.find(physical_intefere) == Instr_Phy_to_Vir.end());/////////////////////////////////////////
-              // assert(CAN_USE(Instr_Phy_to_Vir, phy_reg));////////////////////////
               Do_Spill(Live_Phy_to_Vir, MBB, MI, physical_intefere);
             }
           }
+          Spill_Callee(MBB, MI, phy_reg);
         }
-        LivePhysRegs_Status[phy_reg] = MO.isKill() || MO.isDead();
+        PreCol_LivePhysRegs.insert(phy_reg);
         setMachineOperandToPhysReg(MO, phy_reg);
-        // Add_Use(Instr_Phy_to_Vir, phy_reg, phy_reg);////////////////////////////
         return;
       }
       
@@ -306,7 +326,19 @@ namespace {
                 check = false;
               }
             }
+            if (check && CAN_USE(Live_Phy_to_Vir, phy_reg) && CAN_USE(Instr_Phy_to_Vir, phy_reg) && Can_Avoid_Existing(phy_reg) && Can_Avoid_Callee(phy_reg)) {
+              LiveVirtRegs[VirtReg] = phy_reg;
+              VirtualRegs_Status[VirtReg] = MO.isKill() || MO.isDead();
+              setMachineOperandToPhysReg(MO, phy_reg);
+              Add_Use(Live_Phy_to_Vir, phy_reg, VirtReg);
+              Add_Use(Instr_Phy_to_Vir, phy_reg, VirtReg);
+              if (is_use) {
+                Do_Load(MBB, MI, VirtReg);
+              }
+              return;
+            }
             if (check && CAN_USE(Live_Phy_to_Vir, phy_reg) && CAN_USE(Instr_Phy_to_Vir, phy_reg) && Can_Avoid_Existing(phy_reg)) {
+              Spill_Callee(MBB, MI, phy_reg);
               LiveVirtRegs[VirtReg] = phy_reg;
               VirtualRegs_Status[VirtReg] = MO.isKill() || MO.isDead();
               setMachineOperandToPhysReg(MO, phy_reg);
@@ -336,8 +368,21 @@ namespace {
               Spill_Candidate.push_back(phy_reg);
             }
           }
-          auto idx = Find_Reg_Spill(Live_Phy_to_Vir, Spill_Candidate);
-          auto phy_reg = Spill_Candidate[idx];
+
+          bool find_avoid = false;
+          MCRegister phy_reg;
+          for (auto phy: Spill_Candidate) {
+            if (Can_Avoid_Callee(phy)) {
+              phy_reg = phy;
+              find_avoid = true;
+              break;
+            }
+          }
+          if (!find_avoid) {
+            phy_reg = Spill_Candidate[0];
+            Spill_Callee(MBB, MI, phy_reg);
+          }
+
           for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
             auto physical_intefere = iter->first;
             if (TRI->regsOverlap(physical_intefere, phy_reg)) {
@@ -359,7 +404,7 @@ namespace {
           return;
     }
 
-    void allocateInstruction(MachineBasicBlock& MBB, MachineInstr &MI) {
+    void allocateInstruction(MachineBasicBlock& MBB, MachineInstr &MI, DenseMap<Register, int>& Vreg_Live_range_BB, int curr_instr_idx) {
       // TODO: find and allocate all virtual registers in MI
       DenseMap<PhysicalReg, VirtualReg> Instr_Phy_to_Vir;
       Instr_Phy_to_Vir.clear();
@@ -369,22 +414,40 @@ namespace {
         }
       }
       for (MachineOperand& MO : MI.operands()) {
+        if (MO.isReg() && MO.getReg().isValid() && MO.isDef()) {
+          allocateOperand(MBB, MI, MO, false,  Instr_Phy_to_Vir);
+        }
+      }
+      
+      std::vector<MCPhysReg>  Callee_Saved_For_Next;
+      for (MachineOperand& MO : MI.operands()) {
         if (MO.isRegMask()) {
           const uint32_t* Mask = MO.getRegMask();
           for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
             auto phy = iter->first;
             auto vir = iter->second;
             if (MachineOperand::clobbersPhysReg(Mask, phy)) {
-              Do_Spill(Live_Phy_to_Vir, MBB, MI, phy);
+                int range = Vreg_Live_range_BB[vir];
+                if (range >= curr_instr_idx && Need_Store_Back(Live_Phy_to_Vir, phy)) { // set to callee saved
+                  Callee_Saved_For_Next.push_back(phy.id());
+                } else {
+                  // for those who dont use anymore inside current block, we do not need to callee, since, we do not need to load back, only need to store
+                  // for those has already store back, we dont need callee save, since for caller save, we only need to load back, no need for store back
+                  Do_Spill(Live_Phy_to_Vir, MBB, MI, phy);
+                }
+            }
+          }
+          for (auto iter = Callee_Saved_.begin(); iter != Callee_Saved_.end(); ++ iter) {
+            auto unsaved_callee_phy = *iter;
+            if (MachineOperand::clobbersPhysReg(Mask, unsaved_callee_phy)) {
+              Store_Callee(MBB, MI, unsaved_callee_phy);
             }
           }
         }
       }
-      for (MachineOperand& MO : MI.operands()) {
-        if (MO.isReg() && MO.getReg().isValid() && MO.isDef()) {
-          allocateOperand(MBB, MI, MO, false,  Instr_Phy_to_Vir);
-        }
-      }
+
+      Callee_Saved_For_Next.push_back(0);
+      MRI->setCalleeSavedRegs(Callee_Saved_For_Next);
       Update_Existing_Per_Instr();
     }
 
@@ -392,25 +455,38 @@ namespace {
       // TODO: allocate each instruction
       // TODO: spill all live registers at the end
 
+      // get callee info pass
+      DenseMap<Register, int> Vreg_Live_range_BB;
+      int idx = 0;
+      for (auto& MI: MBB) {
+        for (auto& MO: MI.operands()) {
+          if (MO.isReg() && MO.getReg().isValid() && MO.getReg().isVirtual()) {
+            if (MO.isUse()) {
+              Vreg_Live_range_BB[MO.getReg()] = idx; 
+            }
+          }
+        }
+        idx ++;
+      }
+
+      // need spill && across, set to callee
+      // no need spill, still caller save
+
       // reset
       LiveVirtRegs.clear();
       Live_Phy_to_Vir.clear();
-      DenseSet<MCRegister> lookup;
+
       for (auto& livein_phys: MBB.liveins()) {
-        lookup.insert(livein_phys.PhysReg);
-      }
-      for (auto iter = LivePhysRegs_Status.begin(); iter != LivePhysRegs_Status.end(); ++ iter) {
-        if (lookup.find(iter->first) == lookup.end()) {
-          LivePhysRegs_Status.erase(iter->first);
-        }
+        PreCol_LivePhysRegs.insert(livein_phys.PhysReg);
       }
 
       // empty block
       if (MBB.size() == 0) return;
 
       // normal
+      idx = 0;
       for (MachineInstr& MI: MBB) {
-        allocateInstruction(MBB, MI);  
+        allocateInstruction(MBB, MI, Vreg_Live_range_BB, idx);  
         if (MI.isTerminator()) {
           if (!MI.isReturn()) {
             for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
@@ -418,9 +494,12 @@ namespace {
               auto vir = iter->second;
               Do_Spill(Live_Phy_to_Vir, MBB, MI, phy);
             }
+          } else {
+            Restore_Callee(MBB, MI);
           }
           return;
         }
+        idx ++;
       }
 
         MachineInstr& anchor = MBB.instr_back();
@@ -461,9 +540,19 @@ namespace {
       LiveVirtRegs.clear();
       VirtualRegs_Status.clear();
       Live_Phy_to_Vir.clear();
-      LivePhysRegs_Status.clear();
+      PreCol_LivePhysRegs.clear();
+      Callee_Saved_.clear();
+      Callee_Frame_.clear();
 
       // Allocate each basic block locally
+      // const llvm::MCPhysReg* callee_saved = MRI->getCalleeSavedRegs();
+      auto grab = MRI->getCalleeSavedRegs();
+      for (auto iter = grab; *iter; iter ++) {
+        Callee_Saved_.insert(MCRegister(*iter));
+        llvm::outs() << "Receive: " <<printRegUnit(MCRegister(*iter), TRI) << '\n';
+      }
+
+      // begin
       for (MachineBasicBlock &MBB : MF) {
         allocateBasicBlock(MBB);
       }
