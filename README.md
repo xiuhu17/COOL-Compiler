@@ -3,7 +3,7 @@ Realize a Compiler for COOL language
 
 ### Front End(Scanner&Parser): MP1_Handout
 - Implement Scanner, use Flex as scanner generator to generate scanner which supports Error Detector. 
-- Implement Parser, use Bison as parser generator to generate scanner which supports Error Recovery.
+- Implement Parser, use Bison as parser generator to generate cpp parser which supports Error Recovery.
 
 ### Middle End(CodeGen): MP2_Handout & MP3_Handout
 - Implement IR Code Generation. Under Semantic Analysis, use AST data structure built in Parser stage and LLVM MiddleEnd API to generate LLVM three-address assembly code.
