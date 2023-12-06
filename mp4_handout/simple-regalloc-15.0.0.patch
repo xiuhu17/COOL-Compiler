@@ -1,0 +1,69 @@
+diff -pur llvm15.org/llvm/include/llvm/CodeGen/LinkAllCodegenComponents.h llvm15/llvm/include/llvm/CodeGen/LinkAllCodegenComponents.h
+--- llvm15.org/llvm/include/llvm/CodeGen/LinkAllCodegenComponents.h	2022-03-14 04:44:55.000000000 -0500
++++ llvm15/llvm/include/llvm/CodeGen/LinkAllCodegenComponents.h	2022-10-25 09:03:24.450247909 -0500
+@@ -37,6 +37,7 @@ namespace {
+       (void) llvm::createBasicRegisterAllocator();
+       (void) llvm::createGreedyRegisterAllocator();
+       (void) llvm::createDefaultPBQPRegisterAllocator();
++      (void) llvm::createSimpleRegisterAllocator();
+ 
+       llvm::linkAllBuiltinGCs();
+ 
+diff -pur llvm15.org/llvm/include/llvm/CodeGen/Passes.h llvm15/llvm/include/llvm/CodeGen/Passes.h
+--- llvm15.org/llvm/include/llvm/CodeGen/Passes.h	2022-03-14 04:44:55.000000000 -0500
++++ llvm15/llvm/include/llvm/CodeGen/Passes.h	2022-10-25 09:03:52.105945135 -0500
+@@ -201,6 +201,8 @@ namespace llvm {
+   ///
+   FunctionPass *createDefaultPBQPRegisterAllocator();
+ 
++  FunctionPass *createSimpleRegisterAllocator();
++
+   /// PrologEpilogCodeInserter - This pass inserts prolog and epilog code,
+   /// and eliminates abstract frame references.
+   extern char &PrologEpilogCodeInserterID;
+diff -pur llvm15.org/llvm/include/llvm/InitializePasses.h llvm15/llvm/include/llvm/InitializePasses.h
+--- llvm15.org/llvm/include/llvm/InitializePasses.h	2022-03-14 04:44:55.000000000 -0500
++++ llvm15/llvm/include/llvm/InitializePasses.h	2022-10-25 09:04:34.417486666 -0500
+@@ -381,6 +381,7 @@ void initializeRedundantDbgInstEliminati
+ void initializeRegAllocEvictionAdvisorAnalysisPass(PassRegistry &);
+ void initializeRegAllocFastPass(PassRegistry&);
+ void initializeRegAllocScoringPass(PassRegistry &);
++void initializeRegAllocSimplePass(PassRegistry&);
+ void initializeRegBankSelectPass(PassRegistry&);
+ void initializeRegToMemLegacyPass(PassRegistry&);
+ void initializeRegUsageInfoCollectorPass(PassRegistry&);
+diff -pur llvm15.org/llvm/lib/CodeGen/CMakeLists.txt llvm15/llvm/lib/CodeGen/CMakeLists.txt
+--- llvm15.org/llvm/lib/CodeGen/CMakeLists.txt	2022-03-14 04:44:55.000000000 -0500
++++ llvm15/llvm/lib/CodeGen/CMakeLists.txt	2022-10-25 09:04:57.225245394 -0500
+@@ -171,6 +171,7 @@ add_llvm_component_library(LLVMCodeGen
+   RegAllocFast.cpp
+   RegAllocGreedy.cpp
+   RegAllocPBQP.cpp
++  RegAllocSimple.cpp
+   RegAllocScore.cpp
+   RegisterClassInfo.cpp
+   RegisterCoalescer.cpp
+diff -pur llvm15.org/llvm/lib/CodeGen/CodeGen.cpp llvm15/llvm/lib/CodeGen/CodeGen.cpp
+--- llvm15.org/llvm/lib/CodeGen/CodeGen.cpp	2022-03-14 04:44:55.000000000 -0500
++++ llvm15/llvm/lib/CodeGen/CodeGen.cpp	2022-10-25 09:05:22.500977637 -0500
+@@ -98,6 +98,7 @@ void llvm::initializeCodeGen(PassRegistr
+   initializeRABasicPass(Registry);
+   initializeRAGreedyPass(Registry);
+   initializeRegAllocFastPass(Registry);
++  initializeRegAllocSimplePass(Registry);
+   initializeRegUsageInfoCollectorPass(Registry);
+   initializeRegUsageInfoPropagationPass(Registry);
+   initializeRegisterCoalescerPass(Registry);
+diff -pur llvm15.org/llvm/lib/CodeGen/TargetPassConfig.cpp llvm15/llvm/lib/CodeGen/TargetPassConfig.cpp
+--- llvm15.org/llvm/lib/CodeGen/TargetPassConfig.cpp	2022-03-14 04:44:55.000000000 -0500
++++ llvm15/llvm/lib/CodeGen/TargetPassConfig.cpp	2022-10-25 09:06:29.064270739 -0500
+@@ -1378,7 +1378,8 @@ FunctionPass *TargetPassConfig::createRe
+ 
+ bool TargetPassConfig::addRegAssignAndRewriteFast() {
+   if (RegAlloc != (RegisterRegAlloc::FunctionPassCtor)&useDefaultRegisterAllocator &&
+-      RegAlloc != (RegisterRegAlloc::FunctionPassCtor)&createFastRegisterAllocator)
++      RegAlloc != (RegisterRegAlloc::FunctionPassCtor)&createFastRegisterAllocator &&
++      RegAlloc != (RegisterRegAlloc::FunctionPassCtor)&createSimpleRegisterAllocator)
+     report_fatal_error("Must use fast (default) register allocator for unoptimized regalloc.");
+ 
+   addPass(createRegAllocPass(false));

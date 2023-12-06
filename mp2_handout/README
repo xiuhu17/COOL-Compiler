@@ -1,0 +1,150 @@
+# README file for Machine Project Assignments 2 and 3
+
+## Information about the differences between MP 2 and MP 3
+
+MP 2 is Phase 1 of code generation.
+In this phase, you will translate a subset of COOL
+that only includes a single class (`Main`) with a single method (`Main.main`) and no attributes.
+You will ignore most object-related language features
+including case, new, dispatch, static dispatch, isvoid, object, and strings.
+
+MP 3 is Phase 2, and it requires you to finish the translator
+to support all the remaining features of COOL.
+
+## Conditional Compilation
+
+In the primary source files, `cgen.cc` and `cgen.h`, you will see some conditional
+compilation using the following directives:
+```C++
+#ifndef MP3 ... #endif
+```
+or
+```C++
+#ifdef  MP3 ... #endif
+```
+These directives enclose code that is only required in Phase 1
+or only required in Phase 2, respectively.
+In MP 2, you should not have to write any code that is enclosed in `#ifdef MP3  ... #endif`.
+
+The Makefile in `src/` is set up so that you can compile phase 1 by saying 'make cgen-1'
+and phase 2 by saying 'make cgen-2'.
+The symbol MP3 is defined on the command line in the second case but not the first.
+
+## Common information for both MP 2 and MP 3
+
+- `cgen.h`: the header file for the code generator.
+  Feel free to add anything you need.
+  It contains partial declarations of the following key classes, which you must complete:
+
+  - `class CGenClassTable`: one per input program.
+    This contains the inheritance tree of `CGenNode`s 
+    and a symbol table to map class `Symbol`s to `CGenNode` objects.
+
+  - `class CGenNode`: one per class of the input program.
+    This represents one "node" in the inheritance tree of classes.
+    It contains the information extracted from the AST about the class needed for codegen.
+
+  - `class CGenEnvironment`: one per method;
+    this must be passed from expression node to expression node
+    during the tree walk over the method body.
+    It contains a symbol table to map local (`let`) variable symbols
+    to corresponding `operand` objects.
+
+- `cgen.cc`: the skeleton file for the code generator. Code generation proceeds roughly as follows:
+
+   - Our compiler driver (`cool-support/src/cgen_main.cc`) calls `program_class::cgen(std::ostream &os)`
+   - `program_class::cgen` creates a new `CgenClassTable`
+   - `CgenClassTable` constructor does code generation for the program, including the following steps:
+     1. create the class tree from the class list
+     1. perform a first setup pass on all the nodes in the tree which includes laying out the features of the class
+     1. create global constants
+     1. perform a codegen pass on all the nodes in the tree
+        - emit code for each method in the class
+          - emit code for the expression tree in the method body
+            using a recursive tree walk implemented by the `code(CgenEnvironment *)`
+            virtual functions defined by every Expression node.
+
+     This is a high level description of what should happen in your
+     compiler and the order in which it will occur. Of course, you will 
+     need to add some of your own functions and data members to accomplish 
+     these tasks - filling in the details is your job.
+
+- `cool-tree.handcode.h`: contains the declarations and definitions of code generation AST nodes.
+  You may modify these as you wish, but be sure to do "make clean"
+  after doing so. Place all method definitions in `cgen.cc`.
+
+- `coolrt.{h,c}`: Cool runtime implemented in C. Modify to match your generated code (MP 3 only).
+
+From the support code:
+- `cgen_main.cc`: the main function of the code generator binary. You should not modify this file.
+
+- `cgen-{1,2}` flags:
+
+  The final compiled and linked code generator is called `cgen`.
+  This program will accept several command-line flags.
+  For this assignment, -d (debug) may be useful as it sets a global variable `cgen_debug` to `true`.
+  If you want your code generator to print debug information when the option is set,
+  write your debug code in the following format:
+
+  ```C++
+  if (cgen_debug) {
+    // ...
+  }
+  ```
+
+
+Hi all,     
+
+Seeing that many of you have had some difficulties with the starter code of MP2, let me explain a few key points in the code and give some hints on what you are expected to do:
+
+Class Hierarchy: CGenClassTable, CGenNode, and CGenEnvironment
+You should check out the README in the handout for what they do, if you havent done so.
+
+For what you should do, the gist is this: the function CgenClassTable::code_module generates code for the entire program, and boils down (in MP2 only) to merely mainNode->codeGenMainmain() and code_main(). The former is where you generate the entire Cools Main::main function, and the latter is just for getting an entry-point main function for your LLVM code to start from.
+
+This diagram may help if you feel that the relationship between these two things are complicated:
+
+---------------------------------------------------------------
+    Cool              CodeGen                LLVM
+    ---------------------------------------------------
+    --                code_main()            main()
+                                              ↓ invokes
+    Main::main()      codeGenMainmain()      Main_main()
+---------------------------------------------------------------
+
+To generate code for Cool construct, call code() on the top-level AST node (actually method-level, at least for MP2). In codeGenMainmain, you have access to the mainMethod AST node. You should also implement code() so that each AST node calls code() on its children. That will give you a tree walk.
+
+In MP2, everything you need to write are called from code_module. Search for // TODO in cgen.{cc|h} to see where you need to add code.
+
+What is make_alloca()?
+make_alloca() is where we expect you "write code to emit alloca instructions" if you need on-stack space.
+
+Hint: youll likely only need to alloca for "let expressions, if-else expressions, and loops". Some of you didnt even need alloca for these exprs (Im assuming you used phi-node), and thats fine too.
+make_alloca() is a separate function from code() because alloca instructions is best placed in the very first basic block of a function (consider why), but ValuePrinter prints sequentially, so by the time code() of an expression is called, you may be too far into a function to put your alloca at the right location.
+
+Hint: this means you should remember to call make_alloca() before calling code() when you generate a function. Your make_alloca() of top-level expressions should also call make_alloca() on its immediate children.
+Symbol Tables
+Look at cgen.h: CgenEnvironment (one per function / method) has a symbol table var_table for the local variables in the function. Meanwhile, CgenClassTable is a symbol table because
+-----------------------------------------------------------------
+      class CgenClassTable : public cool::SymbolTable<CgenNode> { ... };
+------------------------------------------------------------------
+and it holds the globally defined symbols (classes + methods).
+
+In MP2 you most likely wont need to use the CgenClassTable symbol table, but you can access it indirectly through the current CgenEnvironment *env.
+
+
+If an identifier is defined multiple times in a let, later bindings hide earlier ones. Identifiers introduced
+by let also hide any definitions for the same names in containing scopes. Every let expression must
+introduce at least one identifier
+
+The function newloc() applied to a store gives us an unused location in that store. We then create a new environment E0, 
+which maps c to lc but also contains all of the mappings of E for identifiers other than c. 
+Note that if c already has a mapping in E, the new environment E0 hides this old mapping. 
+We must also update the store to map the new location to avalue. In this case lc maps to the value 33
+
+once introduce a new variable, no matter it has already has a mapping in E or not, we need to
+1: alloca to get a new operand which store the allocated address
+2: hide previous mapping variable -> operand
+
+
+(All alloca instructions should be placed in the entry block of the function. This placement ensures that your allocation is guaranteed to happen exactly once in each function invocation),

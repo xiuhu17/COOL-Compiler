@@ -1,0 +1,8 @@
+"""Legal
+multiline
+string"""
+
+"""Multiline string should not be terminated by single quote ";
+it must be terminated by triple quotes \""" """
+
+"""...therefore I am a bad string"

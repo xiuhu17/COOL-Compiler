@@ -1,0 +1,13 @@
+-- wrong punctuation
+class A {
+  z . Int;
+};
+
+class A {
+  z . Int;
+  z . Int;
+  z . Int;
+  z . Int;
+  z . Int;
+  z . Int;
+};

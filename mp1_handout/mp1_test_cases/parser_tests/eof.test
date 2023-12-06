@@ -1,0 +1,4 @@
+
+(* error:  closing brace is missing *)
+Class E inherits A {
+;

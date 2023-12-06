@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "/usr/include/llvm-15/",
+                "${workspaceFolder}/**"
+            ],
+            "cppStandard": "c++17",
+            "defines": ["MP3"]
+        }
+    ],
+    "version": 4
+}

@@ -1,0 +1,13 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "/usr/include/llvm-15/",
+                "${workspaceFolder}/**"
+            ],
+            "cppStandard": "c++17"
+        }
+    ],
+    "version": 4
+}

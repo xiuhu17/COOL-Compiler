@@ -1,0 +1,21 @@
+(* error:  keyword inherits is misspelled *)
+
+Class C inherits a {
+};
+Class C inherits a {
+};
+
+
+Class D inherts A {
+};
+Class D inherts A {
+};
+Class D inherts A {
+};
+Class D inherts A {
+};
+Class D inherts A {
+};
+Class D inherts A {
+};
+
