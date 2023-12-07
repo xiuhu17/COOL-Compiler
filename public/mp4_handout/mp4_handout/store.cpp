@@ -117,6 +117,13 @@ namespace {
       return true;
     }
     void Update_Existing_Per_Instr() {
+      // for (auto iter = LivePhysRegs_Status.begin(); iter != LivePhysRegs_Status.end(); ++ iter) {
+      //   auto arg_ret_phys = iter->first;
+      //   auto kill_or_dead = iter->second;
+      //   if (kill_or_dead) {
+      //     LivePhysRegs_Status.erase(arg_ret_phys);
+      //   }
+      // }
       for (auto iter = Live_Phy_to_Vir.begin(); iter != Live_Phy_to_Vir.end(); ++ iter) {
         auto phy_reg = iter->first;
         auto vir_reg = iter->second;
