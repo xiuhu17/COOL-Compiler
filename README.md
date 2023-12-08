@@ -1,5 +1,5 @@
 ## COOL-Compiler
-Realize a Compiler for COOL language
+Implement a Compiler for COOL language which is an imperative, object-oriented, type safe language that is a model of the Java language. (COOL Program ---> X86 Assembly)
 
 ### Front End(Scanner&Parser):
 - Implement Scanner, use Flex as scanner generator to generate scanner which supports Error Detector. 
