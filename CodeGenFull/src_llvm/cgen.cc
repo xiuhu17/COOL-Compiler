@@ -1348,7 +1348,8 @@ Value *object_class::code(CgenEnvironment *env) {
     std::cerr << "Object" << std::endl;
 
   // TODO: add code here and replace `return nullptr`
-  
+
+  // "self"
   if (name->get_string() == "self") {
     auto cls_tp = env->class_table.Type_Lookup[env->get_class()->get_type_name()];
     auto self_val = env->builder.CreateLoad(llvm::PointerType::get(cls_tp, 0), env->SELF_ADDR);
@@ -1357,7 +1358,11 @@ Value *object_class::code(CgenEnvironment *env) {
 
     return self_val;
   }
+	
+  // find in symbol table
   auto [object_type, object_addr_val] = env->find_in_scopes(name);
+
+  // find in attribute
   if (object_type == nullptr || object_addr_val == nullptr) {
     auto curr_class_type = env->class_table.Type_Lookup[env->get_class()->get_type_name()];
     auto self_ptr = env->builder.CreateLoad(llvm::PointerType::get(curr_class_type, 0), env->SELF_ADDR);
@@ -1478,7 +1483,8 @@ Value *dispatch_class::code(CgenEnvironment *env) {
   // TODO: add code here and replace `return nullptr`
   auto expr_val = expr->code(env);
   auto expr_tp = expr->get_expr_tp(env);
-  
+
+  // when happens func_call(arg, arg, ....) rather than object.func_call(arg, arg, ...)
   if (expr_val == nullptr || expr_tp == nullptr) { // use self
       auto self_tp_dispatch = env->Type_Lookup[env->get_class()->get_type_name()];
       auto self_val_dispatch = env->builder.CreateLoad(llvm::PointerType::get(self_tp_dispatch, 0), env->SELF_ADDR);
