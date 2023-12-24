@@ -1,6 +1,7 @@
 #ifndef INCLUDE_UNIT_LOOP_INFO_H
 #define INCLUDE_UNIT_LOOP_INFO_H
 #include "llvm/IR/PassManager.h"
+#include <vector>
 
 using namespace llvm;
 
@@ -10,10 +11,16 @@ namespace cs426 {
 /// additional information you find useful for your LICM pass
 class UnitLoopInfo {
   // Define this class to provide the information you need in LICM
+  public:
+    DenseMap<BasicBlock*, DenseSet<BasicBlock*>> header_to_body;
+    DenseMap<BasicBlock*, DenseSet<BasicBlock*>> header_to_latch;
+    DenseMap<BasicBlock*, DenseSet<BasicBlock*>> header_to_exiting;
+    DenseMap<BasicBlock*, BasicBlock*> header_to_parent; // null means it is the top; closet parent in the hieracy
+    DenseMap<BasicBlock*, DenseSet<BasicBlock*>> forest;  // 
 };
 
 /// Loop Identification Analysis Pass. Produces a UnitLoopInfo object which
-/// should contain any information about the loops in the function which is
+/// should contain any information about the loops in the function whic h is
 /// needed for your implementation of LICM
 class UnitLoopAnalysis : public AnalysisInfoMixin<UnitLoopAnalysis> {
   friend AnalysisInfoMixin<UnitLoopAnalysis>;
@@ -24,5 +31,7 @@ public:
 
   UnitLoopInfo run(Function &F, FunctionAnalysisManager &AM);
 };
+
 } // namespace
+
 #endif // INCLUDE_UNIT_LOOP_INFO_H

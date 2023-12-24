@@ -1,0 +1,6 @@
+/home/zhihaow6/Desktop/cs426-mp5/build/CMakeFiles/intrinsics_gen.dir
+/home/zhihaow6/Desktop/cs426-mp5/build/CMakeFiles/omp_gen.dir
+/home/zhihaow6/Desktop/cs426-mp5/build/CMakeFiles/acc_gen.dir
+/home/zhihaow6/Desktop/cs426-mp5/build/CMakeFiles/UnitProject.dir
+/home/zhihaow6/Desktop/cs426-mp5/build/CMakeFiles/edit_cache.dir
+/home/zhihaow6/Desktop/cs426-mp5/build/CMakeFiles/rebuild_cache.dir

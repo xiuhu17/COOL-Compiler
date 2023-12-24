@@ -1,5 +1,7 @@
 // Usage: opt -load-pass-plugin=libUnitProject.so -passes="unit-licm"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/Dominators.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 
 #include "UnitLICM.h"
 #include "UnitLoopInfo.h"
@@ -16,6 +18,9 @@ PreservedAnalyses UnitLICM::run(Function& F, FunctionAnalysisManager& FAM) {
   // Acquires the UnitLoopInfo object constructed by your Loop Identification
   // (LoopAnalysis) pass
   UnitLoopInfo &Loops = FAM.getResult<UnitLoopAnalysis>(F);
+  DominatorTree &DT = FAM.getResult<DominatorTreeAnalysis>(F);
+  AAResults &AA = FAM.getResult<AAManager>(F);
+
 
   // Perform the optimization
 
