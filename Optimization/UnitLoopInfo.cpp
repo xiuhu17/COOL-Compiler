@@ -133,8 +133,8 @@ UnitLoopInfo UnitLoopAnalysis::run(Function &F, FunctionAnalysisManager &FAM) {
     if (BackEdges.size() > 0) {
       // TODO: Add the loop (contains dst and all nodes that can reach src from dst) to the list
       // building the loop latch
-      for (BasicBlock* Pred: predecessors(BB)) {
-        Loops.header_to_latch[BB].insert(Pred);
+      for (BasicBlock* latches: BackEdges) {
+        Loops.header_to_latch[BB].insert(latches);
       }
     }
   }
