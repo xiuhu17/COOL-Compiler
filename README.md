@@ -16,7 +16,7 @@ Implement a Compiler for COOL language which is an imperative, object-oriented, 
 ### Back End(RegAlloc):
   - Implement Register Allocation, using a Greedy and BasicBlock Level Local allocation algorithm, optimized with storing register live across function-calls into callee-saved. Implement using LLVM BackEnd API(TargetRegisterInfo, MachineBasicblock, MachineRegisterInfo ...).
 
-## Analysis & Transformation(Optimization)
+### Analysis & Transformation(Optimization)
   - Implement Loop Identification
   - Implement Loop Invariant Code Motion(LICM)
   - Implement Conditional Constant Propagation(SCCP)
