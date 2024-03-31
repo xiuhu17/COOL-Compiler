@@ -1,11 +1,21 @@
-cmake_minimum_required(VERSION 3.13.4)
-project(unit-mp5)
-set(CMAKE_CXX_STANDARD 20 CACHE STRING "")
+add_library(SROA MODULE
+    # List your source files here.
+    ScalarReplAggregates-zhihaow6.cpp
+)
 
-find_package(LLVM 15 REQUIRED CONFIG)
+# Use C++11 to compile our pass (i.e., supply -std=c++11).
+target_compile_features(SROA PRIVATE cxx_range_for cxx_auto_type)
 
-add_library(UnitProject SHARED UnitLICM.cpp UnitLoopInfo.cpp UnitSCCP.cpp RegisterPasses.cpp)
-target_include_directories(UnitProject PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${LLVM_INCLUDE_DIRS})
-if(NOT LLVM_ENABLE_RTTI)
-  target_compile_options(UnitProject PUBLIC "-fno-rtti")
-endif()
+# LLVM is (typically) built with no C++ RTTI. We need to match that;
+# otherwise, we'll get linker errors about missing RTTI data.
+set_target_properties(SROA PROPERTIES
+    COMPILE_FLAGS "-fno-rtti"
+)
+
+# Get proper shared-library behavior (where symbols are not necessarily
+# resolved when the shared library is linked) on OS X.
+if(APPLE)
+    set_target_properties(SROA PROPERTIES
+        LINK_FLAGS "-undefined dynamic_lookup"
+    )
+endif(APPLE)
