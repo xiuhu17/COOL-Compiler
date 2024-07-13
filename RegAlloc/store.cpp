@@ -222,6 +222,10 @@ namespace {
     // Allocate physical register for virtual register operand
     // for UsedInInstr_Phys, if eax is allocated, al, ah also marked as allocated
     // after this function, we need to call MachineOperand::setReg, MachineOperand::setSubReg
+    // 1: if physical reg, then spill all overlapped
+    // 2: if virtual reg, if exists vir->phy mapping ===> use directly, update mapping
+    // 3: if virtual reg, if no current vir->phy mapping ===> 1: allocate a free physical reg, update mapping, if is_use, load data from stack
+    // 4: if virtual reg, if no current vir->phy mapping ===> 1: spill an existing phy, allocate a free physical reg, update mapping, if is_use, load data from stack
     void allocateOperand(MachineBasicBlock& MBB, MachineInstr& MI, MachineOperand &MO, bool is_use, DenseMap<PhysicalReg, VirtualReg>& Instr_Phy_to_Vir) {
       // TODO: allocate physical register for a virtual register
       auto VirtReg = MO.getReg();
