@@ -20,6 +20,5 @@ Implement a Compiler for COOL language which is an imperative, object-oriented, 
   - Implement Loop Identification
   - Implement Loop Invariant Code Motion(LICM)
   - Implement Conditional Constant Propagation(SCCP)
-  - Implement Scalar Expansion, also supports expanding small C struct array
-  - Implement Mem2Reg
+  - Implement Scalar Expansion, also supports expanding small C struct array(SROA)
 
