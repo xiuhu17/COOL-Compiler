@@ -215,13 +215,13 @@ private:
   // all these three are only for inheritance purpose
 
   
-  // {vtable_pointer(not included in obj_tp); attr, ...}
+  // obj{vtable_pointer(not included in obj_tp); attr, ...}
   std::vector<std::pair<CgenNode*, attr_class*>> obj_tp; // only for after vtable_pointer
-  std::unordered_map<std::string, int> clattr_to_offset; // cl attr name ---> offset in obj{}
+  std::unordered_map<std::string, int> clattr_to_offset; // cl attr name ---> offset in obj{vtable_pointer(not included in obj_tp); attr, ...}
   
-  // {tag(not included in vtable_tp); size(not included in vtable_tp); name(not included in vtable_tp); new_function(not included in vtable_tp); method, ...}
+  // vtable{tag(not included in vtable_tp); size(not included in vtable_tp); name(not included in vtable_tp); new_function(not included in vtable_tp); method, ...}
   std::vector<std::pair<CgenNode*, method_class*>> vtable_tp; // only for after XXX_new; only overwrite or create new function change the type, it remains same until someone overwrite or create new function
-  std::unordered_map<std::string, int> clmethod_to_offset; // cl method name ---> offset in vtable{} 
+  std::unordered_map<std::string, int> clmethod_to_offset; // cl method name ---> offset in vtable{tag(not included in vtable_tp); size(not included in vtable_tp); name(not included in vtable_tp); new_function(not included in vtable_tp); method, ...} 
 
   // use as cl_method_name ---> index_of_vtable_tp vector
   std::unordered_map<std::string, int> clmethod_to_llmethod_idx; // only for after XXX_new; only for those who overload clmethod or create new function do not need to bit cast
