@@ -214,13 +214,13 @@ private:
   // TODO: Add more functions / fields here as necessary
   // all these three are only for inheritance purpose
 
-  // only for after vtable_pointer
+  
   // {vtable_pointer(not included in obj_tp); attr, ...}
-  std::vector<std::pair<CgenNode*, attr_class*>> obj_tp; 
+  std::vector<std::pair<CgenNode*, attr_class*>> obj_tp; // only for after vtable_pointer
   std::unordered_map<std::string, int> clattr_to_offset; // cl attr name ---> offset in obj{}
-  // only for after XXX_new; only overwrite or create new function change the type, it remains same until someone overwrite or create new function
+  
   // {tag(not included in vtable_tp); size(not included in vtable_tp); name(not included in vtable_tp); new_function(not included in vtable_tp); method, ...}
-  std::vector<std::pair<CgenNode*, method_class*>> vtable_tp; 
+  std::vector<std::pair<CgenNode*, method_class*>> vtable_tp; // only for after XXX_new; only overwrite or create new function change the type, it remains same until someone overwrite or create new function
   std::unordered_map<std::string, int> clmethod_to_offset; // cl method name ---> offset in vtable{} 
 
   // use as cl_method_name ---> index_of_vtable_tp vector
