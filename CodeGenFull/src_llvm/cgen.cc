@@ -469,6 +469,9 @@ Function *CgenClassTable::create_llvm_function(const std::string &funcName,
 
 /*********************************************************************
 
+ stringtable: StringTable
+ inttable: StringTable
+ idtable: StringTable
   StrTable / IntTable methods
 
  Coding string, int, and boolean constants
